@@ -35,6 +35,10 @@ impl Terminal {
             ws_ypixel: 0,
         };
 
+        // Safety: `winsize` is a valid `libc::winsize` struct.
+        // `TIOCGWINSZ` is a valid ioctl request for a terminal file descriptor.
+        // `winsize` is a valid pointer to a `libc::winsize` struct.
+        // The return value of `ioctl` is checked for errors.
         unsafe {
             let ok = libc::ioctl(Self::get_stdin_fd(), libc::TIOCGWINSZ, &winsize);
             if ok == -1 {
@@ -51,6 +55,10 @@ impl Terminal {
 
     pub fn clear_screen() -> Result<()> {
         std::io::stdout().write_all(b"\x1b[2J")
+    }
+
+    pub fn flush() -> Result<()> {
+        std::io::stdout().flush()
     }
 
     fn get_stdin_fd() -> RawFd {
