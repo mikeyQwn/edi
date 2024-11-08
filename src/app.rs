@@ -38,14 +38,13 @@ impl App<Uninitialized> {
 
     pub fn initialize(mut self) -> App<Initialized> {
         let (w, h) = Terminal::get_size().unwrap();
-        // FIXME: This is a workaround for tmux
-        let h = h - 1;
         self.window.resize(w as usize, h as usize);
 
-        self.window.rerender().unwrap();
+        self.window.debug_fill();
+
         let terminal_state = Terminal::get_current_state().unwrap();
         Terminal::into_raw().unwrap();
-        Terminal::clear_screen().unwrap();
+        self.window.rerender().unwrap();
         Terminal::set_position(self.x, self.y).unwrap();
         Terminal::flush().unwrap();
 

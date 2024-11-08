@@ -1,7 +1,7 @@
 use std::io::{stdout, Write};
 
 use crate::{
-    escaping::{ANSIColor, ANSIEscape, EscapeBuilder},
+    escaping::{ANSIColor, EscapeBuilder},
     terminal::Terminal,
 };
 
@@ -15,7 +15,7 @@ impl Default for Cell {
     fn default() -> Self {
         Self {
             character: ' ',
-            color: ANSIColor::Magenta,
+            color: ANSIColor::White,
         }
     }
 }
@@ -67,7 +67,7 @@ impl Window {
 
     pub fn rerender(&mut self) -> Result<(), std::io::Error> {
         self.buffer.copy_from_slice(&self.back_buffer);
-        let string_diffs = self.to_string();
+        let string_diffs = self.as_string();
         let changes = EscapeBuilder::new()
             .clear_screen()
             .move_to(0, 0)
@@ -122,7 +122,20 @@ impl Window {
         self.back_buffer[index].character = character;
     }
 
-    fn to_string(&self) -> String {
+    pub(crate) fn debug_fill(&mut self) {
+        for i in 0..self.height {
+            for j in 0..self.width {
+                if (i + j) & 1 == 0 {
+                    self.back_buffer[i * self.width + j] = Cell {
+                        character: 'x',
+                        color: ANSIColor::Cyan,
+                    };
+                }
+            }
+        }
+    }
+
+    fn as_string(&self) -> String {
         let mut result = EscapeBuilder::new();
 
         for i in 0..self.height {
@@ -138,7 +151,6 @@ impl Window {
                 }
                 result = result.write(cell.character.to_string().into());
             }
-            result = result.write("\n".into());
         }
 
         result.build()
@@ -159,7 +171,7 @@ mod tests {
 
         std::mem::swap(&mut window.buffer, &mut window.back_buffer);
 
-        assert_eq!(window.to_string(), "X    \n X   \n  X  \n   X \n    X\n");
+        assert_eq!(window.as_string(), "X    \n X   \n  X  \n   X \n    X\n");
     }
 
     #[test]
