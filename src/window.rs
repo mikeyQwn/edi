@@ -1,15 +1,22 @@
 use std::io::{stdout, Write};
 
-use crate::{escaping::EscapeBuilder, terminal::Terminal};
+use crate::{
+    escaping::{ANSIColor, ANSIEscape, EscapeBuilder},
+    terminal::Terminal,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Cell {
     character: char,
+    color: ANSIColor,
 }
 
 impl Default for Cell {
     fn default() -> Self {
-        Self { character: ' ' }
+        Self {
+            character: ' ',
+            color: ANSIColor::Magenta,
+        }
     }
 }
 
@@ -84,6 +91,15 @@ impl Window {
                     if prev_pos != Some((x.saturating_sub(1), y)) {
                         escape = escape.move_to(x, y);
                     }
+
+                    let mut prev_cell = None;
+                    if index != 0 {
+                        prev_cell = self.buffer.get(index - 1);
+                    }
+                    if prev_cell.map(|c| c.color) != Some(cell.color) {
+                        escape = escape.set_color(cell.color);
+                    }
+
                     prev_pos = Some((x, y));
                     escape = escape.write(cell.character.to_string().into());
                 }
@@ -107,15 +123,25 @@ impl Window {
     }
 
     fn to_string(&self) -> String {
-        let mut result = "".to_string();
+        let mut result = EscapeBuilder::new();
+
         for i in 0..self.height {
             for j in 0..self.width {
                 let index = i * self.width + j;
-                result.push(self.buffer[index].character);
+                let mut prev_cell = None;
+                let cell = self.buffer[index];
+                if index != 0 {
+                    prev_cell = self.buffer.get(index - 1);
+                }
+                if prev_cell.map(|c| c.color) != Some(cell.color) {
+                    result = result.set_color(cell.color);
+                }
+                result = result.write(cell.character.to_string().into());
             }
-            result.push('\n');
+            result = result.write("\n".into());
         }
-        result
+
+        result.build()
     }
 }
 
