@@ -1,6 +1,5 @@
-use terminal::Terminal;
-
 mod app;
+mod escaping;
 mod terminal;
 mod window;
 

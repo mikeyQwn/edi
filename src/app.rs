@@ -1,9 +1,6 @@
 use std::{
     io::{stdout, Read, Write},
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
-    },
+    sync::mpsc::{Receiver, Sender},
 };
 
 use crate::{terminal::Terminal, window::Window};
@@ -45,6 +42,7 @@ impl App<Uninitialized> {
         let h = h - 1;
         self.window.resize(w as usize, h as usize);
 
+        self.window.rerender().unwrap();
         let terminal_state = Terminal::get_current_state().unwrap();
         Terminal::into_raw().unwrap();
         Terminal::clear_screen().unwrap();
