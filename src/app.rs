@@ -3,7 +3,11 @@ use std::{
     sync::mpsc::{Receiver, Sender},
 };
 
-use crate::{terminal::Terminal, window::Window};
+use crate::{
+    escaping::ANSIColor,
+    terminal::Terminal,
+    window::{Cell, Window},
+};
 
 pub enum AppEvent {
     QuitEvent,
@@ -128,7 +132,8 @@ impl App<Initialized> {
                         stdout().flush().unwrap();
                     }
                     _ => {
-                        self.window.put_char(self.x, self.y, c);
+                        self.window
+                            .put_cell(self.x, self.y, Cell::new(c, ANSIColor::Green));
                         self.window.render().unwrap();
                         self.x = self.x.saturating_add(1);
                         Terminal::set_position(self.x, self.y).unwrap();

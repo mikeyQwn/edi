@@ -11,12 +11,15 @@ pub struct Cell {
     color: ANSIColor,
 }
 
+impl Cell {
+    pub fn new(character: char, color: ANSIColor) -> Self {
+        Self { character, color }
+    }
+}
+
 impl Default for Cell {
     fn default() -> Self {
-        Self {
-            character: ' ',
-            color: ANSIColor::White,
-        }
+        Self::new(' ', ANSIColor::Red)
     }
 }
 
@@ -82,6 +85,7 @@ impl Window {
 
         let mut prev_pos = None;
 
+        let mut prev_color = None;
         for y in 0..self.height {
             let row_offs = y * self.width;
             for x in 0..self.width {
@@ -92,11 +96,8 @@ impl Window {
                         escape = escape.move_to(x, y);
                     }
 
-                    let mut prev_cell = None;
-                    if index != 0 {
-                        prev_cell = self.buffer.get(index - 1);
-                    }
-                    if prev_cell.map(|c| c.color) != Some(cell.color) {
+                    if prev_color != Some(cell.color) {
+                        prev_color = Some(cell.color);
                         escape = escape.set_color(cell.color);
                     }
 
@@ -113,13 +114,13 @@ impl Window {
         escape.build()
     }
 
-    pub fn put_char(&mut self, x: usize, y: usize, character: char) {
+    pub fn put_cell(&mut self, x: usize, y: usize, cell: Cell) {
         if x >= self.width || y >= self.height {
             return;
         }
 
         let index = y * self.width + x;
-        self.back_buffer[index].character = character;
+        self.back_buffer[index] = cell;
     }
 
     pub(crate) fn debug_fill(&mut self) {
@@ -166,7 +167,7 @@ mod tests {
         let mut window = Window::new();
         window.resize(5, 5);
         for i in 0..10 {
-            window.put_char(i, i, 'X');
+            window.put_cell(i, i, Cell::new('X', ANSIColor::White));
         }
 
         std::mem::swap(&mut window.buffer, &mut window.back_buffer);
@@ -179,7 +180,7 @@ mod tests {
         let mut window = Window::new();
         window.resize(5, 5);
         for i in 0..10 {
-            window.put_char(i, 0, 'X');
+            window.put_cell(i, 0, Cell::new('X', ANSIColor::White));
         }
 
         let diffs = window.produce_diffs();
