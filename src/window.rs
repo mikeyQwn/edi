@@ -12,7 +12,8 @@ pub struct Cell {
 }
 
 impl Cell {
-    pub fn new(character: char, color: ANSIColor) -> Self {
+    #[must_use]
+    pub const fn new(character: char, color: ANSIColor) -> Self {
         Self { character, color }
     }
 }
@@ -28,20 +29,18 @@ pub struct Window {
     height: usize,
 
     cursor_pos: (usize, usize),
-    prev_cursor_pos: (usize, usize),
 
     buffer: Vec<Cell>,
     back_buffer: Vec<Cell>,
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             width: 0,
             height: 0,
 
             cursor_pos: (0, 0),
-            prev_cursor_pos: (0, 0),
 
             buffer: Vec::new(),
             back_buffer: Vec::new(),
@@ -57,15 +56,24 @@ impl Window {
     }
 
     pub fn render(&mut self) -> Result<(), std::io::Error> {
-        Terminal::set_position(0, 0)?;
         let diffs = self.produce_diffs();
         self.buffer.copy_from_slice(&self.back_buffer);
 
-        stdout().write_all(diffs.as_bytes())?;
-        if self.cursor_pos != self.prev_cursor_pos {
-            Terminal::set_position(self.cursor_pos.0, self.cursor_pos.1)?;
-        }
+        stdout().write_all(diffs.build().as_bytes())?;
         stdout().flush()
+    }
+
+    pub fn render_cursor(&mut self) -> Result<(), std::io::Error> {
+        stdout().write_all(
+            EscapeBuilder::new()
+                .move_to(self.cursor_pos.0, self.cursor_pos.1)
+                .build()
+                .as_bytes(),
+        )
+    }
+
+    pub fn set_cursor(&mut self, x: usize, y: usize) {
+        self.cursor_pos = (x, y);
     }
 
     pub fn rerender(&mut self) -> Result<(), std::io::Error> {
@@ -80,7 +88,7 @@ impl Window {
         stdout().flush()
     }
 
-    pub fn produce_diffs(&self) -> String {
+    pub fn produce_diffs<'a>(&self) -> EscapeBuilder<'a> {
         let mut escape = EscapeBuilder::new();
 
         let mut prev_pos = None;
@@ -107,11 +115,9 @@ impl Window {
             }
         }
 
-        if self.cursor_pos != self.prev_cursor_pos {
-            escape = escape.move_to(self.cursor_pos.0, self.cursor_pos.1);
-        }
+        escape = escape.move_to(self.cursor_pos.0, self.cursor_pos.1);
 
-        escape.build()
+        escape
     }
 
     pub fn put_cell(&mut self, x: usize, y: usize, cell: Cell) {
@@ -121,19 +127,6 @@ impl Window {
 
         let index = y * self.width + x;
         self.back_buffer[index] = cell;
-    }
-
-    pub(crate) fn debug_fill(&mut self) {
-        for i in 0..self.height {
-            for j in 0..self.width {
-                if (i + j) & 1 == 0 {
-                    self.back_buffer[i * self.width + j] = Cell {
-                        character: 'x',
-                        color: ANSIColor::Cyan,
-                    };
-                }
-            }
-        }
     }
 
     fn as_string(&self) -> String {
@@ -186,10 +179,7 @@ mod tests {
         let diffs = window.produce_diffs();
         assert_eq!(
             diffs,
-            EscapeBuilder::new()
-                .move_to(0, 0)
-                .write("XXXXX".into())
-                .build()
+            EscapeBuilder::new().move_to(0, 0).write("XXXXX".into())
         );
     }
 }

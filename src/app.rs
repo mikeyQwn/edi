@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, Read, Write},
+    io::{stdout, Write},
     sync::mpsc::{Receiver, Sender},
 };
 
@@ -10,17 +10,12 @@ use crate::{
     window::{Cell, Window},
 };
 
-pub enum AppEvent {
-    QuitEvent,
-    KeyPressEvent(char),
-}
-
 pub struct Initialized {
     terminal_state: termios::Termios,
 }
 
 #[derive(Default)]
-pub struct Uninitialized {}
+pub struct Uninitialized;
 
 pub struct App<State = Uninitialized> {
     state: State,
@@ -31,10 +26,11 @@ pub struct App<State = Uninitialized> {
 }
 
 impl App<Uninitialized> {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         App {
             window: Window::new(),
-            state: Uninitialized::default(),
+            state: Uninitialized,
 
             x: 0,
             y: 0,
@@ -45,12 +41,11 @@ impl App<Uninitialized> {
         let (w, h) = Terminal::get_size().unwrap();
         self.window.resize(w as usize, h as usize);
 
-        self.window.debug_fill();
-
         let terminal_state = Terminal::get_current_state().unwrap();
         Terminal::into_raw().unwrap();
+
+        self.window.set_cursor(self.x, self.y);
         self.window.rerender().unwrap();
-        Terminal::set_position(self.x, self.y).unwrap();
         Terminal::flush().unwrap();
 
         App {
@@ -66,7 +61,7 @@ impl App<Uninitialized> {
 impl App<Initialized> {
     pub fn run(&mut self) {
         std::thread::scope(|s| {
-            let (r_events, r_errors, t_kill) = input::to_event_stream(std::io::stdin());
+            let (r_events, _, t_kill) = input::to_event_stream(std::io::stdin());
             s.spawn(|| self.handle_events(r_events, t_kill));
         });
 
@@ -84,35 +79,35 @@ impl App<Initialized> {
                 InputEvent::Keypress(c) => match c {
                     'k' => {
                         self.y = self.y.saturating_sub(1);
-                        Terminal::set_position(self.x, self.y).unwrap();
-                        stdout().flush().unwrap();
+                        self.window.set_cursor(self.x, self.y);
+                        self.window.render_cursor().unwrap();
                     }
                     'j' => {
                         self.y = self.y.saturating_add(1);
-                        Terminal::set_position(self.x, self.y).unwrap();
-                        stdout().flush().unwrap();
+                        self.window.set_cursor(self.x, self.y);
+                        self.window.render_cursor().unwrap();
                     }
                     'h' => {
                         self.x = self.x.saturating_sub(1);
-                        Terminal::set_position(self.x, self.y).unwrap();
-                        stdout().flush().unwrap();
+                        self.window.set_cursor(self.x, self.y);
+                        self.window.render_cursor().unwrap();
                     }
                     'l' => {
                         self.x = self.x.saturating_add(1);
-                        Terminal::set_position(self.x, self.y).unwrap();
-                        stdout().flush().unwrap();
+                        self.window.set_cursor(self.x, self.y);
+                        self.window.render_cursor().unwrap();
                     }
-                    _ => {
+                    v => {
+                        eprintln!("{}", v as u32);
                         self.window
                             .put_cell(self.x, self.y, Cell::new(c, ANSIColor::Green));
-                        self.window.render().unwrap();
                         self.x = self.x.saturating_add(1);
-                        Terminal::set_position(self.x, self.y).unwrap();
-                        stdout().flush().unwrap();
+                        self.window.set_cursor(self.x, self.y);
+                        self.window.render().unwrap();
                     }
                 },
                 v => {
-                    dbg!(v);
+                    eprintln!("{:?}", v);
                 }
             }
         }

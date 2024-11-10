@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ANSIColor {
     Reset,
@@ -14,7 +15,7 @@ pub enum ANSIColor {
 }
 
 impl ANSIColor {
-    fn value(self) -> &'static str {
+    const fn value(self) -> &'static str {
         match self {
             Self::Reset => "\x1b[0m",
             Self::Black => "\x1b[30m",
@@ -29,6 +30,7 @@ impl ANSIColor {
     }
 }
 
+#[derive(PartialEq, Eq, Clone)]
 pub enum ANSIEscape<'a> {
     ClearScreen,
     MoveTo(usize, usize),
@@ -48,35 +50,42 @@ impl<'a> ANSIEscape<'a> {
 }
 
 // ANSI escape codes
+#[derive(PartialEq, Eq, Clone)]
 pub struct EscapeBuilder<'a> {
     inner: Vec<ANSIEscape<'a>>,
 }
 
 impl<'a> EscapeBuilder<'a> {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self { inner: Vec::new() }
     }
 
+    #[must_use]
     pub fn clear_screen(mut self) -> Self {
         self.inner.push(ANSIEscape::ClearScreen);
         self
     }
 
+    #[must_use]
     pub fn move_to(mut self, x: usize, y: usize) -> Self {
         self.inner.push(ANSIEscape::MoveTo(x, y));
         self
     }
 
+    #[must_use]
     pub fn set_color(mut self, color: ANSIColor) -> Self {
         self.inner.push(ANSIEscape::SetColor(color));
         self
     }
 
+    #[must_use]
     pub fn write(mut self, text: Cow<'a, str>) -> Self {
         self.inner.push(ANSIEscape::Write(text));
         self
     }
 
+    #[must_use]
     pub fn build(self) -> String {
         self.inner
             .into_iter()

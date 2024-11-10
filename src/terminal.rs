@@ -5,7 +5,7 @@ use std::{
 
 type Result<T> = std::result::Result<T, std::io::Error>;
 
-pub struct Terminal {}
+pub struct Terminal;
 
 impl Terminal {
     pub fn get_current_state() -> Result<termios::Termios> {
@@ -47,14 +47,6 @@ impl Terminal {
         }
 
         Ok((winsize.ws_col, winsize.ws_row))
-    }
-
-    pub fn set_position(x: usize, y: usize) -> Result<()> {
-        std::io::stdout().write_all(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes())
-    }
-
-    pub fn clear_screen() -> Result<()> {
-        std::io::stdout().write_all(b"\x1b[2J")
     }
 
     pub fn flush() -> Result<()> {
