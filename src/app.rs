@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     escaping::ANSIColor,
+    input::{self, InputEvent},
     terminal::Terminal,
     window::{Cell, Window},
 };
@@ -64,53 +65,23 @@ impl App<Uninitialized> {
 
 impl App<Initialized> {
     pub fn run(&mut self) {
-        let (event_tx, event_rx) = std::sync::mpsc::channel();
-        let (tx, rx) = std::sync::mpsc::channel();
-
         std::thread::scope(|s| {
-            s.spawn(|| Self::handle_inputs(event_tx, rx));
-            s.spawn(|| self.handle_events(event_rx, tx));
+            let (r_events, r_errors, t_kill) = input::to_event_stream(std::io::stdin());
+            s.spawn(|| self.handle_events(r_events, t_kill));
         });
 
         Terminal::restore_state(&self.state.terminal_state).unwrap();
     }
 
-    fn handle_inputs(event_queue: Sender<AppEvent>, kill_signal: std::sync::mpsc::Receiver<bool>) {
-        let mut reader = timeout_readwrite::TimeoutReader::new(
-            std::io::stdin(),
-            Some(std::time::Duration::from_millis(200)),
-        );
-        let mut buffer = [0u8; 1];
-
-        loop {
-            let res = reader.read(&mut buffer);
-            if kill_signal.try_recv().is_ok() {
-                break;
-            }
-
-            if res.is_err() {
-                continue;
-            }
-
-            let event = match buffer[0] {
-                b'q' => AppEvent::QuitEvent {},
-                c if c.is_ascii() => AppEvent::KeyPressEvent(c as char),
-                _ => continue,
-            };
-
-            event_queue.send(event).unwrap();
-        }
-    }
-
-    fn handle_events(&mut self, event_queue: Receiver<AppEvent>, kill_signal: Sender<bool>) {
+    fn handle_events(&mut self, event_queue: Receiver<InputEvent>, kill_signal: Sender<()>) {
         loop {
             let event = event_queue.recv().unwrap();
             match event {
-                AppEvent::QuitEvent => {
-                    kill_signal.send(true).unwrap();
+                InputEvent::Keypress('q') => {
+                    kill_signal.send(()).unwrap();
                     break;
                 }
-                AppEvent::KeyPressEvent(c) => match c {
+                InputEvent::Keypress(c) => match c {
                     'k' => {
                         self.y = self.y.saturating_sub(1);
                         Terminal::set_position(self.x, self.y).unwrap();
@@ -140,6 +111,9 @@ impl App<Initialized> {
                         stdout().flush().unwrap();
                     }
                 },
+                v => {
+                    dbg!(v);
+                }
             }
         }
     }

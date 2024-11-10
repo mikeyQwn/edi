@@ -1,5 +1,6 @@
 mod app;
 mod escaping;
+mod input;
 mod terminal;
 mod window;
 
