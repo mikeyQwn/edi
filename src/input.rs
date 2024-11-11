@@ -3,7 +3,12 @@ use std::{io::Read, os::fd::AsFd, sync::mpsc::Receiver, sync::mpsc::Sender};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum InputError {}
+pub enum InputError {
+    #[error("error while reading: `{0}`")]
+    IO(#[from] std::io::Error),
+    #[error("unable to send to a channel: `{0}`")]
+    Send(#[from] std::sync::mpsc::SendError<InputEvent>),
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum InputEvent {
@@ -15,7 +20,7 @@ pub enum InputEvent {
 
 pub fn to_event_stream<H>(
     input_handle: H,
-) -> (Receiver<InputEvent>, Receiver<std::io::Error>, Sender<()>)
+) -> (Receiver<InputEvent>, Receiver<InputError>, Sender<()>)
 where
     H: Read + AsFd + Send + 'static,
 {
@@ -33,7 +38,7 @@ where
         let n = match reader.read(&mut buffer) {
             Ok(n) => n,
             Err(e) => {
-                let _ = t_errors.send(e);
+                let _ = t_errors.send(InputError::from(e));
                 continue;
             }
         };
@@ -49,7 +54,7 @@ where
         };
 
         if let Err(e) = t_events.send(event) {
-            let _ = t_errors.send(e);
+            let _ = t_errors.send(InputError::from(e));
         }
     });
 

@@ -30,7 +30,7 @@ impl ANSIColor {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ANSIEscape<'a> {
     ClearScreen,
     MoveTo(usize, usize),
@@ -50,7 +50,7 @@ impl<'a> ANSIEscape<'a> {
 }
 
 // ANSI escape codes
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EscapeBuilder<'a> {
     inner: Vec<ANSIEscape<'a>>,
 }

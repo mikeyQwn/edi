@@ -39,6 +39,6 @@ mod terminal;
 mod window;
 
 fn main() {
-    let mut app = app::App::new().initialize();
-    app.run();
+    let mut app = app::App::new().initialize().unwrap();
+    app.run().unwrap();
 }

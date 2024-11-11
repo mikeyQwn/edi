@@ -69,7 +69,8 @@ impl Window {
                 .move_to(self.cursor_pos.0, self.cursor_pos.1)
                 .build()
                 .as_bytes(),
-        )
+        )?;
+        stdout().flush()
     }
 
     pub fn set_cursor(&mut self, x: usize, y: usize) {
@@ -81,8 +82,8 @@ impl Window {
         let string_diffs = self.as_string();
         let changes = EscapeBuilder::new()
             .clear_screen()
-            .move_to(0, 0)
             .write(string_diffs.into())
+            .move_to(0, 0)
             .build();
         stdout().write_all(changes.as_bytes())?;
         stdout().flush()
