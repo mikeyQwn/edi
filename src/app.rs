@@ -1,6 +1,8 @@
 use std::sync::mpsc::Receiver;
 
 use crate::{
+    buffer::Buffer,
+    cli::EdiCli,
     escaping::ANSIColor,
     input::{self, InputEvent},
     terminal::Terminal,
@@ -17,6 +19,7 @@ pub struct Uninitialized;
 pub struct App<State = Uninitialized> {
     state: State,
     window: Window,
+    buffers: Vec<Buffer>,
 
     x: usize,
     y: usize,
@@ -28,13 +31,19 @@ impl App<Uninitialized> {
         App {
             window: Window::new(),
             state: Uninitialized,
+            buffers: Vec::new(),
 
             x: 0,
             y: 0,
         }
     }
 
-    pub fn initialize(mut self) -> Result<App<Initialized>, std::io::Error> {
+    pub fn initialize(mut self, args: EdiCli) -> Result<App<Initialized>, std::io::Error> {
+        if let Some(f) = args.edit_file {
+            let contents = std::fs::read_to_string(f)?;
+            self.buffers.push(Buffer::new(contents));
+        }
+
         let (w, h) = Terminal::get_size()?;
         self.window.resize(w as usize, h as usize);
 
@@ -46,8 +55,9 @@ impl App<Uninitialized> {
         Terminal::flush()?;
 
         Ok(App {
-            state: Initialized { terminal_state },
             window: self.window,
+            state: Initialized { terminal_state },
+            buffers: self.buffers,
 
             x: self.x,
             y: self.y,
@@ -58,6 +68,7 @@ impl App<Uninitialized> {
 impl App<Initialized> {
     pub fn run(&mut self) -> Result<(), std::io::Error> {
         let (r_events, _, t_kill) = input::to_event_stream(std::io::stdin());
+        self.redraw();
         self.handle_events(r_events)?;
         t_kill.send(()).unwrap();
 
@@ -109,5 +120,22 @@ impl App<Initialized> {
         }
 
         Ok(())
+    }
+
+    fn redraw(&mut self) {
+        self.buffers.iter().for_each(|b| {
+            let mut line = 0;
+            let mut idx = 0;
+            b.inner.chars().for_each(|c| {
+                self.window
+                    .put_cell(idx, line, Cell::new(c, ANSIColor::Cyan));
+                idx += 1;
+                if c == '\n' {
+                    line += 1;
+                    idx = 0;
+                }
+            });
+        });
+        let _ = self.window.render();
     }
 }

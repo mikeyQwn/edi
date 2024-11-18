@@ -33,12 +33,17 @@
 )]
 
 mod app;
+mod buffer;
+mod cli;
 mod escaping;
 mod input;
 mod terminal;
 mod window;
 
 fn main() {
-    let mut app = app::App::new().initialize().unwrap();
+    let args = cli::EdiCli::parse(std::env::args());
+    println!("{:?}", args);
+
+    let mut app = app::App::new().initialize(args).unwrap();
     app.run().unwrap();
 }

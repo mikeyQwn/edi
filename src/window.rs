@@ -125,6 +125,9 @@ impl Window {
         if x >= self.width || y >= self.height {
             return;
         }
+        if cell.character.is_control() {
+            return;
+        }
 
         let index = y * self.width + x;
         self.back_buffer[index] = cell;
