@@ -41,7 +41,7 @@ impl App<Uninitialized> {
     pub fn initialize(mut self, args: EdiCli) -> Result<App<Initialized>, std::io::Error> {
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(f)?;
-            self.buffers.push(Buffer::new(contents));
+            self.buffers.push(Buffer::new(contents, 50, 10));
         }
 
         let (w, h) = Terminal::get_size()?;
@@ -123,19 +123,9 @@ impl App<Initialized> {
     }
 
     fn redraw(&mut self) {
-        self.buffers.iter().for_each(|b| {
-            let mut line = 0;
-            let mut idx = 0;
-            b.inner.chars().for_each(|c| {
-                self.window
-                    .put_cell(idx, line, Cell::new(c, ANSIColor::Cyan));
-                idx += 1;
-                if c == '\n' {
-                    line += 1;
-                    idx = 0;
-                }
-            });
-        });
+        self.buffers
+            .iter()
+            .for_each(|b| b.flush(&mut self.window, true));
         let _ = self.window.render();
     }
 }
