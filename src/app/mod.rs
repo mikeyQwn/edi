@@ -1,3 +1,7 @@
+mod event;
+
+use event::Event;
+
 use crate::{
     buffer::{Buffer, FlushOptions},
     cli::EdiCli,
@@ -9,34 +13,43 @@ use crate::{
     window::{Cell, Window},
 };
 
-pub struct Initialized {
-    terminal_state: termios::Termios,
+#[derive(Debug)]
+enum AppState {
+    Stopped,
+    Running { prev_state: termios::Termios },
 }
 
-#[derive(Default)]
-pub struct Uninitialized;
+#[derive(Debug)]
+enum AppMode {
+    Normal,
+    Insert,
+    Terminal { command: String },
+}
 
-pub struct App<State = Uninitialized> {
-    state: State,
+pub struct App {
+    state: AppState,
+
+    mode: AppMode,
     window: Window,
     buffers: Vec<Buffer>,
 
     cursor_pos: Vec2<usize>,
 }
 
-impl App<Uninitialized> {
+impl App {
     #[must_use]
     pub const fn new() -> Self {
         App {
+            mode: AppMode::Normal,
+            state: AppState::Stopped,
             window: Window::new(),
-            state: Uninitialized,
             buffers: Vec::new(),
 
             cursor_pos: Vec2::new(0, 0),
         }
     }
 
-    pub fn initialize(mut self, args: EdiCli) -> Result<App<Initialized>, std::io::Error> {
+    pub fn setup(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
         let size = Terminal::get_size()?;
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(f)?;
@@ -49,30 +62,31 @@ impl App<Uninitialized> {
         let (w, h) = Terminal::get_size()?;
         self.window.resize(w as usize, h as usize);
 
-        let terminal_state = Terminal::get_current_state()?;
         Terminal::into_raw()?;
 
         self.window.set_cursor(self.cursor_pos);
         self.window.rerender()?;
         Terminal::flush()?;
 
-        Ok(App {
-            window: self.window,
-            state: Initialized { terminal_state },
-            buffers: self.buffers,
-
-            cursor_pos: self.cursor_pos,
-        })
+        Ok(())
     }
-}
 
-impl App<Initialized> {
-    pub fn run(&mut self) -> Result<(), std::io::Error> {
+    pub fn run(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
+        self.state = AppState::Running {
+            prev_state: Terminal::get_current_state()?,
+        };
+        self.setup(args)?;
+
         let input_stream = InputStream::from_read(std::io::stdin());
         self.redraw();
         self.handle_inputs(input_stream)?;
 
-        Terminal::restore_state(&self.state.terminal_state)?;
+        Terminal::restore_state(&match self.state {
+            AppState::Running { prev_state } => prev_state,
+            AppState::Stopped => panic!("App::run: state is stopped"),
+        })?;
+
+        self.state = AppState::Stopped;
 
         Ok(())
     }
@@ -88,46 +102,40 @@ impl App<Initialized> {
                 }
             };
 
-            match input {
-                Input::Keypress('q') => {
-                    break;
+            let event = match event::map_input(&input, &self.mode) {
+                Some(event) => event,
+                None => {
+                    log::debug!("handle_inputs: no event for input {:?}", input);
+                    continue;
                 }
-                Input::Keypress(c) => match c {
-                    'k' => {
-                        self.cursor_pos.y = self.cursor_pos.y.saturating_sub(1);
-                    }
-                    'j' => {
-                        self.cursor_pos.y = self.cursor_pos.y.saturating_add(1);
-                    }
-                    'h' => {
-                        self.cursor_pos.x = self.cursor_pos.x.saturating_sub(1);
-                    }
-                    'l' => {
-                        self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
-                    }
-                    v => {
-                        log::debug!(
-                            "handle_inputs: received keypress that is not handled {:?}",
-                            v
-                        );
-                        self.window
-                            .put_cell(self.cursor_pos, Cell::new(c, ANSIColor::Green));
-                        self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
-                        self.window.set_cursor(self.cursor_pos);
-                        self.window.render()?;
-                    }
-                },
-                ref v => {
-                    log::debug!("handle_inputs: received input that is not handled {:?}", v);
-                }
-            }
-            if let Input::Keypress('h' | 'k' | 'j' | 'l') = input {
-                self.window.set_cursor(self.cursor_pos);
-                self.window.render_cursor()?;
+            };
+
+            log::debug!("handle_inputs: received event {:?}", event);
+
+            if self.handle_event(event) {
+                break;
             }
         }
 
         Ok(())
+    }
+
+    fn handle_event(&mut self, event: Event) -> bool {
+        match event {
+            Event::SwitchMode(mode) => {
+                self.mode = mode;
+            }
+            Event::InsertChar(c) => {
+                self.window
+                    .put_cell(self.cursor_pos, Cell::new(c, ANSIColor::Green));
+                self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
+                self.window.set_cursor(self.cursor_pos);
+                let _ = self.window.render();
+            }
+            Event::Quit => return true,
+        }
+
+        false
     }
 
     fn redraw(&mut self) {
@@ -163,4 +171,12 @@ fn highlight_naive(line: &str) -> Vec<(Vec2<usize>, ANSIColor)> {
     log::debug!("done highlighting, buf: {:?}", highlights);
 
     highlights
+}
+
+impl Drop for App {
+    fn drop(&mut self) {
+        if let AppState::Running { prev_state } = self.state {
+            let _ = Terminal::restore_state(&prev_state);
+        }
+    }
 }

@@ -44,6 +44,9 @@ mod window;
 
 fn main() {
     let args = cli::EdiCli::parse(std::env::args());
-    let mut app = app::App::new().initialize(args).unwrap();
-    app.run().unwrap();
+    let err = app::App::new().run(args);
+
+    if let Err(e) = err {
+        log::debug!("fatal error: {:?}", e);
+    }
 }

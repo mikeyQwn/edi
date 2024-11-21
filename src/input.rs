@@ -25,6 +25,7 @@ pub enum Message {
 #[derive(Clone, Debug)]
 pub enum Input {
     Keypress(char),
+    Escape,
     Backspace,
 
     Unimplemented(Vec<u8>),
@@ -81,6 +82,7 @@ impl InputStream {
             let event = match buffer[0] {
                 _ if n > 1 => Input::Unimplemented(buffer[..n].into()),
                 127 => Input::Backspace,
+                27 => Input::Escape,
                 c if c.is_ascii() => Input::Keypress(c as char),
                 _ => Input::Unimplemented(buffer[..n].into()),
             };
