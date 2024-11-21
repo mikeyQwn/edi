@@ -1,10 +1,8 @@
-use std::sync::mpsc::Receiver;
-
 use crate::{
     buffer::Buffer,
     cli::EdiCli,
     escaping::ANSIColor,
-    input::{self, InputEvent},
+    input::{self, Input, InputStream},
     terminal::Terminal,
     window::{Cell, Window},
 };
@@ -67,23 +65,31 @@ impl App<Uninitialized> {
 
 impl App<Initialized> {
     pub fn run(&mut self) -> Result<(), std::io::Error> {
-        let (r_events, _, t_kill) = input::to_event_stream(std::io::stdin());
+        let input_stream = InputStream::from_read(std::io::stdin());
         self.redraw();
-        self.handle_events(r_events)?;
-        t_kill.send(()).unwrap();
+        self.handle_inputs(input_stream)?;
 
         Terminal::restore_state(&self.state.terminal_state)?;
+
         Ok(())
     }
 
-    fn handle_events(&mut self, event_queue: Receiver<InputEvent>) -> Result<(), std::io::Error> {
+    fn handle_inputs(&mut self, input_stream: InputStream) -> Result<(), std::io::Error> {
         loop {
-            let event = event_queue.recv().unwrap();
-            match event {
-                InputEvent::Keypress('q') => {
+            let message = input_stream.recv().unwrap();
+            let input = match message {
+                input::Message::Input(event) => event,
+                input::Message::Error(e) => {
+                    eprintln!("{:?}", e);
+                    continue;
+                }
+            };
+
+            match input {
+                Input::Keypress('q') => {
                     break;
                 }
-                InputEvent::Keypress(c) => match c {
+                Input::Keypress(c) => match c {
                     'k' => {
                         self.y = self.y.saturating_sub(1);
                         self.window.set_cursor(self.x, self.y);
