@@ -3,6 +3,7 @@ use crate::{
     cli::EdiCli,
     escaping::ANSIColor,
     input::{self, Input, InputStream},
+    log,
     terminal::Terminal,
     vec2::Vec2,
     window::{Cell, Window},
@@ -78,7 +79,7 @@ impl App<Initialized> {
             let input = match message {
                 input::Message::Input(event) => event,
                 input::Message::Error(e) => {
-                    eprintln!("{:?}", e);
+                    log::debug!("handle_inputs: received an error {:?}", e);
                     continue;
                 }
             };
@@ -101,7 +102,10 @@ impl App<Initialized> {
                         self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
                     }
                     v => {
-                        eprintln!("{}", v as u32);
+                        log::debug!(
+                            "handle_inputs: received keypress that is not handled {:?}",
+                            v
+                        );
                         self.window
                             .put_cell(self.cursor_pos, Cell::new(c, ANSIColor::Green));
                         self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
@@ -110,7 +114,7 @@ impl App<Initialized> {
                     }
                 },
                 ref v => {
-                    eprintln!("{:?}", v);
+                    log::debug!("handle_inputs: received input that is not handled {:?}", v);
                 }
             }
             if let Input::Keypress('h' | 'k' | 'j' | 'l') = input {

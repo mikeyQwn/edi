@@ -37,6 +37,7 @@ mod buffer;
 mod cli;
 mod escaping;
 mod input;
+mod log;
 mod terminal;
 mod vec2;
 mod window;
