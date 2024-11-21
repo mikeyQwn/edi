@@ -38,12 +38,11 @@ mod cli;
 mod escaping;
 mod input;
 mod terminal;
+mod vec2;
 mod window;
 
 fn main() {
     let args = cli::EdiCli::parse(std::env::args());
-    println!("{:?}", args);
-
     let mut app = app::App::new().initialize(args).unwrap();
     app.run().unwrap();
 }

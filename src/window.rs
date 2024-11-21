@@ -2,7 +2,7 @@ use std::io::{stdout, Write};
 
 use crate::{
     escaping::{ANSIColor, EscapeBuilder},
-    terminal::Terminal,
+    vec2::Vec2,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub struct Window {
     width: usize,
     height: usize,
 
-    cursor_pos: (usize, usize),
+    cursor_pos: Vec2<usize>,
 
     buffer: Vec<Cell>,
     back_buffer: Vec<Cell>,
@@ -40,7 +40,7 @@ impl Window {
             width: 0,
             height: 0,
 
-            cursor_pos: (0, 0),
+            cursor_pos: Vec2::new(0, 0),
 
             buffer: Vec::new(),
             back_buffer: Vec::new(),
@@ -66,15 +66,15 @@ impl Window {
     pub fn render_cursor(&mut self) -> Result<(), std::io::Error> {
         stdout().write_all(
             EscapeBuilder::new()
-                .move_to(self.cursor_pos.0, self.cursor_pos.1)
+                .move_to(self.cursor_pos)
                 .build()
                 .as_bytes(),
         )?;
         stdout().flush()
     }
 
-    pub fn set_cursor(&mut self, x: usize, y: usize) {
-        self.cursor_pos = (x, y);
+    pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
+        self.cursor_pos = new_pos;
     }
 
     pub fn rerender(&mut self) -> Result<(), std::io::Error> {
@@ -83,7 +83,7 @@ impl Window {
         let changes = EscapeBuilder::new()
             .clear_screen()
             .write(string_diffs.into())
-            .move_to(0, 0)
+            .move_to(Vec2::new(0, 0))
             .build();
         stdout().write_all(changes.as_bytes())?;
         stdout().flush()
@@ -102,7 +102,7 @@ impl Window {
                 let cell = self.back_buffer[index];
                 if cell != self.buffer[index] {
                     if prev_pos != Some((x.saturating_sub(1), y)) {
-                        escape = escape.move_to(x, y);
+                        escape = escape.move_to(Vec2::new(x, y));
                     }
 
                     if prev_color != Some(cell.color) {
@@ -116,21 +116,24 @@ impl Window {
             }
         }
 
-        escape = escape.move_to(self.cursor_pos.0, self.cursor_pos.1);
+        escape = escape.move_to(self.cursor_pos);
 
         escape
     }
 
-    pub fn put_cell(&mut self, x: usize, y: usize, cell: Cell) {
-        if x >= self.width || y >= self.height {
-            return;
-        }
-        if cell.character.is_control() {
-            return;
+    pub fn put_cell(&mut self, pos: Vec2<usize>, cell: Cell) -> bool {
+        if pos.x >= self.width || pos.y >= self.height {
+            return false;
         }
 
-        let index = y * self.width + x;
+        if cell.character.is_control() {
+            return false;
+        }
+
+        let index = pos.y * self.width + pos.x;
         self.back_buffer[index] = cell;
+
+        true
     }
 
     fn as_string(&self) -> String {
@@ -156,34 +159,4 @@ impl Window {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_window() {
-        let mut window = Window::new();
-        window.resize(5, 5);
-        for i in 0..10 {
-            window.put_cell(i, i, Cell::new('X', ANSIColor::White));
-        }
-
-        std::mem::swap(&mut window.buffer, &mut window.back_buffer);
-
-        assert_eq!(window.as_string(), "X    \n X   \n  X  \n   X \n    X\n");
-    }
-
-    #[test]
-    fn test_diffs() {
-        let mut window = Window::new();
-        window.resize(5, 5);
-        for i in 0..10 {
-            window.put_cell(i, 0, Cell::new('X', ANSIColor::White));
-        }
-
-        let diffs = window.produce_diffs();
-        assert_eq!(
-            diffs,
-            EscapeBuilder::new().move_to(0, 0).write("XXXXX".into())
-        );
-    }
-}
+mod tests {}

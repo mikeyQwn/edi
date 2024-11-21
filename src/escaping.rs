@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::vec2::Vec2;
+
 #[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ANSIColor {
@@ -33,7 +35,7 @@ impl ANSIColor {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ANSIEscape<'a> {
     ClearScreen,
-    MoveTo(usize, usize),
+    MoveTo(Vec2<usize>),
     Write(Cow<'a, str>),
     SetColor(ANSIColor),
 }
@@ -42,7 +44,7 @@ impl<'a> ANSIEscape<'a> {
     fn value(self) -> Cow<'a, str> {
         match self {
             Self::ClearScreen => Cow::Borrowed("\x1b[2J"),
-            Self::MoveTo(x, y) => Cow::Owned(format!("\x1b[{};{}H", y + 1, x + 1)),
+            Self::MoveTo(pos) => Cow::Owned(format!("\x1b[{};{}H", pos.y + 1, pos.x + 1)),
             Self::Write(text) => text,
             Self::SetColor(color) => Cow::Borrowed(color.value()),
         }
@@ -68,8 +70,8 @@ impl<'a> EscapeBuilder<'a> {
     }
 
     #[must_use]
-    pub fn move_to(mut self, x: usize, y: usize) -> Self {
-        self.inner.push(ANSIEscape::MoveTo(x, y));
+    pub fn move_to(mut self, pos: Vec2<usize>) -> Self {
+        self.inner.push(ANSIEscape::MoveTo(pos));
         self
     }
 

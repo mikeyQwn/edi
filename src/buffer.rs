@@ -1,55 +1,50 @@
 use crate::{
     escaping::ANSIColor,
+    vec2::Vec2,
     window::{Cell, Window},
 };
 
 pub struct Buffer {
     pub inner: String,
-    pub width: usize,
-    pub height: usize,
+    pub size: Vec2<usize>,
 }
 
 impl Buffer {
     #[must_use]
-    pub const fn new(inner: String, width: usize, height: usize) -> Self {
-        Self {
-            inner,
-            width,
-            height,
-        }
+    pub const fn new(inner: String, size: Vec2<usize>) -> Self {
+        Self { inner, size }
     }
 
     pub fn flush(&self, window: &mut Window, should_wrap: bool) {
-        let mut line = 0;
-        let mut idx = 0;
+        let mut pos = Vec2::new(0, 0);
         let mut chars = self.inner.chars();
         while let Some(c) = chars.next() {
-            if line > self.height {
+            if pos.y > self.size.y {
                 break;
             }
-            window.put_cell(idx, line, Cell::new(c, ANSIColor::Cyan));
-            idx += 1;
-            if idx > self.width {
+            window.put_cell(Vec2::new(pos.x, pos.y), Cell::new(c, ANSIColor::Cyan));
+            pos.x += 1;
+            if pos.x > self.size.x {
                 match should_wrap {
                     true => {
                         for v in chars.by_ref() {
                             if v != '\n' {
                                 continue;
                             }
-                            line += 1;
-                            idx = 0;
+                            pos.y += 1;
+                            pos.x = 0;
                             break;
                         }
                     }
                     false => {
-                        line += 1;
-                        idx = 0;
+                        pos.y += 1;
+                        pos.x = 0;
                     }
                 }
             }
             if c == '\n' {
-                line += 1;
-                idx = 0;
+                pos.y += 1;
+                pos.x = 0;
             }
         }
     }
