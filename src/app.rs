@@ -1,5 +1,5 @@
 use crate::{
-    buffer::Buffer,
+    buffer::{Buffer, FlushOptions},
     cli::EdiCli,
     escaping::ANSIColor,
     input::{self, Input, InputStream},
@@ -37,9 +37,13 @@ impl App<Uninitialized> {
     }
 
     pub fn initialize(mut self, args: EdiCli) -> Result<App<Initialized>, std::io::Error> {
+        let size = Terminal::get_size()?;
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(f)?;
-            self.buffers.push(Buffer::new(contents, Vec2::new(50, 20)));
+            self.buffers.push(Buffer::new(
+                contents,
+                Vec2::new(size.0 as usize, size.1 as usize),
+            ));
         }
 
         let (w, h) = Terminal::get_size()?;
@@ -127,9 +131,36 @@ impl App<Initialized> {
     }
 
     fn redraw(&mut self) {
-        self.buffers
-            .iter()
-            .for_each(|b| b.flush(&mut self.window, true));
+        log::debug!("redraw: drawing {} buffers", self.buffers.len());
+        self.buffers.iter().for_each(|b| {
+            let opts = FlushOptions::default()
+                .with_wrap(true)
+                .with_highlights(highlight_naive(b.inner()));
+            b.flush(&mut self.window, opts)
+        });
         let _ = self.window.render();
     }
+}
+
+fn highlight_naive(line: &str) -> Vec<(Vec2<usize>, ANSIColor)> {
+    let hl_words = vec![
+        "fn", "let", "mut", "use", "mod", "pub", "crate", "self", "super", "struct", "enum",
+        "impl", "const", "derive",
+    ];
+
+    let mut highlights = Vec::new();
+
+    for word in hl_words {
+        let mut offs = 0;
+        while let Some(pos) = line[offs..].find(word) {
+            let pos = pos + offs;
+            let hl = Vec2::new(pos, pos + word.len());
+            highlights.push((hl, ANSIColor::Green));
+            offs = pos + word.len();
+        }
+    }
+
+    log::debug!("done highlighting, buf: {:?}", highlights);
+
+    highlights
 }
