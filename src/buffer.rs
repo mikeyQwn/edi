@@ -57,23 +57,44 @@ impl Default for FlushOptions {
     }
 }
 
+#[derive(Debug)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 pub struct Buffer {
     pub inner: String,
     pub size: Vec2<usize>,
+    pub cursor_offset: usize,
 }
 
 impl Buffer {
     #[must_use]
     pub const fn new(inner: String, size: Vec2<usize>) -> Self {
-        Self { inner, size }
+        Self {
+            inner,
+            size,
+            cursor_offset: 0,
+        }
     }
 
     pub fn flush(&self, window: &mut Window, opts: FlushOptions) {
         let iter = LineIter::new(self);
         let mut pos = Vec2::new(0, 0);
-        let mut idx = 0;
 
-        for ev in iter {
+        for (idx, ev) in iter.enumerate() {
+            if idx == self.cursor_offset {
+                log::debug!(
+                    "flush: setting cursor to {:?}, cause cursor_offset: {:?}",
+                    pos,
+                    self.cursor_offset
+                );
+                window.set_cursor(pos);
+            }
+
             match ev {
                 IterEvent::Newline => {
                     pos.y += 1;
@@ -99,13 +120,44 @@ impl Buffer {
                     pos.x += 1;
                 }
             }
-
-            idx += 1;
         }
     }
 
     pub fn inner(&self) -> &str {
         &self.inner
+    }
+
+    pub fn write(&mut self, c: char) {
+        let (l, r) = self.inner.split_at(self.cursor_offset);
+        self.inner = format!("{}{}{}", l, c, r);
+        self.cursor_offset += 1;
+    }
+
+    pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
+        match direction {
+            Direction::Left => {
+                let new_offset = self.cursor_offset.saturating_sub(steps);
+                if let Some(c) = self.inner[new_offset..].chars().next() {
+                    if c != '\n' {
+                        self.cursor_offset = new_offset;
+                    }
+                }
+            }
+            Direction::Right => {
+                let new_offset = self.cursor_offset + steps;
+                if let Some(c) = self.inner[new_offset..].chars().next() {
+                    if c != '\n' {
+                        self.cursor_offset = new_offset;
+                    }
+                }
+            }
+            Direction::Up => {
+                unimplemented!("move_cursor: up")
+            }
+            Direction::Down => {
+                unimplemented!("move_cursor: down")
+            }
+        }
     }
 }
 

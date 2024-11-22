@@ -32,8 +32,6 @@ pub struct App {
     mode: AppMode,
     window: Window,
     buffers: Vec<Buffer>,
-
-    cursor_pos: Vec2<usize>,
 }
 
 impl App {
@@ -44,8 +42,6 @@ impl App {
             state: AppState::Stopped,
             window: Window::new(),
             buffers: Vec::new(),
-
-            cursor_pos: Vec2::new(0, 0),
         }
     }
 
@@ -64,7 +60,7 @@ impl App {
 
         Terminal::into_raw()?;
 
-        self.window.set_cursor(self.cursor_pos);
+        self.window.set_cursor(Vec2::new(0, 0));
         self.window.rerender()?;
         Terminal::flush()?;
 
@@ -126,10 +122,27 @@ impl App {
                 self.mode = mode;
             }
             Event::InsertChar(c) => {
-                self.window
-                    .put_cell(self.cursor_pos, Cell::new(c, ANSIColor::Green));
-                self.cursor_pos.x = self.cursor_pos.x.saturating_add(1);
-                self.window.set_cursor(self.cursor_pos);
+                match self.buffers.first_mut() {
+                    Some(b) => {
+                        b.write(c);
+                        b.flush(&mut self.window, FlushOptions::default());
+                    }
+                    None => {
+                        log::debug!("handle_event: no buffers to write to");
+                    }
+                }
+                let _ = self.window.render();
+            }
+            Event::MoveCursor(dir) => {
+                match self.buffers.first_mut() {
+                    Some(b) => {
+                        b.move_cursor(1, dir);
+                        b.flush(&mut self.window, FlushOptions::default());
+                    }
+                    None => {
+                        log::debug!("handle_event: no buffers to move cursor in");
+                    }
+                }
                 let _ = self.window.render();
             }
             Event::Quit => return true,

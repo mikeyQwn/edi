@@ -27,6 +27,10 @@ pub enum Input {
     Keypress(char),
     Escape,
     Backspace,
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
 
     Unimplemented(Vec<u8>),
 }
@@ -79,11 +83,14 @@ impl InputStream {
                 break;
             }
 
-            let event = match buffer[0] {
-                _ if n > 1 => Input::Unimplemented(buffer[..n].into()),
-                127 => Input::Backspace,
-                27 => Input::Escape,
-                c if c.is_ascii() => Input::Keypress(c as char),
+            let event = match buffer {
+                [127, _, _, _] => Input::Backspace,
+                [27, 91, 65, _] => Input::ArrowUp,
+                [27, 91, 66, _] => Input::ArrowDown,
+                [27, 91, 67, _] => Input::ArrowRight,
+                [27, 91, 68, _] => Input::ArrowLeft,
+                [27, _, _, _] => Input::Escape,
+                [c, _, _, _] if c.is_ascii() => Input::Keypress(c as char),
                 _ => Input::Unimplemented(buffer[..n].into()),
             };
 

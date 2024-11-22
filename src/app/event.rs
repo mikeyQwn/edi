@@ -1,4 +1,4 @@
-use crate::input::Input;
+use crate::{buffer, input::Input};
 
 use super::AppMode;
 
@@ -6,6 +6,7 @@ use super::AppMode;
 pub enum Event {
     SwitchMode(AppMode),
     InsertChar(char),
+    MoveCursor(buffer::Direction),
     Quit,
 }
 
@@ -20,6 +21,10 @@ pub fn map_input(input: &Input, mode: &AppMode) -> Option<Event> {
 fn map_normal(input: &Input) -> Option<Event> {
     match input {
         &Input::Escape => Some(Event::Quit),
+        &Input::Keypress('h') => Some(Event::MoveCursor(buffer::Direction::Left)),
+        &Input::Keypress('j') => Some(Event::MoveCursor(buffer::Direction::Down)),
+        &Input::Keypress('k') => Some(Event::MoveCursor(buffer::Direction::Up)),
+        &Input::Keypress('l') => Some(Event::MoveCursor(buffer::Direction::Right)),
         &Input::Keypress('i') => Some(Event::SwitchMode(AppMode::Insert)),
         _ => None,
     }
@@ -29,6 +34,10 @@ fn map_insert(input: &Input) -> Option<Event> {
     match input {
         &Input::Escape => Some(Event::SwitchMode(AppMode::Normal)),
         &Input::Keypress(c) => Some(Event::InsertChar(c)),
+        &Input::ArrowLeft => Some(Event::MoveCursor(buffer::Direction::Left)),
+        &Input::ArrowDown => Some(Event::MoveCursor(buffer::Direction::Down)),
+        &Input::ArrowUp => Some(Event::MoveCursor(buffer::Direction::Up)),
+        &Input::ArrowRight => Some(Event::MoveCursor(buffer::Direction::Right)),
         _ => None,
     }
 }

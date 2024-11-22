@@ -2,6 +2,7 @@ use std::io::{stdout, Write};
 
 use crate::{
     escaping::{ANSIColor, EscapeBuilder},
+    log,
     vec2::Vec2,
 };
 
@@ -74,6 +75,7 @@ impl Window {
     }
 
     pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
+        log::debug!("set_cursor: {:?}", new_pos);
         self.cursor_pos = new_pos;
     }
 
