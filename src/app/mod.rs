@@ -6,11 +6,11 @@ use crate::{
     buffer::{Buffer, FlushOptions},
     cli::EdiCli,
     escaping::ANSIColor,
-    input::{self, Input, InputStream},
+    input::{self, Stream},
     log,
     terminal::Terminal,
     vec2::Vec2,
-    window::{Cell, Window},
+    window::Window,
 };
 
 #[derive(Debug)]
@@ -23,7 +23,10 @@ enum AppState {
 enum AppMode {
     Normal,
     Insert,
-    Terminal { command: String },
+    #[allow(unused)]
+    Terminal {
+        command: String,
+    },
 }
 
 pub struct App {
@@ -73,9 +76,9 @@ impl App {
         };
         self.setup(args)?;
 
-        let input_stream = InputStream::from_read(std::io::stdin());
+        let input_stream = Stream::from_read(std::io::stdin());
         self.redraw();
-        self.handle_inputs(input_stream)?;
+        self.handle_inputs(&input_stream);
 
         Terminal::restore_state(&match self.state {
             AppState::Running { prev_state } => prev_state,
@@ -87,7 +90,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_inputs(&mut self, input_stream: InputStream) -> Result<(), std::io::Error> {
+    fn handle_inputs(&mut self, input_stream: &Stream) {
         loop {
             let message = input_stream.recv().unwrap();
             let input = match message {
@@ -98,12 +101,9 @@ impl App {
                 }
             };
 
-            let event = match event::map_input(&input, &self.mode) {
-                Some(event) => event,
-                None => {
-                    log::debug!("handle_inputs: no event for input {:?}", input);
-                    continue;
-                }
+            let Some(event) = event::map_input(&input, &self.mode) else {
+                log::debug!("handle_inputs: no event for input {:?}", input);
+                continue;
             };
 
             log::debug!("handle_inputs: received event {:?}", event);
@@ -112,8 +112,6 @@ impl App {
                 break;
             }
         }
-
-        Ok(())
     }
 
     fn handle_event(&mut self, event: Event) -> bool {
@@ -125,7 +123,7 @@ impl App {
                 match self.buffers.first_mut() {
                     Some(b) => {
                         b.write(c);
-                        b.flush(&mut self.window, FlushOptions::default());
+                        b.flush(&mut self.window, &FlushOptions::default());
                     }
                     None => {
                         log::debug!("handle_event: no buffers to write to");
@@ -137,7 +135,7 @@ impl App {
                 match self.buffers.first_mut() {
                     Some(b) => {
                         b.move_cursor(1, dir);
-                        b.flush(&mut self.window, FlushOptions::default());
+                        b.flush(&mut self.window, &FlushOptions::default());
                     }
                     None => {
                         log::debug!("handle_event: no buffers to move cursor in");
@@ -157,7 +155,7 @@ impl App {
             let opts = FlushOptions::default()
                 .with_wrap(true)
                 .with_highlights(highlight_naive(b.inner()));
-            b.flush(&mut self.window, opts)
+            b.flush(&mut self.window, &opts);
         });
         let _ = self.window.render();
     }

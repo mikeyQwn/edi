@@ -64,16 +64,6 @@ impl Window {
         stdout().flush()
     }
 
-    pub fn render_cursor(&mut self) -> Result<(), std::io::Error> {
-        stdout().write_all(
-            EscapeBuilder::new()
-                .move_to(self.cursor_pos)
-                .build()
-                .as_bytes(),
-        )?;
-        stdout().flush()
-    }
-
     pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
         log::debug!("set_cursor: {:?}", new_pos);
         self.cursor_pos = new_pos;

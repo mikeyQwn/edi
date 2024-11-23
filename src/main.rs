@@ -13,7 +13,6 @@
     clippy::missing_const_for_fn,
     missing_copy_implementations,
     missing_debug_implementations,
-    clippy::mod_module_files,
     non_ascii_idents,
     noop_method_call,
     clippy::option_if_let_else,
@@ -29,8 +28,11 @@
     clippy::used_underscore_binding,
     clippy::useless_let_if_seq,
     clippy::wildcard_dependencies,
-    clippy::wildcard_imports
+    clippy::wildcard_imports,
+    clippy::all,
+    clippy::pedantic
 )]
+#![allow(clippy::module_name_repetitions)]
 
 mod app;
 mod buffer;

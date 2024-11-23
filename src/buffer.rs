@@ -10,7 +10,7 @@ use crate::{
 /// The second element is the color to highlight with
 type HighlightRange = (Vec2<usize>, ANSIColor);
 
-fn find_color_at_offset(pos: usize, highlights: &[HighlightRange]) -> Option<ANSIColor> {
+const fn find_color_at_offset(pos: usize, highlights: &[HighlightRange]) -> Option<ANSIColor> {
     let (mut l, mut r) = (0, highlights.len());
     while l < r {
         let m = l + (r - l) / 2;
@@ -35,7 +35,7 @@ pub struct FlushOptions {
 
 impl FlushOptions {
     #[must_use]
-    pub fn with_wrap(mut self, wrap: bool) -> Self {
+    pub const fn with_wrap(mut self, wrap: bool) -> Self {
         self.wrap = wrap;
         self
     }
@@ -57,7 +57,7 @@ impl Default for FlushOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     Up,
     Down,
@@ -81,7 +81,7 @@ impl Buffer {
         }
     }
 
-    pub fn flush(&self, window: &mut Window, opts: FlushOptions) {
+    pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
         let iter = LineIter::new(self);
         let mut pos = Vec2::new(0, 0);
 
@@ -129,7 +129,7 @@ impl Buffer {
 
     pub fn write(&mut self, c: char) {
         let (l, r) = self.inner.split_at(self.cursor_offset);
-        self.inner = format!("{}{}{}", l, c, r);
+        self.inner = format!("{l}{c}{r}");
         self.cursor_offset += 1;
     }
 

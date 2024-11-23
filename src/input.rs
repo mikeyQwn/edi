@@ -32,6 +32,7 @@ pub enum Input {
     ArrowLeft,
     ArrowRight,
 
+    #[allow(unused)]
     Unimplemented(Vec<u8>),
 }
 
@@ -39,12 +40,12 @@ pub enum Input {
 /// This struct is used to read input from a file descriptor
 /// and convert it into a stream of input events
 /// The stream can be read from using the `recv` method
-pub struct InputStream {
+pub struct Stream {
     kill: Sender<()>,
     events: Receiver<Message>,
 }
 
-impl InputStream {
+impl Stream {
     pub fn from_read<H>(input_handle: H) -> Self
     where
         H: Read + AsFd + Send + 'static,
@@ -103,7 +104,7 @@ impl InputStream {
     }
 }
 
-impl Drop for InputStream {
+impl Drop for Stream {
     fn drop(&mut self) {
         let _ = self.kill.send(());
     }
