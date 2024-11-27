@@ -40,6 +40,7 @@ mod cli;
 mod escaping;
 mod input;
 mod log;
+mod rope;
 mod terminal;
 mod vec2;
 mod window;
