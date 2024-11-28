@@ -1,7 +1,8 @@
 #[derive(Debug)]
 enum Node {
     Leaf(Box<str>),
-    Regular {
+    Value {
+        // The value of the node is the cumulative length of the left subtree leaf nodes' lengths
         val: usize,
         l: Option<Box<Node>>,
         r: Option<Box<Node>>,
@@ -21,28 +22,35 @@ impl Rope {
     }
 
     pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
-        let mut stack: Vec<&Node> = Vec::new();
-        let mut it: Option<&Node> = Some(&self.root);
+        Iter::new(self).flat_map(|s| s.chars())
+    }
+}
+
+#[derive(Default)]
+struct Iter<'a> {
+    stack: Vec<&'a Node>,
+}
+
+impl<'a> Iter<'a> {
+    pub fn new(r: &'a Rope) -> Self {
+        let it: Option<&Node> = Some(&r.root);
+        let mut out = Self::default();
+        out.push_left(it);
+
+        out
+    }
+
+    fn push_left(&mut self, mut it: Option<&'a Node>) {
         while let Some(value) = it {
-            stack.push(value);
+            self.stack.push(value);
             match value {
-                Node::Regular {
-                    val: _,
-                    l: Some(l),
-                    r: _,
-                } => {
+                Node::Value { l: Some(l), .. } => {
                     it = Some(l);
                 }
                 _ => it = None,
             }
         }
-
-        Iter { stack }.flat_map(|s| s.chars())
     }
-}
-
-struct Iter<'a> {
-    stack: Vec<&'a Node>,
 }
 
 impl<'a> Iterator for Iter<'a> {
@@ -51,45 +59,25 @@ impl<'a> Iterator for Iter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let string = match self.stack.pop() {
             Some(Node::Leaf(string)) => string,
-            Some(_) => unreachable!("all leaf nodes should be of type leaf"),
+            Some(_) => unreachable!("all leaf nodes should be of type leaf, as there is no way to create an iterator with invalid rope"),
             None => return None,
         };
 
-        let Some(Node::Regular {
-            l: _,
-            r: Some(r),
-            val: _,
-        }) = self.stack.pop()
-        else {
+        if self.stack.is_empty() {
+            return Some(string);
+        }
+        // Take the right child of the current node and push all its left children onto the stack
+        let Some(Node::Value { r: Some(r), .. }) = self.stack.pop() else {
             return Some(string);
         };
-
         self.stack.push(r);
 
-        let Node::Regular {
-            l: it,
-            r: _,
-            val: _,
-        } = r.as_ref()
-        else {
+        let Node::Value { l: it, .. } = r.as_ref() else {
             return Some(string);
         };
 
-        let mut it = it.as_deref();
-
-        while let Some(value) = it {
-            self.stack.push(value);
-            match value {
-                Node::Regular {
-                    val: _,
-                    l: Some(l),
-                    r: _,
-                } => {
-                    it = Some(l);
-                }
-                _ => it = None,
-            }
-        }
+        let it = it.as_deref();
+        self.push_left(it);
 
         Some(string)
     }
@@ -104,34 +92,34 @@ mod tests {
         let n = Node::Leaf(Box::from(" Simon"));
         let j = Node::Leaf(Box::from("na"));
         let k = Node::Leaf(Box::from("me i"));
-        let g = Node::Regular {
+        let g = Node::Value {
             val: 2,
             l: Some(Box::new(j)),
             r: Some(Box::new(k)),
         };
-        let h = Node::Regular {
+        let h = Node::Value {
             val: 1,
             l: Some(Box::new(m)),
             r: Some(Box::new(n)),
         };
         let e = Node::Leaf(Box::from("Hello "));
         let f = Node::Leaf(Box::from("my "));
-        let c = Node::Regular {
+        let c = Node::Value {
             val: 6,
             l: Some(Box::new(e)),
             r: Some(Box::new(f)),
         };
-        let d = Node::Regular {
+        let d = Node::Value {
             val: 6,
             l: Some(Box::new(g)),
             r: Some(Box::new(h)),
         };
-        let b = Node::Regular {
+        let b = Node::Value {
             val: 9,
             l: Some(Box::new(c)),
             r: Some(Box::new(d)),
         };
-        let a = Node::Regular {
+        let a = Node::Value {
             val: 22,
             l: Some(Box::new(b)),
             r: None,
