@@ -1,12 +1,59 @@
+use std::{iter::FlatMap, str::Chars};
+
+use crate::log;
+
+// A node in the rope binary tree.
 #[derive(Debug)]
 enum Node {
+    // A leaf node contains an immutable string.
+    // Any operation that modifies the contained string should create new leaf nodes.
     Leaf(Box<str>),
+    // A value node contains a cumulative length of the left subtree leaf nodes' lengths.
     Value {
         // The value of the node is the cumulative length of the left subtree leaf nodes' lengths
         val: usize,
+        // The left child of the node
         l: Option<Box<Node>>,
+        // The right child of the node
         r: Option<Box<Node>>,
     },
+}
+
+impl Node {
+    // Returns the weight of the node.
+    pub fn weight(&self) -> usize {
+        match self {
+            Node::Leaf(s) => s.chars().count(),
+            Node::Value { val, .. } => *val,
+        }
+    }
+
+    // Returns the weight of the node and all its children
+    // The full weight of the root node is the total number of characters in the rope.
+    pub fn full_weight(&self) -> usize {
+        match self {
+            Node::Leaf(s) => s.chars().count(),
+            Node::Value { l, r, .. } => {
+                let l_weight = l.as_ref().map_or(0, |le| le.full_weight());
+                let r_weight = r.as_ref().map_or(0, |ri| ri.full_weight());
+                l_weight + r_weight
+            }
+        }
+    }
+
+    pub fn right(&self) -> Option<&Node> {
+        match self {
+            Node::Leaf(_) => None,
+            Node::Value { r, .. } => r.as_deref(),
+        }
+    }
+
+    pub fn left(&self) -> Option<&Node> {
+        match self {
+            Node::Leaf(_) => None,
+            Node::Value { l, .. } => l.as_deref(),
+        }
+    }
 }
 
 impl Default for Node {
@@ -40,11 +87,48 @@ impl Rope {
         }
     }
 
-    fn weight(&self) -> usize {
-        match self.root.as_ref() {
-            Node::Leaf(s) => s.len(),
-            Node::Value { val, .. } => *val,
+    pub fn concat(&mut self, mut other: Rope) {
+        // An edge case where the current rope is empty to avoid keeping empty nodes in the tree
+        if self.root.weight() == 0 {
+            let _ = std::mem::replace(&mut self.root, other.root);
+            return;
         }
+
+        let new_root = Node::Value {
+            val: self.len(),
+            l: Some(std::mem::take(&mut self.root)),
+            r: Some(std::mem::take(&mut other.root)),
+        };
+
+        self.root = Box::new(new_root);
+    }
+
+    pub fn len(&self) -> usize {
+        self.root.full_weight()
+    }
+
+    pub fn delete(&mut self, range: impl std::ops::RangeBounds<usize>) {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&s) => s,
+            std::ops::Bound::Excluded(&s) => s + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&e) => e + 1,
+            std::ops::Bound::Excluded(&e) => e,
+            std::ops::Bound::Unbounded => self.len(),
+        };
+
+        log::debug!("deleting range: {}..{}", start, end);
+
+        let (mut left, mut right) = self.split(start);
+        let (_, right) = right.split(end - start);
+        left.concat(right);
+        *self = left;
+    }
+
+    fn weight(&self) -> usize {
+        self.root.weight()
     }
 
     fn is_balanced(&self) -> bool {
@@ -79,7 +163,7 @@ impl Rope {
             };
 
             return Node::Value {
-                val: l.len(),
+                val: l.chars().count(),
                 l: Some(Box::new(std::mem::take(&mut leaves[range.start]))),
                 r: Some(Box::new(std::mem::take(&mut leaves[range.start + 1]))),
             };
@@ -87,10 +171,7 @@ impl Rope {
 
         let mid = range.start + len / 2;
         let left = Self::merge_range(leaves, range.start..mid);
-        let left_weight = match left {
-            Node::Leaf(ref s) => s.len(),
-            Node::Value { val, .. } => val,
-        };
+        let left_weight = left.full_weight();
         let right = Self::merge_range(leaves, mid..range.end);
 
         Node::Value {
@@ -132,8 +213,115 @@ impl Rope {
         }
     }
 
-    pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
-        Iter::new(self).flat_map(|s| s.chars())
+    pub fn get(&self, n: usize) -> Option<char> {
+        Self::get_inner(&self.root, n)
+    }
+
+    fn get_inner(node: &Node, n: usize) -> Option<char> {
+        match node {
+            Node::Leaf(s) => s.chars().nth(n),
+            Node::Value { val, l, r } => {
+                if n < *val {
+                    Self::get_inner(l.as_ref()?, n)
+                } else {
+                    Self::get_inner(r.as_ref()?, n - val)
+                }
+            }
+        }
+    }
+
+    pub fn split(&mut self, idx: usize) -> (Rope, Rope) {
+        let (l_node, r_node) = Self::split_inner(std::mem::take(&mut self.root), idx);
+
+        let mut left = Rope { root: l_node };
+        left.rebalance();
+
+        let mut right = Rope { root: r_node };
+        right.rebalance();
+
+        (left, right)
+    }
+
+    fn split_inner(node: Node, idx: usize) -> (Box<Node>, Box<Node>) {
+        match node {
+            Node::Leaf(s) => {
+                let left = Box::new(Node::Leaf(s[..idx].into()));
+                let right = Box::new(Node::Leaf(s[idx..].into()));
+                (left, right)
+            }
+            Node::Value { val, l, r } => {
+                if idx < val {
+                    let (left, right) = Self::split_inner(*l.unwrap(), idx);
+                    let right = Box::new(Node::Value {
+                        val: val - idx,
+                        l: Some(right),
+                        r,
+                    });
+
+                    (left, right)
+                } else {
+                    let (left, right) = Self::split_inner(*r.unwrap(), idx - val);
+                    let left = Box::new(Node::Value {
+                        val,
+                        l,
+                        r: Some(left),
+                    });
+
+                    (left, right)
+                }
+            }
+        }
+    }
+
+    pub fn insert(&mut self, idx: usize, s: &str) {
+        if idx == 0 {
+            self.prepend(s);
+            return;
+        }
+        if idx == self.len() {
+            self.concat(Rope::from(s.to_owned()));
+            return;
+        }
+
+        let (mut left, right) = self.split(idx);
+        left.concat(Rope::from(s.to_owned()));
+        left.concat(right);
+        *self = left;
+    }
+
+    fn prepend(&mut self, s: &str) {
+        let mut new = Rope::from(s.to_owned());
+        new.concat(std::mem::take(self));
+        *self = new;
+    }
+
+    pub fn chars(&self) -> CharsIter<'_> {
+        CharsIter::new(self)
+    }
+}
+
+pub struct CharsIter<'a>(FlatMap<Iter<'a>, Chars<'a>, fn(&str) -> Chars>);
+impl<'a> CharsIter<'a> {
+    pub fn new(r: &'a Rope) -> Self {
+        let out: FlatMap<Iter, Chars, fn(&str) -> Chars> = Iter::new(r).flat_map(str::chars);
+        Self(out)
+    }
+}
+
+impl<'a> Iterator for CharsIter<'a> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl From<String> for Rope {
+    fn from(s: String) -> Self {
+        let node = Node::Leaf(s.into_boxed_str());
+        Rope {
+            root: Box::new(node),
+        }
     }
 }
 
@@ -162,12 +350,7 @@ impl<'a> Iter<'a> {
     fn push_left(&mut self, mut it: Option<&'a Node>) {
         while let Some(value) = it {
             self.stack.push(value);
-            match value {
-                Node::Value { l: Some(l), .. } => {
-                    it = Some(l);
-                }
-                _ => it = None,
-            }
+            it = value.left();
         }
     }
 }
@@ -178,25 +361,23 @@ impl<'a> Iterator for Iter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let string = match self.stack.pop() {
             Some(Node::Leaf(string)) => string,
-            Some(_) => unreachable!("all leaf nodes should be of type leaf, as there is no way to create an iterator with invalid rope"),
+            Some(v) => {
+                self.push_left(v.right());
+                return self.next();
+            }
             None => return None,
         };
 
         if self.stack.is_empty() {
             return Some(string);
         }
+
         // Take the right child of the current node and push all its left children onto the stack
         let Some(Node::Value { r: Some(r), .. }) = self.stack.pop() else {
             return Some(string);
         };
-        self.stack.push(r);
 
-        let Node::Value { l: it, .. } = r.as_ref() else {
-            return Some(string);
-        };
-
-        let it = it.as_deref();
-        self.push_left(it);
+        self.push_left(Some(r));
 
         Some(string)
     }
@@ -246,8 +427,23 @@ mod tests {
         Rope { root: Box::new(a) }
     }
 
+    fn assert_correctness(r: &mut Rope, expected: &str) {
+        assert_eq!(r.chars().collect::<String>(), expected);
+        expected.chars().enumerate().for_each(|(i, c)| {
+            assert_eq!(
+                r.get(i),
+                Some(c),
+                "r: {}, e: {}, idx: {}\nr: {:#?}",
+                r.chars().collect::<String>(),
+                expected,
+                i,
+                r
+            );
+        });
+    }
+
     #[test]
-    fn general() {
+    fn empty() {
         let r = Rope::new();
         let s = r.chars().collect::<String>();
         assert_eq!(s, "");
@@ -255,9 +451,9 @@ mod tests {
 
     #[test]
     fn traversal() {
-        let r = example_rope();
+        let mut r = example_rope();
         let expected = "Hello my name is Simon".to_owned();
-        assert_eq!(r.chars().collect::<String>(), expected)
+        assert_correctness(&mut r, &expected);
     }
 
     #[test]
@@ -269,6 +465,100 @@ mod tests {
         let len = leaves.len();
         r.root = Box::new(Rope::merge_range(&mut leaves, 0..len));
 
-        assert_eq!(r.chars().collect::<String>(), expected);
+        assert_correctness(&mut r, &expected);
+    }
+
+    #[test]
+    fn concat() {
+        let mut r = example_rope();
+        let second = Rope::from(" and I like to eat pizza".to_owned());
+        let expected = "Hello my name is Simon and I like to eat pizza".to_owned();
+
+        r.concat(second);
+        assert_correctness(&mut r, &expected);
+    }
+
+    #[test]
+    fn like_string() {
+        let cases = vec![
+            (
+                vec!["Hello ", "my ", "name ", "is ", "Simon"],
+                "Hello my name is Simon",
+            ),
+            (
+                vec![
+                    "Hello ",
+                    "my ",
+                    "name ",
+                    "is ",
+                    "Simon",
+                    " and I like to eat pizza",
+                ],
+                "Hello my name is Simon and I like to eat pizza",
+            ),
+            (vec!["", ""], ""),
+            (vec!["", "a"], "a"),
+            (vec!["a", ""], "a"),
+            (vec!["a", "b"], "ab"),
+            (vec!["a", "b", "c"], "abc"),
+            (vec![" ", " ", " "], "   "),
+        ];
+
+        for (input, expected) in cases {
+            let mut r = Rope::new();
+            for s in input {
+                r.concat(Rope::from(s.to_owned()));
+            }
+
+            assert_correctness(&mut r, &expected);
+        }
+    }
+
+    #[test]
+    fn split() {
+        let mut r = example_rope();
+        let expected = "Hello my name is Simon".to_owned();
+        assert_correctness(&mut r, &expected);
+
+        let (mut left, mut right) = r.split(5);
+        assert_correctness(&mut left, "Hello");
+        assert_correctness(&mut right, " my name is Simon");
+    }
+
+    #[test]
+    fn split_and_concat() {
+        let mut r = example_rope();
+        let expected = "Hello my name is Simon".to_owned();
+        assert_correctness(&mut r, &expected);
+
+        let (mut left, mut right) = r.split(5);
+        assert_correctness(&mut left, "Hello");
+        assert_correctness(&mut right, " my name is Simon");
+
+        left.concat(right);
+        assert_correctness(&mut left, &expected);
+    }
+
+    #[test]
+    fn insert() {
+        let mut r = example_rope();
+        r.insert(5, " woah");
+        let expected = "Hello woah my name is Simon".to_owned();
+
+        assert_correctness(&mut r, &expected);
+    }
+
+    #[test]
+    fn delete() {
+        let mut r = example_rope();
+        let str = "Hello my name is Simon";
+        r.delete(5..8);
+        let expected: String = str
+            .chars()
+            .enumerate()
+            .filter_map(|(i, c)| if i >= 5 && i < 8 { None } else { Some(c) })
+            .collect();
+
+        assert_correctness(&mut r, &expected);
     }
 }
