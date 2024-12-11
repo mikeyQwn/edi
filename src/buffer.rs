@@ -1,6 +1,7 @@
 use crate::{
     escaping::ANSIColor,
     log,
+    rope::{CharsIter, Rope},
     vec2::Vec2,
     window::{Cell, Window},
 };
@@ -66,25 +67,30 @@ pub enum Direction {
 }
 
 pub struct Buffer {
-    pub inner: String,
+    pub inner: Rope,
     pub size: Vec2<usize>,
     pub cursor_offset: usize,
 }
 
 impl Buffer {
     #[must_use]
-    pub const fn new(inner: String, size: Vec2<usize>) -> Self {
+    pub fn new(inner: String, size: Vec2<usize>) -> Self {
         Self {
-            inner,
+            inner: Rope::from(inner),
             size,
             cursor_offset: 0,
         }
+    }
+
+    pub fn text(&self) -> String {
+        self.inner.chars().collect()
     }
 
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
         let iter = LineIter::new(self);
         let mut pos = Vec2::new(0, 0);
 
+        window.clear();
         for (idx, ev) in iter.enumerate() {
             if idx == self.cursor_offset {
                 log::debug!(
@@ -123,21 +129,28 @@ impl Buffer {
         }
     }
 
-    pub fn inner(&self) -> &str {
-        &self.inner
+    pub fn write(&mut self, c: char) {
+        self.inner
+            .insert(self.cursor_offset, c.to_string().as_ref());
+        self.cursor_offset += 1;
     }
 
-    pub fn write(&mut self, c: char) {
-        let (l, r) = self.inner.split_at(self.cursor_offset);
-        self.inner = format!("{l}{c}{r}");
-        self.cursor_offset += 1;
+    pub fn delete(&mut self) {
+        if self.cursor_offset > 0 {
+            log::debug!(
+                "delete: deleting character at offset {:?}",
+                self.cursor_offset
+            );
+            self.cursor_offset -= 1;
+            self.inner.delete(self.cursor_offset..=self.cursor_offset);
+        }
     }
 
     pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
         match direction {
             Direction::Left => {
                 let new_offset = self.cursor_offset.saturating_sub(steps);
-                if let Some(c) = self.inner[new_offset..].chars().next() {
+                if let Some(c) = self.inner.get(new_offset) {
                     if c != '\n' {
                         self.cursor_offset = new_offset;
                     }
@@ -145,7 +158,7 @@ impl Buffer {
             }
             Direction::Right => {
                 let new_offset = self.cursor_offset + steps;
-                if let Some(c) = self.inner[new_offset..].chars().next() {
+                if let Some(c) = self.inner.get(new_offset) {
                     if c != '\n' {
                         self.cursor_offset = new_offset;
                     }
@@ -167,11 +180,12 @@ enum IterEvent {
     Newline,
 }
 
-struct LineIter<'a>(std::str::Chars<'a>);
+struct LineIter<'a>(CharsIter<'a>);
 
 impl<'a> LineIter<'a> {
     fn new(buffer: &'a Buffer) -> Self {
-        Self(buffer.inner.chars())
+        let chars = buffer.inner.chars();
+        Self(chars)
     }
 }
 

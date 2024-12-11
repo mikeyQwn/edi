@@ -64,6 +64,10 @@ impl Window {
         stdout().flush()
     }
 
+    pub fn clear(&mut self) {
+        self.back_buffer = vec![Cell::default(); self.width * self.height];
+    }
+
     pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
         log::debug!("set_cursor: {:?}", new_pos);
         self.cursor_pos = new_pos;

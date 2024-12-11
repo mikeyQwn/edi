@@ -131,6 +131,18 @@ impl App {
                 }
                 let _ = self.window.render();
             }
+            Event::DeleteChar => {
+                match self.buffers.first_mut() {
+                    Some(b) => {
+                        b.delete();
+                        b.flush(&mut self.window, &FlushOptions::default());
+                    }
+                    None => {
+                        log::debug!("handle_event: no buffers to delete from");
+                    }
+                }
+                let _ = self.window.render();
+            }
             Event::MoveCursor(dir) => {
                 match self.buffers.first_mut() {
                     Some(b) => {
@@ -154,7 +166,7 @@ impl App {
         self.buffers.iter().for_each(|b| {
             let opts = FlushOptions::default()
                 .with_wrap(true)
-                .with_highlights(highlight_naive(b.inner()));
+                .with_highlights(highlight_naive(&b.text()));
             b.flush(&mut self.window, &opts);
         });
         let _ = self.window.render();
