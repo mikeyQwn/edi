@@ -1,5 +1,7 @@
 pub mod iter;
 
+use std::process::Output;
+
 use iter::CharsIter;
 
 // A node in the rope binary tree.
@@ -331,6 +333,15 @@ impl Rope {
             .filter(|&(_, c)| c == '\n')
             .nth(n)
             .map(|(idx, _)| idx + 1)
+    }
+
+    pub fn line_starts(&self) -> impl Iterator<Item = usize> + '_ {
+        std::iter::once(0).chain(
+            self.chars()
+                .enumerate()
+                .filter(|&(_, c)| c == '\n')
+                .map(|(pos, _)| pos + 1),
+        )
     }
 }
 

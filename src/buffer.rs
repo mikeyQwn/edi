@@ -70,12 +70,14 @@ pub struct Buffer {
     pub inner: Rope,
     pub size: Vec2<usize>,
     pub cursor_offset: usize,
+    pub line_offset: usize,
 }
 
 impl Buffer {
     #[must_use]
     pub fn new(inner: String, size: Vec2<usize>) -> Self {
         Self {
+            line_offset: 0,
             inner: Rope::from(inner),
             size,
             cursor_offset: 0,
@@ -89,6 +91,7 @@ impl Buffer {
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
         let iter = LineIter::new(self);
         let mut pos = Vec2::new(0, 0);
+        let mut line_nr = 0;
 
         window.clear();
         for (idx, ev) in iter.enumerate() {
@@ -103,13 +106,25 @@ impl Buffer {
 
             match ev {
                 IterEvent::Newline => {
+                    line_nr += 1;
+
+                    if self.line_offset >= line_nr {
+                        continue;
+                    }
+
                     pos.y += 1;
                     pos.x = 0;
                 }
+
                 IterEvent::Control(c) => {
                     log::debug!("flush: control character {:?}", c);
                 }
+
                 IterEvent::Char(c) => {
+                    if self.line_offset > line_nr {
+                        continue;
+                    }
+
                     if opts.wrap && pos.x >= self.size.x {
                         pos.y += 1;
                         pos.x = 0;
@@ -147,6 +162,7 @@ impl Buffer {
     }
 
     pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
+        log::debug!("offs: {}", self.line_offset);
         match direction {
             Direction::Left => {
                 let new_offset = self.cursor_offset.saturating_sub(steps);
@@ -170,6 +186,17 @@ impl Buffer {
                     return;
                 };
 
+                let (line_nr, _) = self
+                    .inner
+                    .line_starts()
+                    .enumerate()
+                    .find(|&(_, v)| v == new_offset)
+                    .unwrap();
+
+                if line_nr < self.line_offset {
+                    self.line_offset -= 1;
+                }
+
                 self.cursor_offset = new_offset;
             }
             Direction::Down => {
@@ -178,7 +205,17 @@ impl Buffer {
                     return;
                 };
 
-                log::debug!("new_offset is {new_offset}");
+                let (next_line_nr, _) = self
+                    .inner
+                    .line_starts()
+                    .enumerate()
+                    .find(|&(_, v)| v > new_offset)
+                    .unwrap();
+
+                if next_line_nr > self.size.y + self.line_offset {
+                    self.line_offset += 1;
+                }
+
                 self.cursor_offset = new_offset;
             }
         }
