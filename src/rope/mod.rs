@@ -1,6 +1,6 @@
-use std::{iter::FlatMap, str::Chars};
+pub mod iter;
 
-use crate::log;
+use iter::CharsIter;
 
 // A node in the rope binary tree.
 #[derive(Debug)]
@@ -118,8 +118,6 @@ impl Rope {
             std::ops::Bound::Excluded(&e) => e,
             std::ops::Bound::Unbounded => self.len(),
         };
-
-        log::debug!("deleting range: {}..{}", start, end);
 
         let (mut left, mut right) = self.split(start);
         let (_, right) = right.split(end - start);
@@ -298,21 +296,41 @@ impl Rope {
     pub fn chars(&self) -> CharsIter<'_> {
         CharsIter::new(self)
     }
-}
 
-pub struct CharsIter<'a>(FlatMap<Iter<'a>, Chars<'a>, fn(&str) -> Chars>);
-impl<'a> CharsIter<'a> {
-    pub fn new(r: &'a Rope) -> Self {
-        let out: FlatMap<Iter, Chars, fn(&str) -> Chars> = Iter::new(r).flat_map(str::chars);
-        Self(out)
+    pub fn prev_line_start(&self, idx: usize) -> Option<usize> {
+        if idx == 0 {
+            return None;
+        }
+
+        let mut it = self
+            .chars()
+            .enumerate()
+            .take(idx)
+            .filter(|&(_, c)| c == '\n')
+            .peekable();
+
+        let mut res = None;
+        while let Some((pos, _)) = it.next() {
+            if it.peek().is_some() {
+                res = Some(pos + 1);
+            }
+        }
+
+        Some(res.unwrap_or(0))
     }
-}
 
-impl<'a> Iterator for CharsIter<'a> {
-    type Item = char;
+    pub fn next_line_start(&self, idx: usize) -> Option<usize> {
+        let mut it = self.chars().enumerate().skip(idx).peekable();
+        it.by_ref().find(|&(_, c)| c == '\n');
+        it.next().map(|(pos, _)| pos)
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+    pub fn line_start(&self, n: usize) -> Option<usize> {
+        self.chars()
+            .enumerate()
+            .filter(|&(_, c)| c == '\n')
+            .nth(n)
+            .map(|(idx, _)| idx + 1)
     }
 }
 
@@ -330,56 +348,6 @@ impl Default for Rope {
         Self {
             root: Box::new(Node::default()),
         }
-    }
-}
-
-#[derive(Default)]
-struct Iter<'a> {
-    stack: Vec<&'a Node>,
-}
-
-impl<'a> Iter<'a> {
-    pub fn new(r: &'a Rope) -> Self {
-        let it: Option<&Node> = Some(&r.root);
-        let mut out = Self::default();
-        out.push_left(it);
-
-        out
-    }
-
-    fn push_left(&mut self, mut it: Option<&'a Node>) {
-        while let Some(value) = it {
-            self.stack.push(value);
-            it = value.left();
-        }
-    }
-}
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let string = match self.stack.pop() {
-            Some(Node::Leaf(string)) => string,
-            Some(v) => {
-                self.push_left(v.right());
-                return self.next();
-            }
-            None => return None,
-        };
-
-        if self.stack.is_empty() {
-            return Some(string);
-        }
-
-        // Take the right child of the current node and push all its left children onto the stack
-        let Some(Node::Value { r: Some(r), .. }) = self.stack.pop() else {
-            return Some(string);
-        };
-
-        self.push_left(Some(r));
-
-        Some(string)
     }
 }
 

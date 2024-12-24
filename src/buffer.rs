@@ -1,7 +1,7 @@
 use crate::{
     escaping::ANSIColor,
     log,
-    rope::{CharsIter, Rope},
+    rope::{iter::CharsIter, Rope},
     vec2::Vec2,
     window::{Cell, Window},
 };
@@ -165,10 +165,21 @@ impl Buffer {
                 }
             }
             Direction::Up => {
-                unimplemented!("move_cursor: up")
+                let Some(new_offset) = self.inner.prev_line_start(self.cursor_offset) else {
+                    log::debug!("new_offset not found");
+                    return;
+                };
+
+                self.cursor_offset = new_offset;
             }
             Direction::Down => {
-                unimplemented!("move_cursor: down")
+                let Some(new_offset) = self.inner.next_line_start(self.cursor_offset) else {
+                    log::debug!("new_offset not found");
+                    return;
+                };
+
+                log::debug!("new_offset is {new_offset}");
+                self.cursor_offset = new_offset;
             }
         }
     }
@@ -189,7 +200,7 @@ impl<'a> LineIter<'a> {
     }
 }
 
-impl<'a> Iterator for LineIter<'a> {
+impl Iterator for LineIter<'_> {
     type Item = IterEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
