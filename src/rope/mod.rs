@@ -1,7 +1,5 @@
 pub mod iter;
 
-use std::process::Output;
-
 use iter::CharsIter;
 
 // A node in the rope binary tree.
@@ -35,10 +33,9 @@ impl Node {
     pub fn full_weight(&self) -> usize {
         match self {
             Node::Leaf(s) => s.chars().count(),
-            Node::Value { l, r, .. } => {
-                let l_weight = l.as_ref().map_or(0, |le| le.full_weight());
+            Node::Value { val, r, .. } => {
                 let r_weight = r.as_ref().map_or(0, |ri| ri.full_weight());
-                l_weight + r_weight
+                val + r_weight
             }
         }
     }
@@ -419,6 +416,7 @@ mod tests {
                 r
             );
         });
+        assert_eq!(r.chars().count(), r.len());
     }
 
     #[test]

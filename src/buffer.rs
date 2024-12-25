@@ -152,10 +152,6 @@ impl Buffer {
 
     pub fn delete(&mut self) {
         if self.cursor_offset > 0 {
-            log::debug!(
-                "delete: deleting character at offset {:?}",
-                self.cursor_offset
-            );
             self.cursor_offset -= 1;
             self.inner.delete(self.cursor_offset..=self.cursor_offset);
         }

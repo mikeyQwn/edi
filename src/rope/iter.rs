@@ -1,4 +1,7 @@
-use std::{iter::FlatMap, str::Chars};
+use std::{
+    iter::{FlatMap, TakeWhile},
+    str::Chars,
+};
 
 use super::{Node, Rope};
 
@@ -52,6 +55,7 @@ impl<'a> Iterator for InorderIter<'a> {
     }
 }
 
+// TODO: Rename to chars
 pub struct CharsIter<'a>(FlatMap<InorderIter<'a>, Chars<'a>, fn(&str) -> Chars>);
 
 impl<'a> CharsIter<'a> {
