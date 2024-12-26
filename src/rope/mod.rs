@@ -1,6 +1,8 @@
 pub mod iter;
 
-use iter::CharsIter;
+use std::ops::{Range, RangeBounds};
+
+use iter::{Chars, Substring};
 
 // A node in the rope binary tree.
 #[derive(Debug)]
@@ -107,19 +109,9 @@ impl Rope {
     }
 
     pub fn delete(&mut self, range: impl std::ops::RangeBounds<usize>) {
-        let start = match range.start_bound() {
-            std::ops::Bound::Included(&s) => s,
-            std::ops::Bound::Excluded(&s) => s + 1,
-            std::ops::Bound::Unbounded => 0,
-        };
-        let end = match range.end_bound() {
-            std::ops::Bound::Included(&e) => e + 1,
-            std::ops::Bound::Excluded(&e) => e,
-            std::ops::Bound::Unbounded => self.len(),
-        };
-
-        let (mut left, mut right) = self.split(start);
-        let (_, right) = right.split(end - start);
+        let range = self.normalize_range(range);
+        let (mut left, mut right) = self.split(range.start);
+        let (_, right) = right.split(range.end - range.start);
         left.concat(right);
         *self = left;
     }
@@ -292,8 +284,8 @@ impl Rope {
         *self = new;
     }
 
-    pub fn chars(&self) -> CharsIter<'_> {
-        CharsIter::new(self)
+    pub fn chars(&self) -> Chars<'_> {
+        Chars::new(&self.root)
     }
 
     pub fn prev_line_start(&self, idx: usize) -> Option<usize> {
@@ -339,6 +331,51 @@ impl Rope {
                 .filter(|&(_, c)| c == '\n')
                 .map(|(pos, _)| pos + 1),
         )
+    }
+
+    pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
+        let mut range = self.normalize_range(range);
+
+        let (node, skipped) = Self::skip_to(&self.root, range.start);
+        range.start -= skipped;
+        range.end -= skipped;
+
+        Substring::new(Chars::new(node), range)
+    }
+
+    fn normalize_range(&self, range: impl std::ops::RangeBounds<usize>) -> Range<usize> {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&s) => s,
+            std::ops::Bound::Excluded(&s) => s + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&e) => e + 1,
+            std::ops::Bound::Excluded(&e) => e,
+            std::ops::Bound::Unbounded => self.len(),
+        };
+
+        start..end
+    }
+
+    fn skip_to<'a>(mut from: &Node, target: usize) -> (&Node, usize) {
+        let mut skipped = 0;
+        // Skip the left subtree if it is not included in the substring
+        while let Node::Value { val, r, .. } = from {
+            if *val >= target - skipped {
+                break;
+            }
+
+            let Some(r) = r else {
+                break;
+            };
+
+            from = r;
+            skipped += val;
+        }
+
+        (from, skipped)
     }
 }
 
@@ -417,6 +454,16 @@ mod tests {
             );
         });
         assert_eq!(r.chars().count(), r.len());
+        if r.chars().all(|c| c.is_ascii()) {
+            for start in 0..expected.len() {
+                for end in start..expected.len() {
+                    assert_eq!(
+                        expected[start..end],
+                        r.substr(start..end).collect::<String>()
+                    )
+                }
+            }
+        }
     }
 
     #[test]

@@ -1,9 +1,9 @@
 use std::{
-    iter::{FlatMap, TakeWhile},
-    str::Chars,
+    iter::{FlatMap, Skip, Take},
+    ops::Range,
 };
 
-use super::{Node, Rope};
+use super::Node;
 
 #[derive(Default)]
 pub struct InorderIter<'a> {
@@ -11,8 +11,8 @@ pub struct InorderIter<'a> {
 }
 
 impl<'a> InorderIter<'a> {
-    pub fn new(r: &'a Rope) -> Self {
-        let it: Option<&Node> = Some(&r.root);
+    pub(super) fn new(r: &'a Node) -> Self {
+        let it: Option<&Node> = Some(r);
         let mut out = Self::default();
         out.push_left(it);
 
@@ -55,18 +55,33 @@ impl<'a> Iterator for InorderIter<'a> {
     }
 }
 
-// TODO: Rename to chars
-pub struct CharsIter<'a>(FlatMap<InorderIter<'a>, Chars<'a>, fn(&str) -> Chars>);
+pub struct Chars<'a>(FlatMap<InorderIter<'a>, std::str::Chars<'a>, fn(&str) -> std::str::Chars>);
 
-impl<'a> CharsIter<'a> {
-    pub fn new(r: &'a Rope) -> Self {
-        let out: FlatMap<InorderIter, Chars, fn(&str) -> Chars> =
+impl<'a> Chars<'a> {
+    pub(super) fn new(r: &'a Node) -> Self {
+        let out: FlatMap<InorderIter, std::str::Chars, fn(&str) -> std::str::Chars> =
             InorderIter::new(r).flat_map(str::chars);
         Self(out)
     }
 }
 
-impl Iterator for CharsIter<'_> {
+impl Iterator for Chars<'_> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct Substring<'a>(Take<Skip<Chars<'a>>>);
+
+impl<'a> Substring<'a> {
+    pub fn new(it: Chars<'a>, range: Range<usize>) -> Self {
+        Self(it.skip(range.start).take(range.len()))
+    }
+}
+
+impl Iterator for Substring<'_> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {

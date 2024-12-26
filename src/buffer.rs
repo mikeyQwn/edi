@@ -1,7 +1,7 @@
 use crate::{
     escaping::ANSIColor,
     log,
-    rope::{iter::CharsIter, Rope},
+    rope::{iter::Chars, Rope},
     vec2::Vec2,
     window::{Cell, Window},
 };
@@ -224,7 +224,7 @@ enum IterEvent {
     Newline,
 }
 
-struct LineIter<'a>(CharsIter<'a>);
+struct LineIter<'a>(Chars<'a>);
 
 impl<'a> LineIter<'a> {
     fn new(buffer: &'a Buffer) -> Self {
