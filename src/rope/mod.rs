@@ -42,6 +42,7 @@ impl Node {
         }
     }
 
+    // Returns a reference to the right child node, if any
     pub fn right(&self) -> Option<&Node> {
         match self {
             Node::Leaf(_) => None,
@@ -49,6 +50,7 @@ impl Node {
         }
     }
 
+    // Returns a reference to the left child node, if any
     pub fn left(&self) -> Option<&Node> {
         match self {
             Node::Leaf(_) => None,
@@ -59,20 +61,24 @@ impl Node {
 
 impl Default for Node {
     fn default() -> Self {
-        Node::Leaf(Box::from(""))
+        Node::Leaf(Box::default())
     }
 }
 
+// A rope data structure
 #[derive(Debug)]
 pub struct Rope {
     root: Box<Node>,
 }
 
 impl Rope {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    // Returns the depth of the tree
+    #[must_use]
     pub fn depth(&self) -> usize {
         Self::depth_inner(&self.root)
     }
