@@ -94,6 +94,7 @@ impl Rope {
         }
     }
 
+    // Concatenates `self` with `other`
     pub fn concat(&mut self, mut other: Rope) {
         // An edge case where the current rope is empty to avoid keeping empty nodes in the tree
         if self.root.weight() == 0 {
@@ -110,10 +111,12 @@ impl Rope {
         self.root = Box::new(new_root);
     }
 
+    // Returns the length in characters of the string represented by the rope.
     pub fn len(&self) -> usize {
         self.root.full_weight()
     }
 
+    // Removes characters in the given range from the rope
     pub fn delete(&mut self, range: impl std::ops::RangeBounds<usize>) {
         let range = self.normalize_range(range);
         let (mut left, mut right) = self.split(range.start);
@@ -208,6 +211,7 @@ impl Rope {
         }
     }
 
+    // Returns nth character of the string representation of the rope
     pub fn get(&self, n: usize) -> Option<char> {
         Self::get_inner(&self.root, n)
     }
@@ -225,6 +229,7 @@ impl Rope {
         }
     }
 
+    // Splits the rope in two at the character index
     pub fn split(&mut self, idx: usize) -> (Rope, Rope) {
         let (l_node, r_node) = Self::split_inner(std::mem::take(&mut self.root), idx);
 
