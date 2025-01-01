@@ -11,6 +11,12 @@ pub fn __debug_internal(msg: &str) {
     }
 }
 
+pub fn __fatal_internal(msg: &str) -> ! {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr(), "\x1b[0;31m[-]\x1b[0m {msg}");
+    std::process::exit(1)
+}
+
 macro_rules! debug {
     ($($arg:tt)*) => {{
         use crate::log::__debug_internal;
@@ -20,3 +26,11 @@ macro_rules! debug {
     }};
 }
 pub(crate) use debug;
+
+macro_rules! fatal {
+    ($($arg:tt)*) => {{
+        use crate::log::__fatal_internal;
+        __fatal_internal(&format!($($arg)*));
+    }};
+}
+pub(crate) use fatal;
