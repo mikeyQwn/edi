@@ -9,6 +9,7 @@ pub enum Event {
     DeleteChar,
     MoveCursor(buffer::Direction),
     Quit,
+    Submit,
 }
 
 pub const fn map_input(input: &Input, mode: &AppMode) -> Option<Event> {
@@ -47,6 +48,11 @@ const fn map_insert(input: &Input) -> Option<Event> {
 const fn map_terminal(input: &Input) -> Option<Event> {
     match *input {
         Input::Escape => Some(Event::SwitchMode(AppMode::Normal)),
+        Input::Keypress(c) => Some(Event::InsertChar(c)),
+        Input::Backspace => Some(Event::DeleteChar),
+        Input::ArrowLeft => Some(Event::MoveCursor(buffer::Direction::Left)),
+        Input::ArrowRight => Some(Event::MoveCursor(buffer::Direction::Right)),
+        Input::Enter => Some(Event::Submit),
         _ => None,
     }
 }

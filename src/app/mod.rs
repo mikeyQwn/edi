@@ -23,10 +23,7 @@ enum AppState {
 enum AppMode {
     Normal,
     Insert,
-    #[allow(unused)]
-    Terminal {
-        command: String,
-    },
+    Terminal,
 }
 
 pub struct App {
@@ -156,6 +153,9 @@ impl App {
                 let _ = self.window.render();
             }
             Event::Quit => return true,
+            Event::Submit => {
+                todo!()
+            }
         }
 
         false

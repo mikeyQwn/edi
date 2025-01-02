@@ -26,6 +26,7 @@ pub enum Message {
 pub enum Input {
     Keypress(char),
     Escape,
+    Enter,
     Backspace,
     ArrowUp,
     ArrowDown,
@@ -91,6 +92,7 @@ impl Stream {
                 [27, 91, 67, _] => Input::ArrowRight,
                 [27, 91, 68, _] => Input::ArrowLeft,
                 [27, _, _, _] => Input::Escape,
+                [10, _, _, _] => Input::Enter,
                 [c, _, _, _] if c.is_ascii() => Input::Keypress(c as char),
                 _ => Input::Unimplemented(buffer[..n].into()),
             };
