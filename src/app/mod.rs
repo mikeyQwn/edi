@@ -19,7 +19,7 @@ enum AppState {
     Running { prev_state: termios::Termios },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum AppMode {
     Normal,
     Insert,
@@ -115,6 +115,12 @@ impl App {
         match event {
             Event::SwitchMode(mode) => {
                 self.mode = mode;
+                if self.mode == AppMode::Terminal {
+                    let size = Terminal::get_size().unwrap_or((10, 0));
+                    self.buffers
+                        .insert(0, Buffer::new(String::new(), Vec2::new(size.0 as usize, 1)));
+                    self.redraw();
+                }
             }
             Event::InsertChar(c) => {
                 match self.buffers.first_mut() {

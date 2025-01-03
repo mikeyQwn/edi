@@ -28,6 +28,7 @@ const fn map_normal(input: &Input) -> Option<Event> {
         Input::Keypress('k') => Some(Event::MoveCursor(buffer::Direction::Up)),
         Input::Keypress('l') => Some(Event::MoveCursor(buffer::Direction::Right)),
         Input::Keypress('i') => Some(Event::SwitchMode(AppMode::Insert)),
+        Input::Keypress(':') => Some(Event::SwitchMode(AppMode::Terminal)),
         _ => None,
     }
 }
