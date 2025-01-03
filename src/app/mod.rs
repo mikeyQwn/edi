@@ -1,5 +1,11 @@
 mod event;
 
+use std::{
+    collections::VecDeque,
+    fs::OpenOptions,
+    io::{BufWriter, Write},
+};
+
 use event::Event;
 
 use crate::{
@@ -31,7 +37,7 @@ pub struct App {
 
     mode: AppMode,
     window: Window,
-    buffers: Vec<Buffer>,
+    buffers: VecDeque<Buffer>,
 }
 
 impl App {
@@ -41,7 +47,7 @@ impl App {
             mode: AppMode::Normal,
             state: AppState::Stopped,
             window: Window::new(),
-            buffers: Vec::new(),
+            buffers: VecDeque::new(),
         }
     }
 
@@ -49,7 +55,7 @@ impl App {
         let size = Terminal::get_size()?;
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(f)?;
-            self.buffers.push(Buffer::new(
+            self.buffers.push_back(Buffer::new(
                 contents,
                 Vec2::new(size.0 as usize, size.1 as usize),
             ));
@@ -117,13 +123,14 @@ impl App {
                 self.mode = mode;
                 if self.mode == AppMode::Terminal {
                     let size = Terminal::get_size().unwrap_or((10, 0));
-                    self.buffers
-                        .insert(0, Buffer::new(String::new(), Vec2::new(size.0 as usize, 1)));
+                    let mut buf = Buffer::new(String::from(":"), Vec2::new(size.0 as usize, 1));
+                    buf.cursor_offset = 1;
+                    self.buffers.push_front(buf);
                     self.redraw();
                 }
             }
             Event::InsertChar(c) => {
-                match self.buffers.first_mut() {
+                match self.buffers.front_mut() {
                     Some(b) => {
                         b.write(c);
                         b.flush(&mut self.window, &FlushOptions::default());
@@ -135,7 +142,7 @@ impl App {
                 let _ = self.window.render();
             }
             Event::DeleteChar => {
-                match self.buffers.first_mut() {
+                match self.buffers.front_mut() {
                     Some(b) => {
                         b.delete();
                         b.flush(&mut self.window, &FlushOptions::default());
@@ -147,7 +154,7 @@ impl App {
                 let _ = self.window.render();
             }
             Event::MoveCursor(dir) => {
-                match self.buffers.first_mut() {
+                match self.buffers.front_mut() {
                     Some(b) => {
                         b.move_cursor(1, dir);
                         b.flush(&mut self.window, &FlushOptions::default());
@@ -160,7 +167,33 @@ impl App {
             }
             Event::Quit => return true,
             Event::Submit => {
-                todo!()
+                // TODO: Add proper error handling
+                let cmd_buf = self.buffers.pop_front().unwrap();
+                self.redraw();
+                let cmd: String = cmd_buf.inner.chars().collect();
+                if cmd == ":q" {
+                    return self.handle_event(Event::Quit);
+                }
+                if cmd == ":wq" {
+                    let Ok(file) = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .create(true)
+                        .open("out.swap")
+                    else {
+                        log::debug!("handle_event: unable to create output file");
+                        return true;
+                    };
+
+                    let mut w = BufWriter::new(file);
+                    if let Some(b) = self.buffers.front() {
+                        b.inner.chars().for_each(|c| {
+                            let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
+                        });
+                    };
+
+                    return self.handle_event(Event::Quit);
+                }
             }
         }
 
@@ -168,8 +201,8 @@ impl App {
     }
 
     fn redraw(&mut self) {
-        log::debug!("redraw: drawing {} buffers", self.buffers.len());
-        self.buffers.iter().for_each(|b| {
+        log::debug!("app::redraw drawing {} buffers", self.buffers.len());
+        self.buffers.iter().rev().for_each(|b| {
             let opts = FlushOptions::default()
                 .with_wrap(true)
                 .with_highlights(highlight_naive(&b.text()));

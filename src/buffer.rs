@@ -70,6 +70,7 @@ pub struct Buffer {
     pub inner: Rope,
     pub size: Vec2<usize>,
     pub cursor_offset: usize,
+    pub cursor_eol: bool,
     pub line_offset: usize,
 }
 
@@ -78,9 +79,10 @@ impl Buffer {
     pub fn new(inner: String, size: Vec2<usize>) -> Self {
         Self {
             line_offset: 0,
+            cursor_offset: 0,
+            cursor_eol: inner.is_empty(),
             inner: Rope::from(inner),
             size,
-            cursor_offset: 0,
         }
     }
 
@@ -93,11 +95,21 @@ impl Buffer {
         let mut pos = Vec2::new(0, 0);
         let mut line_nr = 0;
 
+        log::debug!(
+            "buffer::flush cursor_offset: {}, cursor_eol: {}",
+            self.cursor_offset,
+            self.cursor_eol
+        );
+
         window.clear();
         for (idx, ev) in iter.enumerate() {
-            if idx == self.cursor_offset {
+            if self.cursor_eol && idx == self.cursor_offset {
+                log::debug!("buffer::flush found eol");
+                let new_pos = Vec2::new(pos.x + 1, pos.y);
+                window.set_cursor(new_pos);
+            } else if !self.cursor_eol && idx == self.cursor_offset {
                 log::debug!(
-                    "flush: setting cursor to {:?}, cause cursor_offset: {:?}",
+                    "buffer::flush setting cursor to {:?}, cause cursor_offset: {:?}",
                     pos,
                     self.cursor_offset
                 );
@@ -117,7 +129,7 @@ impl Buffer {
                 }
 
                 IterEvent::Control(c) => {
-                    log::debug!("flush: control character {:?}", c);
+                    log::debug!("buffer::flush control character {:?}", c);
                 }
 
                 IterEvent::Char(c) => {
@@ -145,8 +157,16 @@ impl Buffer {
     }
 
     pub fn write(&mut self, c: char) {
-        self.inner
-            .insert(self.cursor_offset, c.to_string().as_ref());
+        let offs = if self.cursor_eol && self.inner.len() != 0 {
+            self.cursor_offset + 1
+        } else {
+            self.cursor_offset
+        };
+        log::debug!(
+            "buffer::write offs: {offs}, cursor_eol: {}",
+            self.cursor_eol
+        );
+        self.inner.insert(offs, c.to_string().as_ref());
         self.cursor_offset += 1;
     }
 
@@ -158,29 +178,40 @@ impl Buffer {
     }
 
     pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
-        log::debug!("offs: {}", self.line_offset);
+        log::debug!(
+            "buffer::move_cursor offs: {}, cursor_eol: {}",
+            self.line_offset,
+            self.cursor_eol
+        );
         match direction {
             Direction::Left => {
                 let new_offset = self.cursor_offset.saturating_sub(steps);
                 if let Some(c) = self.inner.get(new_offset) {
-                    if c != '\n' {
+                    if c == '\n' {
+                        self.cursor_eol = true;
+                    } else {
                         self.cursor_offset = new_offset;
+                        self.cursor_eol = false;
                     }
                 }
             }
             Direction::Right => {
                 let new_offset = self.cursor_offset + steps;
                 if let Some(c) = self.inner.get(new_offset) {
-                    if c != '\n' {
+                    if c == '\n' {
+                        self.cursor_eol = true;
+                    } else {
                         self.cursor_offset = new_offset;
+                        self.cursor_eol = false;
                     }
                 }
             }
             Direction::Up => {
                 let Some(new_offset) = self.inner.prev_line_start(self.cursor_offset) else {
-                    log::debug!("new_offset not found");
+                    log::debug!("buffer::move_cursor new_offset not found");
                     return;
                 };
+                self.cursor_eol = false;
 
                 let (line_nr, _) = self
                     .inner
@@ -197,9 +228,10 @@ impl Buffer {
             }
             Direction::Down => {
                 let Some(new_offset) = self.inner.next_line_start(self.cursor_offset) else {
-                    log::debug!("new_offset not found");
+                    log::debug!("buffer::move_cursor not found");
                     return;
                 };
+                self.cursor_eol = false;
 
                 let (next_line_nr, _) = self
                     .inner

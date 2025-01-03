@@ -572,6 +572,14 @@ mod tests {
 
         left.concat(right);
         assert_correctness(&mut left, &expected);
+
+        let mut r = Rope::from(String::new());
+        r.insert(0, ":");
+        assert_correctness(&mut r, ":");
+        assert_eq!(r.len(), 1);
+        r.insert(1, "w");
+        assert_correctness(&mut r, ":w");
+        assert_eq!(r.len(), 2);
     }
 
     #[test]

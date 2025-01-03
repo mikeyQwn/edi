@@ -37,6 +37,7 @@ const fn map_insert(input: &Input) -> Option<Event> {
     match *input {
         Input::Escape => Some(Event::SwitchMode(AppMode::Normal)),
         Input::Keypress(c) => Some(Event::InsertChar(c)),
+        Input::Enter => Some(Event::InsertChar('\n')),
         Input::Backspace => Some(Event::DeleteChar),
         Input::ArrowLeft => Some(Event::MoveCursor(buffer::Direction::Left)),
         Input::ArrowDown => Some(Event::MoveCursor(buffer::Direction::Down)),
