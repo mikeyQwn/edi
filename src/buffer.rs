@@ -185,10 +185,15 @@ impl Buffer {
         );
         match direction {
             Direction::Left => {
+                if self.cursor_eol {
+                    self.cursor_eol = !self.cursor_eol;
+                    return;
+                }
                 let new_offset = self.cursor_offset.saturating_sub(steps);
                 if let Some(c) = self.inner.get(new_offset) {
                     if c == '\n' {
-                        self.cursor_eol = true;
+                        self.cursor_eol =
+                            new_offset != 0 && matches!(self.inner.get(new_offset - 1), Some('\n'));
                     } else {
                         self.cursor_offset = new_offset;
                         self.cursor_eol = false;
@@ -197,13 +202,20 @@ impl Buffer {
             }
             Direction::Right => {
                 let new_offset = self.cursor_offset + steps;
+                if self.inner.get(self.cursor_offset) == Some('\n') {
+                    return;
+                }
                 if let Some(c) = self.inner.get(new_offset) {
                     if c == '\n' {
-                        self.cursor_eol = true;
+                        self.cursor_eol = !(new_offset == 0
+                            || matches!(self.inner.get(new_offset - 1), Some('\n')));
                     } else {
                         self.cursor_offset = new_offset;
                         self.cursor_eol = false;
                     }
+                } else {
+                    self.cursor_eol =
+                        !(new_offset == 0 || matches!(self.inner.get(new_offset - 1), Some('\n')));
                 }
             }
             Direction::Up => {
@@ -211,6 +223,7 @@ impl Buffer {
                     log::debug!("buffer::move_cursor new_offset not found");
                     return;
                 };
+
                 self.cursor_eol = false;
 
                 let (line_nr, _) = self
@@ -233,12 +246,16 @@ impl Buffer {
                 };
                 self.cursor_eol = false;
 
-                let (next_line_nr, _) = self
+                let Some((next_line_nr, _)) = self
                     .inner
                     .line_starts()
                     .enumerate()
-                    .find(|&(_, v)| v > new_offset)
-                    .unwrap();
+                    .find(|&(_, v)| v == new_offset)
+                else {
+                    return;
+                };
+
+                let next_line_nr = next_line_nr + 1;
 
                 if next_line_nr > self.size.y + self.line_offset {
                     self.line_offset += 1;
@@ -278,5 +295,88 @@ impl Iterator for LineIter<'_> {
         };
 
         Some(ev)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::vec2::Vec2;
+    use rand::Rng;
+
+    use super::*;
+
+    fn test_movement(inner: &str, n: usize) {
+        let mut r = Buffer::new(inner.to_string(), Vec2::new(10, 10));
+        let lines: Vec<_> = inner.lines().collect();
+        let mut expected_pos = Vec2::new(0, 0);
+        let mut rng = rand::thread_rng();
+        for _ in 0..n {
+            let dir = rng.gen_range(0..4);
+            let dir = match dir {
+                0 => Direction::Up,
+                1 => Direction::Down,
+                2 => Direction::Left,
+                3 => Direction::Right,
+                _ => unreachable!(),
+            };
+            println!("{dir:?}");
+            r.move_cursor(1, dir);
+            match dir {
+                Direction::Up => {
+                    if expected_pos.y > 0 {
+                        expected_pos.y -= 1;
+                    }
+                    expected_pos.x = 0;
+                }
+                Direction::Down => {
+                    if expected_pos.y + 1 < lines.len() {
+                        expected_pos.y += 1;
+                        expected_pos.x = 0;
+                    }
+                }
+                Direction::Left => {
+                    if expected_pos.x > 0 {
+                        expected_pos.x -= 1;
+                    }
+                }
+                Direction::Right => {
+                    if expected_pos.x + 1 <= lines[expected_pos.y].chars().count() {
+                        expected_pos.x += 1;
+                    }
+                }
+            }
+
+            let eol = lines[expected_pos.y].chars().count() == expected_pos.x
+                && !lines[expected_pos.y].is_empty();
+            let mut cursor_offs: usize = lines
+                .iter()
+                .take(expected_pos.y)
+                .map(|v| v.chars().count() + 1)
+                .sum();
+
+            cursor_offs += expected_pos.x;
+            if eol && cursor_offs != 0 {
+                cursor_offs -= 1;
+            }
+
+            assert_eq!(r.cursor_offset, cursor_offs);
+            assert_eq!(r.cursor_eol, eol);
+        }
+    }
+
+    #[test]
+    fn movement() {
+        const TRIES: usize = 1024 * 8;
+
+        test_movement("\n\n", TRIES);
+        test_movement("\nHe", TRIES);
+        test_movement("Lo\nHe", TRIES);
+        test_movement("He\nllo", TRIES);
+        test_movement("\n", TRIES);
+        test_movement("He", TRIES);
+        test_movement("He\n", TRIES);
+        test_movement("He\nllo\n", TRIES);
+        test_movement("He\nllo\n\n", TRIES);
+        test_movement("\nHe\nllo\n\n", TRIES);
     }
 }
