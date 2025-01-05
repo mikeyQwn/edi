@@ -162,12 +162,17 @@ impl Buffer {
         } else {
             self.cursor_offset
         };
+        let is_newline = self.inner.get(self.cursor_offset) == Some('\n');
         log::debug!(
             "buffer::write offs: {offs}, cursor_eol: {}",
             self.cursor_eol
         );
         self.inner.insert(offs, c.to_string().as_ref());
-        self.cursor_offset += 1;
+        if is_newline {
+            self.cursor_eol = true;
+        } else {
+            self.cursor_offset += 1;
+        }
     }
 
     pub fn delete(&mut self) {
@@ -219,12 +224,12 @@ impl Buffer {
                 }
             }
             Direction::Up => {
+                self.cursor_eol = false;
+
                 let Some(new_offset) = self.inner.prev_line_start(self.cursor_offset) else {
                     log::debug!("buffer::move_cursor new_offset not found");
                     return;
                 };
-
-                self.cursor_eol = false;
 
                 let (line_nr, _) = self
                     .inner
@@ -305,9 +310,9 @@ mod tests {
 
     use super::*;
 
-    fn test_movement(inner: &str, n: usize) {
+    fn test_inputs(inner: &str, n: usize) {
         let mut r = Buffer::new(inner.to_string(), Vec2::new(10, 10));
-        let lines: Vec<_> = inner.lines().collect();
+        let mut lines: Vec<_> = inner.lines().map(|v| v.to_owned()).collect();
         let mut expected_pos = Vec2::new(0, 0);
         let mut rng = rand::thread_rng();
         for _ in 0..n {
@@ -345,6 +350,18 @@ mod tests {
                     }
                 }
             }
+            if rng.gen_range(0..16) < 1 {
+                println!("Write");
+                r.write('c');
+                let s = format!(
+                    "{}{}{}",
+                    &lines[expected_pos.y][..expected_pos.x],
+                    'c',
+                    &lines[expected_pos.y][expected_pos.x..]
+                );
+                lines[expected_pos.y] = s;
+                expected_pos.x += 1;
+            }
 
             let eol = lines[expected_pos.y].chars().count() == expected_pos.x
                 && !lines[expected_pos.y].is_empty();
@@ -359,24 +376,24 @@ mod tests {
                 cursor_offs -= 1;
             }
 
-            assert_eq!(r.cursor_offset, cursor_offs);
             assert_eq!(r.cursor_eol, eol);
+            assert_eq!(r.cursor_offset, cursor_offs);
         }
     }
 
     #[test]
     fn movement() {
-        const TRIES: usize = 1024 * 8;
+        const TRIES: usize = 1024;
 
-        test_movement("\n\n", TRIES);
-        test_movement("\nHe", TRIES);
-        test_movement("Lo\nHe", TRIES);
-        test_movement("He\nllo", TRIES);
-        test_movement("\n", TRIES);
-        test_movement("He", TRIES);
-        test_movement("He\n", TRIES);
-        test_movement("He\nllo\n", TRIES);
-        test_movement("He\nllo\n\n", TRIES);
-        test_movement("\nHe\nllo\n\n", TRIES);
+        test_inputs("\n\n", TRIES);
+        test_inputs("\nHe", TRIES);
+        test_inputs("Lo\nHe", TRIES);
+        test_inputs("He\nllo", TRIES);
+        test_inputs("\n", TRIES);
+        test_inputs("He", TRIES);
+        test_inputs("He\n", TRIES);
+        test_inputs("He\nllo\n", TRIES);
+        test_inputs("He\nllo\n\n", TRIES);
+        test_inputs("\nHe\nllo\n\n", TRIES);
     }
 }
