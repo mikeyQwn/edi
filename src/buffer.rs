@@ -91,6 +91,10 @@ impl Buffer {
                 break;
             }
 
+            if contents.is_empty() && character_offset == self.cursor_offset {
+                window.set_cursor(draw_pos);
+            }
+
             for (i, c) in contents.chars().enumerate() {
                 if char::is_control(c) {
                     unimplemented!("control characters are not supported yet");
@@ -142,18 +146,39 @@ impl Buffer {
         } else {
             self.cursor_offset
         };
-        let should_pad = self
-            .inner
-            .get(self.cursor_offset)
-            .filter(|&v| v != '\n')
-            .is_none();
+
+        let prev = self.inner.get(self.cursor_offset);
+
+        let should_pad = self.inner.get(self.cursor_offset) == Some('\n') || prev.is_none();
 
         log::debug!(
             "buffer::write offs: {offs}, cursor_eol: {}",
             self.cursor_eol
         );
-
         self.inner.insert(offs, c.to_string().as_ref());
+
+        if c == '\n' {
+            self.cursor_eol = false;
+            self.cursor_offset = offs + 1;
+
+            let Some((next_line_nr, _)) = self
+                .inner
+                .line_starts()
+                .enumerate()
+                .find(|&(_, v)| v == self.cursor_offset)
+            else {
+                return;
+            };
+
+            let next_line_nr = next_line_nr + 1;
+
+            if next_line_nr > self.size.y + self.line_offset {
+                self.line_offset += 1;
+            }
+
+            return;
+        }
+
         if should_pad {
             self.cursor_eol = true;
         } else {
@@ -162,9 +187,15 @@ impl Buffer {
     }
 
     pub fn delete(&mut self) {
-        if self.cursor_offset > 0 {
+        let offs = if self.cursor_eol && self.inner.len() != 0 {
+            self.cursor_offset + 1
+        } else {
+            self.cursor_offset
+        };
+
+        if offs > 0 {
             self.cursor_offset -= 1;
-            self.inner.delete(self.cursor_offset..=self.cursor_offset);
+            self.inner.delete((offs - 1)..offs);
         }
     }
 
@@ -279,6 +310,7 @@ mod tests {
                 3 => Direction::Right,
                 _ => unreachable!(),
             };
+            println!("{:?}", dir);
             r.move_cursor(1, dir);
             match dir {
                 Direction::Up => {
@@ -304,7 +336,7 @@ mod tests {
                     }
                 }
             }
-            if rng.gen_range(0..16) < 1 {
+            if rng.gen_range(0..16) < 0 {
                 r.write('c');
                 let s = format!(
                     "{}{}{}",
@@ -354,7 +386,6 @@ mod tests {
     fn empty() {
         let mut b = Buffer::new(String::new(), Vec2::new(10, 10));
         b.write('c');
-        println!("{:?}", b);
         b.write('c');
     }
 }
