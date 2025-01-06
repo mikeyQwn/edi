@@ -1,10 +1,9 @@
+use std::collections::HashMap;
+
 use crate::{
     escaping::ANSIColor,
     log,
-    rope::{
-        iter::{Chars, LineInfo},
-        Rope,
-    },
+    rope::{iter::LineInfo, Rope},
     vec2::Vec2,
     window::{Cell, Window},
 };
@@ -12,29 +11,12 @@ use crate::{
 /// A range of bytes to highlight with a color
 /// The first element is the range [start, end), where start and end are byte offsets
 /// The second element is the color to highlight with
-type HighlightRange = (Vec2<usize>, ANSIColor);
-
-const fn find_color_at_offset(pos: usize, highlights: &[HighlightRange]) -> Option<ANSIColor> {
-    let (mut l, mut r) = (0, highlights.len());
-    while l < r {
-        let m = l + (r - l) / 2;
-        let (range, color) = &highlights[m];
-        if pos >= range.x && pos < range.y {
-            return Some(*color);
-        } else if pos < range.x {
-            r = m;
-        } else {
-            l = m + 1;
-        }
-    }
-
-    None
-}
+pub type Highlight = (Vec2<usize>, ANSIColor);
 
 #[derive(Debug)]
 pub struct FlushOptions {
-    wrap: bool,
-    highlights: Vec<HighlightRange>,
+    pub wrap: bool,
+    pub highlights: HashMap<usize, Vec<Highlight>>,
 }
 
 impl FlushOptions {
@@ -45,8 +27,7 @@ impl FlushOptions {
     }
 
     #[must_use]
-    pub fn with_highlights(mut self, mut highlights: Vec<(Vec2<usize>, ANSIColor)>) -> Self {
-        highlights.sort_by_key(|(p, _)| p.x);
+    pub fn with_highlights(mut self, highlights: HashMap<usize, Vec<Highlight>>) -> Self {
         self.highlights = highlights;
         self
     }
@@ -56,7 +37,7 @@ impl Default for FlushOptions {
     fn default() -> Self {
         Self {
             wrap: true,
-            highlights: Vec::new(),
+            highlights: HashMap::new(),
         }
     }
 }
@@ -69,6 +50,7 @@ pub enum Direction {
     Right,
 }
 
+#[derive(Debug)]
 pub struct Buffer {
     pub inner: Rope,
     pub size: Vec2<usize>,
@@ -95,13 +77,14 @@ impl Buffer {
 
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
         let mut draw_pos = Vec2::new(0, 0);
-        let lines = self.inner.lines();
+        let lines = self.inner.lines().skip(self.line_offset).take(self.size.y);
         window.clear();
+        log::debug!("buffer::flush opts: {:?}", opts);
 
         for LineInfo {
             contents,
             character_offset,
-            ..
+            line_number,
         } in lines
         {
             if draw_pos.y > self.size.y {
@@ -134,8 +117,14 @@ impl Buffer {
                     _ => {}
                 }
 
-                let color = find_color_at_offset(character_offset, &opts.highlights)
-                    .unwrap_or(ANSIColor::White);
+                let color = opts
+                    .highlights
+                    .get(&line_number)
+                    .and_then(|hls| {
+                        hls.iter()
+                            .find(|&&(range, _)| (range.x..range.y).contains(&i))
+                    })
+                    .map_or(ANSIColor::White, |&(_, col)| col);
 
                 window.put_cell(draw_pos, Cell::new(c, color));
                 draw_pos.x += 1;
@@ -153,13 +142,19 @@ impl Buffer {
         } else {
             self.cursor_offset
         };
-        let is_newline = self.inner.get(self.cursor_offset) == Some('\n');
+        let should_pad = self
+            .inner
+            .get(self.cursor_offset)
+            .filter(|&v| v != '\n')
+            .is_none();
+
         log::debug!(
             "buffer::write offs: {offs}, cursor_eol: {}",
             self.cursor_eol
         );
+
         self.inner.insert(offs, c.to_string().as_ref());
-        if is_newline {
+        if should_pad {
             self.cursor_eol = true;
         } else {
             self.cursor_offset += 1;
@@ -353,5 +348,13 @@ mod tests {
         test_inputs("He\nllo\n", TRIES);
         test_inputs("He\nllo\n\n", TRIES);
         test_inputs("\nHe\nllo\n\n", TRIES);
+    }
+
+    #[test]
+    fn empty() {
+        let mut b = Buffer::new(String::new(), Vec2::new(10, 10));
+        b.write('c');
+        println!("{:?}", b);
+        b.write('c');
     }
 }

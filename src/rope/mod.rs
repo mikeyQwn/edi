@@ -2,7 +2,7 @@ pub mod iter;
 
 use std::ops::{Range, RangeBounds};
 
-use iter::{Chars, Lines, Substring};
+use iter::{Chars, LineInfo, Lines, Substring};
 
 // A node in the rope binary tree.
 #[derive(Debug)]
@@ -278,6 +278,7 @@ impl Rope {
             self.prepend(s);
             return;
         }
+
         if idx == self.len() {
             self.concat(Rope::from(s.to_owned()));
             return;
@@ -301,6 +302,10 @@ impl Rope {
 
     pub fn lines(&self) -> Lines<'_> {
         Lines::new(&self.root)
+    }
+
+    pub fn line(&self, n: usize) -> Option<LineInfo> {
+        Lines::new(&self.root).nth(n)
     }
 
     pub fn prev_line_start(&self, idx: usize) -> Option<usize> {

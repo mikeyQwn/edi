@@ -1,19 +1,22 @@
 mod event;
+mod meta;
 
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     fs::OpenOptions,
     io::{BufWriter, Write},
 };
 
 use event::Event;
+use meta::BufferMeta;
 
 use crate::{
-    buffer::{Buffer, FlushOptions},
+    buffer::{Buffer, Highlight},
     cli::EdiCli,
     escaping::ANSIColor,
     input::{self, Stream},
     log,
+    rope::Rope,
     terminal::Terminal,
     vec2::Vec2,
     window::Window,
@@ -37,7 +40,7 @@ pub struct App {
 
     mode: AppMode,
     window: Window,
-    buffers: VecDeque<Buffer>,
+    buffers: VecDeque<(Buffer, BufferMeta)>,
 }
 
 impl App {
@@ -55,10 +58,10 @@ impl App {
         let size = Terminal::get_size()?;
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(f)?;
-            self.buffers.push_back(Buffer::new(
-                contents,
-                Vec2::new(size.0 as usize, size.1 as usize),
-            ));
+            let buffer = Buffer::new(contents, Vec2::new(size.0 as usize, size.1 as usize));
+            let mut meta = BufferMeta::default();
+            highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
+            self.buffers.push_back((buffer, meta));
         }
 
         let (w, h) = Terminal::get_size()?;
@@ -125,14 +128,15 @@ impl App {
                     let size = Terminal::get_size().unwrap_or((10, 0));
                     let mut buf = Buffer::new(String::from(":"), Vec2::new(size.0 as usize, 1));
                     buf.cursor_offset = 1;
-                    self.buffers.push_front(buf);
+                    self.buffers.push_front((buf, BufferMeta::default()));
                     self.redraw();
                 }
             }
             Event::InsertChar(c) => {
                 match self.buffers.front_mut() {
-                    Some(b) => {
+                    Some((b, m)) => {
                         b.write(c);
+                        highlight_naive(&b.inner, &mut m.flush_options.highlights);
                         self.redraw();
                     }
                     None => {
@@ -143,7 +147,7 @@ impl App {
             }
             Event::DeleteChar => {
                 match self.buffers.front_mut() {
-                    Some(b) => {
+                    Some((b, _)) => {
                         b.delete();
                         self.redraw();
                     }
@@ -155,7 +159,7 @@ impl App {
             }
             Event::MoveCursor(dir) => {
                 match self.buffers.front_mut() {
-                    Some(b) => {
+                    Some((b, _)) => {
                         b.move_cursor(1, dir);
                         self.redraw();
                     }
@@ -168,7 +172,7 @@ impl App {
             Event::Quit => return true,
             Event::Submit => {
                 // TODO: Add proper error handling
-                let cmd_buf = self.buffers.pop_front().unwrap();
+                let (cmd_buf, _) = self.buffers.pop_front().unwrap();
                 self.redraw();
                 let cmd: String = cmd_buf.inner.chars().collect();
                 if cmd == ":q" {
@@ -186,7 +190,7 @@ impl App {
                     };
 
                     let mut w = BufWriter::new(file);
-                    if let Some(b) = self.buffers.front() {
+                    if let Some((b, _)) = self.buffers.front() {
                         b.inner.chars().for_each(|c| {
                             let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
                         });
@@ -202,79 +206,130 @@ impl App {
 
     fn redraw(&mut self) {
         log::debug!("app::redraw drawing {} buffers", self.buffers.len());
-        self.buffers.iter().rev().for_each(|b| {
-            let opts = FlushOptions::default().with_highlights(highlight_naive(&b.text()));
-            b.flush(&mut self.window, &opts);
+        self.buffers.iter().rev().for_each(|(b, m)| {
+            b.flush(&mut self.window, &m.flush_options);
         });
         let _ = self.window.render();
     }
 }
-fn highlight_naive(text: &str) -> Vec<(Vec2<usize>, ANSIColor)> {
-    let hl_words = vec![
-        ("as", ANSIColor::Magenta),
-        ("break", ANSIColor::Magenta),
-        ("const", ANSIColor::Magenta),
-        ("continue", ANSIColor::Magenta),
-        ("crate", ANSIColor::Magenta),
-        ("else", ANSIColor::Magenta),
-        ("enum", ANSIColor::Magenta),
-        ("extern", ANSIColor::Magenta),
-        ("false", ANSIColor::Magenta),
-        ("fn", ANSIColor::Magenta),
-        ("for", ANSIColor::Magenta),
-        ("if", ANSIColor::Magenta),
-        ("impl", ANSIColor::Magenta),
-        ("in", ANSIColor::Magenta),
-        ("let", ANSIColor::Magenta),
-        ("loop", ANSIColor::Magenta),
-        ("match", ANSIColor::Magenta),
-        ("mod", ANSIColor::Magenta),
-        ("move", ANSIColor::Magenta),
-        ("mut", ANSIColor::Magenta),
-        ("pub", ANSIColor::Magenta),
-        ("ref", ANSIColor::Magenta),
-        ("return", ANSIColor::Magenta),
-        ("self", ANSIColor::Magenta),
-        ("Self", ANSIColor::Magenta),
-        ("static", ANSIColor::Magenta),
-        ("struct", ANSIColor::Magenta),
-        ("super", ANSIColor::Magenta),
-        ("trait", ANSIColor::Magenta),
-        ("true", ANSIColor::Magenta),
-        ("type", ANSIColor::Magenta),
-        ("unsafe", ANSIColor::Magenta),
-        ("use", ANSIColor::Magenta),
-        ("where", ANSIColor::Magenta),
-        ("while", ANSIColor::Magenta),
-        ("async", ANSIColor::Magenta),
-        ("await", ANSIColor::Magenta),
-        ("dyn", ANSIColor::Magenta),
-    ];
 
-    let mut highlights = Vec::new();
+fn highlight_naive(rope: &Rope, hm: &mut HashMap<usize, Vec<Highlight>>) {
+    hm.clear();
+    rope.lines()
+        .map(|line| {
+            (
+                line.line_number,
+                get_line_highlights(&line.contents, &C_KEYWORDS),
+            )
+        })
+        .for_each(|(nr, hls)| {
+            hm.insert(nr, hls);
+        });
+}
 
-    for (word, color) in hl_words {
-        let mut offs = 0;
-        while let Some(pos) = text[offs..].find(word) {
-            let pos = pos + offs;
-            offs = pos + word.len();
-            if pos > 0 && text.chars().nth(pos - 1).map(|c| !c.is_whitespace()) == Some(true) {
-                continue;
-            }
-            if text
-                .chars()
-                .nth(pos + word.len())
-                .map(|c| !c.is_whitespace())
-                == Some(true)
-            {
-                continue;
-            }
-            let hl = Vec2::new(pos, pos + word.len());
-            highlights.push((hl, color));
-        }
+const RUST_KEYWORDS: [(&str, ANSIColor); 38] = [
+    ("as", ANSIColor::Magenta),
+    ("break", ANSIColor::Magenta),
+    ("const", ANSIColor::Magenta),
+    ("continue", ANSIColor::Magenta),
+    ("crate", ANSIColor::Magenta),
+    ("else", ANSIColor::Magenta),
+    ("enum", ANSIColor::Magenta),
+    ("extern", ANSIColor::Magenta),
+    ("false", ANSIColor::Magenta),
+    ("fn", ANSIColor::Magenta),
+    ("for", ANSIColor::Magenta),
+    ("if", ANSIColor::Magenta),
+    ("impl", ANSIColor::Magenta),
+    ("in", ANSIColor::Magenta),
+    ("let", ANSIColor::Magenta),
+    ("loop", ANSIColor::Magenta),
+    ("match", ANSIColor::Magenta),
+    ("mod", ANSIColor::Magenta),
+    ("move", ANSIColor::Magenta),
+    ("mut", ANSIColor::Magenta),
+    ("pub", ANSIColor::Magenta),
+    ("ref", ANSIColor::Magenta),
+    ("return", ANSIColor::Magenta),
+    ("self", ANSIColor::Magenta),
+    ("Self", ANSIColor::Magenta),
+    ("static", ANSIColor::Magenta),
+    ("struct", ANSIColor::Magenta),
+    ("super", ANSIColor::Magenta),
+    ("trait", ANSIColor::Magenta),
+    ("true", ANSIColor::Magenta),
+    ("type", ANSIColor::Magenta),
+    ("unsafe", ANSIColor::Magenta),
+    ("use", ANSIColor::Magenta),
+    ("where", ANSIColor::Magenta),
+    ("while", ANSIColor::Magenta),
+    ("async", ANSIColor::Magenta),
+    ("await", ANSIColor::Magenta),
+    ("dyn", ANSIColor::Magenta),
+];
+
+const C_KEYWORDS: [(&str, ANSIColor); 32] = [
+    ("auto", ANSIColor::Magenta),
+    ("break", ANSIColor::Magenta),
+    ("case", ANSIColor::Magenta),
+    ("char", ANSIColor::Magenta),
+    ("const", ANSIColor::Magenta),
+    ("continue", ANSIColor::Magenta),
+    ("default", ANSIColor::Magenta),
+    ("do", ANSIColor::Magenta),
+    ("double", ANSIColor::Magenta),
+    ("else", ANSIColor::Magenta),
+    ("enum", ANSIColor::Magenta),
+    ("extern", ANSIColor::Magenta),
+    ("float", ANSIColor::Magenta),
+    ("for", ANSIColor::Magenta),
+    ("if", ANSIColor::Magenta),
+    ("int", ANSIColor::Magenta),
+    ("long", ANSIColor::Magenta),
+    ("register", ANSIColor::Magenta),
+    ("return", ANSIColor::Magenta),
+    ("short", ANSIColor::Magenta),
+    ("signed", ANSIColor::Magenta),
+    ("sizeof", ANSIColor::Magenta),
+    ("static", ANSIColor::Magenta),
+    ("struct", ANSIColor::Magenta),
+    ("switch", ANSIColor::Magenta),
+    ("typedef", ANSIColor::Magenta),
+    ("union", ANSIColor::Magenta),
+    ("unsigned", ANSIColor::Magenta),
+    ("void", ANSIColor::Magenta),
+    ("goto", ANSIColor::Magenta),
+    ("volatile", ANSIColor::Magenta),
+    ("while", ANSIColor::Magenta),
+];
+
+fn get_line_highlights(line: &str, keywords: &[(&str, ANSIColor)]) -> Vec<Highlight> {
+    let mut line_highlights = Vec::new();
+    for &(word, color) in keywords {
+        line_highlights.extend(
+            line.match_indices(word)
+                .map(|(idx, _)| (idx, idx + word.len()))
+                .filter(|&(start, end)| {
+                    let starts_with_space = start == 0
+                        || line
+                            .chars()
+                            .nth(start - 1)
+                            .filter(|&c| !c.is_whitespace())
+                            .is_none();
+
+                    let ends_with_space = line
+                        .chars()
+                        .nth(end)
+                        .filter(|&c| !c.is_whitespace())
+                        .is_none();
+
+                    starts_with_space && ends_with_space
+                })
+                .map(|(start, end)| (Vec2::new(start, end), color)),
+        );
     }
 
-    highlights
+    line_highlights
 }
 
 impl Drop for App {
