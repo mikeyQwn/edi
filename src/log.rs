@@ -20,7 +20,7 @@ pub fn __fatal_internal(msg: &str) -> ! {
 macro_rules! debug {
     ($($arg:tt)*) => {{
         use crate::log::__debug_internal;
-        #[cfg(debug_assertions)]
+        //#[cfg(debug_assertions)]
         __debug_internal(&format!($($arg)*));
 
     }};

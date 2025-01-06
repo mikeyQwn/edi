@@ -64,7 +64,7 @@ impl<'a> Chars<'a> {
         Self(out)
     }
 
-    fn lines(self) -> Lines<'a> {
+    pub fn lines(self) -> Lines<'a> {
         Lines::from_raw(self.enumerate().peekable())
     }
 }
@@ -101,15 +101,15 @@ pub struct Lines<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineInfo {
-    line_number: usize,
-    character_offset: usize,
-    contents: String,
+    pub line_number: usize,
+    pub character_offset: usize,
+    pub contents: String,
 }
 
 impl<'a> Lines<'a> {
     #[must_use]
-    pub fn new(r: &'a Rope) -> Self {
-        let iter = r.chars().enumerate().peekable();
+    pub fn new(n: &'a Node) -> Self {
+        let iter = Chars::new(n).enumerate().peekable();
 
         Self::from_raw(iter)
     }
@@ -175,8 +175,6 @@ impl Iterator for Lines<'_> {
 mod tests {
     use crate::rope::Rope;
 
-    use super::*;
-
     #[test]
     fn lines() {
         let inputs = [
@@ -194,12 +192,12 @@ mod tests {
             let r = Rope::from(String::from(input));
 
             assert_eq!(
-                Lines::new(&r).map(|i| i.contents).collect::<Vec<_>>(),
+                r.lines().map(|i| i.contents).collect::<Vec<_>>(),
                 input.lines().collect::<Vec<_>>()
             );
 
             assert_eq!(
-                Lines::new(&r)
+                r.lines()
                     .parse_contents(false)
                     .map(|i| i.contents)
                     .collect::<Vec<_>>(),

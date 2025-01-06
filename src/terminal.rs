@@ -3,6 +3,8 @@ use std::{
     os::fd::{AsRawFd, RawFd},
 };
 
+use crate::log;
+
 type Result<T> = std::result::Result<T, std::io::Error>;
 
 pub struct Terminal;
@@ -28,7 +30,7 @@ impl Terminal {
     }
 
     pub fn get_size() -> Result<(u16, u16)> {
-        let winsize = libc::winsize {
+        let mut winsize = libc::winsize {
             ws_row: 0,
             ws_col: 0,
             ws_xpixel: 0,
@@ -37,14 +39,16 @@ impl Terminal {
 
         // Safety: `winsize` is a valid `libc::winsize` struct.
         // `TIOCGWINSZ` is a valid ioctl request for a terminal file descriptor.
-        // `winsize` is a valid pointer to a `libc::winsize` struct.
+        // `winsize` is a valid pointer to a mutable `libc::winsize` struct.
         // The return value of `ioctl` is checked for errors.
         unsafe {
-            let ok = libc::ioctl(Self::get_stdin_fd(), libc::TIOCGWINSZ, &winsize);
+            let ok = libc::ioctl(Self::get_stdin_fd(), libc::TIOCGWINSZ, &mut winsize);
             if ok == -1 {
                 return Err(std::io::Error::last_os_error());
             }
         }
+
+        //log::debug!("terminal size is {} {}", winsize.ws_col, winsize.ws_row);
 
         Ok((winsize.ws_col, winsize.ws_row))
     }

@@ -1,7 +1,10 @@
 use crate::{
     escaping::ANSIColor,
     log,
-    rope::{iter::Chars, Rope},
+    rope::{
+        iter::{Chars, LineInfo},
+        Rope,
+    },
     vec2::Vec2,
     window::{Cell, Window},
 };
@@ -91,69 +94,57 @@ impl Buffer {
     }
 
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
-        let iter = LineIter::new(self);
-        let mut pos = Vec2::new(0, 0);
-        let mut line_nr = 0;
-
-        log::debug!(
-            "buffer::flush cursor_offset: {}, cursor_eol: {}",
-            self.cursor_offset,
-            self.cursor_eol
-        );
-
+        let mut draw_pos = Vec2::new(0, 0);
+        let lines = self.inner.lines();
         window.clear();
-        for (idx, ev) in iter.enumerate() {
-            if self.cursor_eol && idx == self.cursor_offset {
-                log::debug!("buffer::flush found eol");
-                let new_pos = Vec2::new(pos.x + 1, pos.y);
-                window.set_cursor(new_pos);
-            } else if !self.cursor_eol && idx == self.cursor_offset {
-                log::debug!(
-                    "buffer::flush setting cursor to {:?}, cause cursor_offset: {:?}",
-                    pos,
-                    self.cursor_offset
-                );
-                window.set_cursor(pos);
+
+        for LineInfo {
+            contents,
+            character_offset,
+            ..
+        } in lines
+        {
+            if draw_pos.y > self.size.y {
+                break;
             }
 
-            match ev {
-                IterEvent::Newline => {
-                    line_nr += 1;
+            for (i, c) in contents.chars().enumerate() {
+                if char::is_control(c) {
+                    unimplemented!("control characters are not supported yet");
+                }
+                let character_offset = character_offset + i;
 
-                    if self.line_offset >= line_nr {
-                        continue;
+                if self.cursor_offset == character_offset {
+                    let mut pos = draw_pos;
+                    if self.cursor_eol {
+                        pos.x += 1;
                     }
 
-                    pos.y += 1;
-                    pos.x = 0;
+                    window.set_cursor(pos);
                 }
 
-                IterEvent::Control(c) => {
-                    log::debug!("buffer::flush control character {:?}", c);
-                }
-
-                IterEvent::Char(c) => {
-                    if self.line_offset > line_nr {
-                        continue;
+                match (draw_pos.x > self.size.x, opts.wrap) {
+                    (true, true) => {
+                        draw_pos.x = 0;
+                        draw_pos.y += 1;
                     }
-
-                    if opts.wrap && pos.x >= self.size.x {
-                        pos.y += 1;
-                        pos.x = 0;
-                    }
-
-                    if pos.y >= self.size.y {
+                    (true, false) => {
                         break;
                     }
-
-                    let color =
-                        find_color_at_offset(idx, &opts.highlights).unwrap_or(ANSIColor::White);
-
-                    window.put_cell(pos, Cell::new(c, color));
-                    pos.x += 1;
+                    _ => {}
                 }
+
+                let color = find_color_at_offset(character_offset, &opts.highlights)
+                    .unwrap_or(ANSIColor::White);
+
+                window.put_cell(draw_pos, Cell::new(c, color));
+                draw_pos.x += 1;
             }
+
+            draw_pos.y += 1;
+            draw_pos.x = 0;
         }
+        log::debug!("buffer::flush finished");
     }
 
     pub fn write(&mut self, c: char) {
@@ -272,37 +263,6 @@ impl Buffer {
     }
 }
 
-enum IterEvent {
-    Char(char),
-    Control(char),
-    Newline,
-}
-
-struct LineIter<'a>(Chars<'a>);
-
-impl<'a> LineIter<'a> {
-    fn new(buffer: &'a Buffer) -> Self {
-        let chars = buffer.inner.chars();
-        Self(chars)
-    }
-}
-
-impl Iterator for LineIter<'_> {
-    type Item = IterEvent;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let c = self.0.next()?;
-
-        let ev = match c {
-            '\n' => IterEvent::Newline,
-            c if c.is_control() => IterEvent::Control(c),
-            c => IterEvent::Char(c),
-        };
-
-        Some(ev)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::vec2::Vec2;
@@ -324,7 +284,6 @@ mod tests {
                 3 => Direction::Right,
                 _ => unreachable!(),
             };
-            println!("{dir:?}");
             r.move_cursor(1, dir);
             match dir {
                 Direction::Up => {
@@ -351,7 +310,6 @@ mod tests {
                 }
             }
             if rng.gen_range(0..16) < 1 {
-                println!("Write");
                 r.write('c');
                 let s = format!(
                     "{}{}{}",

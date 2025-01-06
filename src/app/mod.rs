@@ -133,7 +133,7 @@ impl App {
                 match self.buffers.front_mut() {
                     Some(b) => {
                         b.write(c);
-                        b.flush(&mut self.window, &FlushOptions::default());
+                        self.redraw();
                     }
                     None => {
                         log::debug!("handle_event: no buffers to write to");
@@ -145,7 +145,7 @@ impl App {
                 match self.buffers.front_mut() {
                     Some(b) => {
                         b.delete();
-                        b.flush(&mut self.window, &FlushOptions::default());
+                        self.redraw();
                     }
                     None => {
                         log::debug!("handle_event: no buffers to delete from");
@@ -157,7 +157,7 @@ impl App {
                 match self.buffers.front_mut() {
                     Some(b) => {
                         b.move_cursor(1, dir);
-                        b.flush(&mut self.window, &FlushOptions::default());
+                        self.redraw();
                     }
                     None => {
                         log::debug!("handle_event: no buffers to move cursor in");
@@ -203,34 +203,76 @@ impl App {
     fn redraw(&mut self) {
         log::debug!("app::redraw drawing {} buffers", self.buffers.len());
         self.buffers.iter().rev().for_each(|b| {
-            let opts = FlushOptions::default()
-                .with_wrap(true)
-                .with_highlights(highlight_naive(&b.text()));
+            let opts = FlushOptions::default().with_highlights(highlight_naive(&b.text()));
             b.flush(&mut self.window, &opts);
         });
         let _ = self.window.render();
     }
 }
-
-fn highlight_naive(line: &str) -> Vec<(Vec2<usize>, ANSIColor)> {
+fn highlight_naive(text: &str) -> Vec<(Vec2<usize>, ANSIColor)> {
     let hl_words = vec![
-        "fn", "let", "mut", "use", "mod", "pub", "crate", "self", "super", "struct", "enum",
-        "impl", "const", "derive",
+        ("as", ANSIColor::Magenta),
+        ("break", ANSIColor::Magenta),
+        ("const", ANSIColor::Magenta),
+        ("continue", ANSIColor::Magenta),
+        ("crate", ANSIColor::Magenta),
+        ("else", ANSIColor::Magenta),
+        ("enum", ANSIColor::Magenta),
+        ("extern", ANSIColor::Magenta),
+        ("false", ANSIColor::Magenta),
+        ("fn", ANSIColor::Magenta),
+        ("for", ANSIColor::Magenta),
+        ("if", ANSIColor::Magenta),
+        ("impl", ANSIColor::Magenta),
+        ("in", ANSIColor::Magenta),
+        ("let", ANSIColor::Magenta),
+        ("loop", ANSIColor::Magenta),
+        ("match", ANSIColor::Magenta),
+        ("mod", ANSIColor::Magenta),
+        ("move", ANSIColor::Magenta),
+        ("mut", ANSIColor::Magenta),
+        ("pub", ANSIColor::Magenta),
+        ("ref", ANSIColor::Magenta),
+        ("return", ANSIColor::Magenta),
+        ("self", ANSIColor::Magenta),
+        ("Self", ANSIColor::Magenta),
+        ("static", ANSIColor::Magenta),
+        ("struct", ANSIColor::Magenta),
+        ("super", ANSIColor::Magenta),
+        ("trait", ANSIColor::Magenta),
+        ("true", ANSIColor::Magenta),
+        ("type", ANSIColor::Magenta),
+        ("unsafe", ANSIColor::Magenta),
+        ("use", ANSIColor::Magenta),
+        ("where", ANSIColor::Magenta),
+        ("while", ANSIColor::Magenta),
+        ("async", ANSIColor::Magenta),
+        ("await", ANSIColor::Magenta),
+        ("dyn", ANSIColor::Magenta),
     ];
 
     let mut highlights = Vec::new();
 
-    for word in hl_words {
+    for (word, color) in hl_words {
         let mut offs = 0;
-        while let Some(pos) = line[offs..].find(word) {
+        while let Some(pos) = text[offs..].find(word) {
             let pos = pos + offs;
-            let hl = Vec2::new(pos, pos + word.len());
-            highlights.push((hl, ANSIColor::Green));
             offs = pos + word.len();
+            if pos > 0 && text.chars().nth(pos - 1).map(|c| !c.is_whitespace()) == Some(true) {
+                continue;
+            }
+            if text
+                .chars()
+                .nth(pos + word.len())
+                .map(|c| !c.is_whitespace())
+                == Some(true)
+            {
+                continue;
+            }
+            let hl = Vec2::new(pos, pos + word.len());
+            highlights.push((hl, color));
         }
     }
-
-    log::debug!("done highlighting, buf: {:?}", highlights);
 
     highlights
 }
