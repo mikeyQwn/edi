@@ -6,6 +6,8 @@ use std::{
 
 use thiserror::Error;
 
+use crate::log;
+
 #[derive(Error, Debug)]
 pub enum InputError {
     #[error("error while reading: `{0}`")]
@@ -63,13 +65,13 @@ impl Stream {
     where
         H: Read + AsFd + Send + 'static,
     {
-        let mut buffer = [0_u8; 4];
         let mut reader = timeout_readwrite::TimeoutReader::new(input_handle, None);
 
         let (t_events, r_events) = std::sync::mpsc::channel();
         let (t_kill, r_kill) = std::sync::mpsc::channel();
 
         std::thread::spawn(move || loop {
+            let mut buffer = [0_u8; 4];
             let n = match reader.read(&mut buffer) {
                 Ok(n) => n,
                 Err(e) => {

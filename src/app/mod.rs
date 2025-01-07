@@ -5,6 +5,7 @@ use std::{
     collections::{HashMap, VecDeque},
     fs::OpenOptions,
     io::{BufWriter, Write},
+    path::PathBuf,
 };
 
 use event::Event;
@@ -57,9 +58,9 @@ impl App {
     pub fn setup(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
         let size = Terminal::get_size()?;
         if let Some(f) = args.edit_file {
-            let contents = std::fs::read_to_string(f)?;
+            let contents = std::fs::read_to_string(&f)?;
             let buffer = Buffer::new(contents, Vec2::new(size.0 as usize, size.1 as usize));
-            let mut meta = BufferMeta::default();
+            let mut meta = BufferMeta::default().with_filepath(Some(f));
             highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
             self.buffers.push_back((buffer, meta));
         }
@@ -179,21 +180,44 @@ impl App {
                     return self.handle_event(Event::Quit);
                 }
                 if cmd == ":wq" {
-                    let Ok(file) = OpenOptions::new()
+                    let Some((b, meta)) = self.buffers.pop_front() else {
+                        log::fatal!("app::handle_event no buffer to write")
+                    };
+
+                    let swap_name = meta
+                        .filepath
+                        .as_ref()
+                        .map_or(PathBuf::from("out.swp"), |fp| {
+                            let mut fp = fp.clone();
+                            fp.set_extension(".swp");
+                            fp
+                        });
+
+                    let file = match OpenOptions::new()
                         .write(true)
                         .truncate(true)
                         .create(true)
-                        .open("out.swap")
-                    else {
-                        log::debug!("handle_event: unable to create output file");
-                        return true;
+                        .open(&swap_name)
+                    {
+                        Ok(f) => f,
+                        Err(e) => {
+                            log::debug!(
+                                "handle_event: unable to create output file {e} {swap_name:?}"
+                            );
+                            return true;
+                        }
                     };
 
                     let mut w = BufWriter::new(file);
-                    if let Some((b, _)) = self.buffers.front() {
-                        b.inner.chars().for_each(|c| {
-                            let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
-                        });
+                    b.inner.chars().for_each(|c| {
+                        let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
+                    });
+
+                    if let Err(e) = std::fs::rename(
+                        swap_name,
+                        meta.filepath.unwrap_or(PathBuf::from("out.txt")),
+                    ) {
+                        log::debug!("app::handle_event failed to rename file {e}");
                     };
 
                     return self.handle_event(Event::Quit);

@@ -55,7 +55,6 @@ pub struct Buffer {
     pub inner: Rope,
     pub size: Vec2<usize>,
     pub cursor_offset: usize,
-    pub cursor_eol: bool,
     pub line_offset: usize,
 }
 
@@ -65,7 +64,6 @@ impl Buffer {
         Self {
             line_offset: 0,
             cursor_offset: 0,
-            cursor_eol: inner.is_empty(),
             inner: Rope::from(inner),
             size,
         }
@@ -77,9 +75,14 @@ impl Buffer {
 
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
         let mut draw_pos = Vec2::new(0, 0);
+        let mut found_cursor = false;
         let lines = self.inner.lines().skip(self.line_offset).take(self.size.y);
         window.clear();
-        log::debug!("buffer::flush opts: {:?}", opts);
+        log::debug!(
+            "buffer::flush cursor_offset: {} opts: {:?}",
+            self.cursor_offset,
+            opts
+        );
 
         for LineInfo {
             contents,
@@ -87,12 +90,21 @@ impl Buffer {
             line_number,
         } in lines
         {
+            if character_offset > 0 && self.cursor_offset == character_offset - 1 {
+                let mut pos = draw_pos;
+                pos.y -= 1;
+                found_cursor = true;
+                window.set_cursor(pos);
+            }
+            draw_pos.x = 0;
+
             if draw_pos.y > self.size.y {
                 break;
             }
 
             if contents.is_empty() && character_offset == self.cursor_offset {
                 window.set_cursor(draw_pos);
+                found_cursor = true;
             }
 
             for (i, c) in contents.chars().enumerate() {
@@ -102,12 +114,8 @@ impl Buffer {
                 let character_offset = character_offset + i;
 
                 if self.cursor_offset == character_offset {
-                    let mut pos = draw_pos;
-                    if self.cursor_eol {
-                        pos.x += 1;
-                    }
-
-                    window.set_cursor(pos);
+                    window.set_cursor(draw_pos);
+                    found_cursor = true;
                 }
 
                 match (draw_pos.x > self.size.x, opts.wrap) {
@@ -135,31 +143,25 @@ impl Buffer {
             }
 
             draw_pos.y += 1;
-            draw_pos.x = 0;
         }
+
+        if !found_cursor {
+            let mut pos = draw_pos;
+            pos.y -= 1;
+            window.set_cursor(pos);
+        }
+
         log::debug!("buffer::flush finished");
     }
 
     pub fn write(&mut self, c: char) {
-        let offs = if self.cursor_eol && self.inner.len() != 0 {
-            self.cursor_offset + 1
-        } else {
-            self.cursor_offset
-        };
-
         let prev = self.inner.get(self.cursor_offset);
 
-        let should_pad = self.inner.get(self.cursor_offset) == Some('\n') || prev.is_none();
-
-        log::debug!(
-            "buffer::write offs: {offs}, cursor_eol: {}",
-            self.cursor_eol
-        );
-        self.inner.insert(offs, c.to_string().as_ref());
+        self.inner
+            .insert(self.cursor_offset, c.to_string().as_ref());
 
         if c == '\n' {
-            self.cursor_eol = false;
-            self.cursor_offset = offs + 1;
+            self.cursor_offset += 1;
 
             let Some((next_line_nr, _)) = self
                 .inner
@@ -179,70 +181,40 @@ impl Buffer {
             return;
         }
 
-        if should_pad {
-            self.cursor_eol = true;
-        } else {
-            self.cursor_offset += 1;
-        }
+        self.cursor_offset += 1;
     }
 
     pub fn delete(&mut self) {
-        let offs = if self.cursor_eol && self.inner.len() != 0 {
-            self.cursor_offset + 1
-        } else {
-            self.cursor_offset
-        };
-
-        if offs > 0 {
+        if self.cursor_offset > 0 {
             self.cursor_offset -= 1;
-            self.inner.delete((offs - 1)..offs);
+            self.inner.delete(self.cursor_offset..=self.cursor_offset);
         }
     }
 
     pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
-        log::debug!(
-            "buffer::move_cursor offs: {}, cursor_eol: {}",
-            self.line_offset,
-            self.cursor_eol
-        );
+        log::debug!("buffer::move_cursor offs: {}", self.cursor_offset);
         match direction {
             Direction::Left => {
-                if self.cursor_eol {
-                    self.cursor_eol = !self.cursor_eol;
-                    return;
-                }
                 let new_offset = self.cursor_offset.saturating_sub(steps);
                 if let Some(c) = self.inner.get(new_offset) {
-                    if c == '\n' {
-                        self.cursor_eol =
-                            new_offset != 0 && matches!(self.inner.get(new_offset - 1), Some('\n'));
-                    } else {
+                    if c != '\n' {
                         self.cursor_offset = new_offset;
-                        self.cursor_eol = false;
                     }
                 }
             }
             Direction::Right => {
-                let new_offset = self.cursor_offset + steps;
-                if self.inner.get(self.cursor_offset) == Some('\n') {
+                let Some(prev) = self.inner.get(self.cursor_offset) else {
+                    return;
+                };
+
+                if prev == '\n' {
                     return;
                 }
-                if let Some(c) = self.inner.get(new_offset) {
-                    if c == '\n' {
-                        self.cursor_eol = !(new_offset == 0
-                            || matches!(self.inner.get(new_offset - 1), Some('\n')));
-                    } else {
-                        self.cursor_offset = new_offset;
-                        self.cursor_eol = false;
-                    }
-                } else {
-                    self.cursor_eol =
-                        !(new_offset == 0 || matches!(self.inner.get(new_offset - 1), Some('\n')));
-                }
+
+                let new_offset = self.cursor_offset + steps;
+                self.cursor_offset = new_offset;
             }
             Direction::Up => {
-                self.cursor_eol = false;
-
                 let Some(new_offset) = self.inner.prev_line_start(self.cursor_offset) else {
                     log::debug!("buffer::move_cursor new_offset not found");
                     return;
@@ -266,7 +238,6 @@ impl Buffer {
                     log::debug!("buffer::move_cursor not found");
                     return;
                 };
-                self.cursor_eol = false;
 
                 let Some((next_line_nr, _)) = self
                     .inner
@@ -310,7 +281,6 @@ mod tests {
                 3 => Direction::Right,
                 _ => unreachable!(),
             };
-            println!("{:?}", dir);
             r.move_cursor(1, dir);
             match dir {
                 Direction::Up => {
@@ -336,7 +306,7 @@ mod tests {
                     }
                 }
             }
-            if rng.gen_range(0..16) < 0 {
+            if rng.gen_range(0..16) < 1 {
                 r.write('c');
                 let s = format!(
                     "{}{}{}",
@@ -348,8 +318,6 @@ mod tests {
                 expected_pos.x += 1;
             }
 
-            let eol = lines[expected_pos.y].chars().count() == expected_pos.x
-                && !lines[expected_pos.y].is_empty();
             let mut cursor_offs: usize = lines
                 .iter()
                 .take(expected_pos.y)
@@ -357,11 +325,7 @@ mod tests {
                 .sum();
 
             cursor_offs += expected_pos.x;
-            if eol && cursor_offs != 0 {
-                cursor_offs -= 1;
-            }
 
-            assert_eq!(r.cursor_eol, eol);
             assert_eq!(r.cursor_offset, cursor_offs);
         }
     }
