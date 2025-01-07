@@ -56,6 +56,7 @@ pub struct Buffer {
     pub size: Vec2<usize>,
     pub cursor_offset: usize,
     pub line_offset: usize,
+    pub current_line: usize,
 }
 
 impl Buffer {
@@ -64,13 +65,10 @@ impl Buffer {
         Self {
             line_offset: 0,
             cursor_offset: 0,
+            current_line: 0,
             inner: Rope::from(inner),
             size,
         }
-    }
-
-    pub fn text(&self) -> String {
-        self.inner.chars().collect()
     }
 
     pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
@@ -88,6 +86,7 @@ impl Buffer {
             contents,
             character_offset,
             line_number,
+            ..
         } in lines
         {
             if character_offset > 0 && self.cursor_offset == character_offset - 1 {
@@ -155,26 +154,13 @@ impl Buffer {
     }
 
     pub fn write(&mut self, c: char) {
-        let prev = self.inner.get(self.cursor_offset);
-
         self.inner
             .insert(self.cursor_offset, c.to_string().as_ref());
 
         if c == '\n' {
             self.cursor_offset += 1;
-
-            let Some((next_line_nr, _)) = self
-                .inner
-                .line_starts()
-                .enumerate()
-                .find(|&(_, v)| v == self.cursor_offset)
-            else {
-                return;
-            };
-
-            let next_line_nr = next_line_nr + 1;
-
-            if next_line_nr > self.size.y + self.line_offset {
+            self.current_line += 1;
+            if self.current_line > self.size.y + self.line_offset {
                 self.line_offset += 1;
             }
 
@@ -187,11 +173,14 @@ impl Buffer {
     pub fn delete(&mut self) {
         if self.cursor_offset > 0 {
             self.cursor_offset -= 1;
+            if let Some('\n') = self.inner.get(self.cursor_offset) {
+                self.current_line -= 1;
+            }
             self.inner.delete(self.cursor_offset..=self.cursor_offset);
         }
     }
 
-    pub fn move_cursor(&mut self, steps: usize, direction: Direction) {
+    pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
         log::debug!("buffer::move_cursor offs: {}", self.cursor_offset);
         match direction {
             Direction::Left => {
@@ -215,48 +204,51 @@ impl Buffer {
                 self.cursor_offset = new_offset;
             }
             Direction::Up => {
-                let Some(new_offset) = self.inner.prev_line_start(self.cursor_offset) else {
-                    log::debug!("buffer::move_cursor new_offset not found");
+                if self.current_line == 0 {
+                    self.cursor_offset = 0;
                     return;
-                };
-
-                let (line_nr, _) = self
-                    .inner
-                    .line_starts()
-                    .enumerate()
-                    .find(|&(_, v)| v == new_offset)
-                    .unwrap();
-
-                if line_nr < self.line_offset {
-                    self.line_offset -= 1;
                 }
 
-                self.cursor_offset = new_offset;
+                let offs = self.cursor_offset
+                    - self
+                        .inner
+                        .line_info(self.current_line)
+                        .expect("current line should be in the rope")
+                        .character_offset;
+
+                self.set_cursor_line(self.current_line - 1, offs);
             }
             Direction::Down => {
-                let Some(new_offset) = self.inner.next_line_start(self.cursor_offset) else {
-                    log::debug!("buffer::move_cursor not found");
-                    return;
-                };
+                let offs = self.cursor_offset
+                    - self
+                        .inner
+                        .line_info(self.current_line)
+                        .expect("current line should be in the rope")
+                        .character_offset;
 
-                let Some((next_line_nr, _)) = self
-                    .inner
-                    .line_starts()
-                    .enumerate()
-                    .find(|&(_, v)| v == new_offset)
-                else {
-                    return;
-                };
-
-                let next_line_nr = next_line_nr + 1;
-
-                if next_line_nr > self.size.y + self.line_offset {
-                    self.line_offset += 1;
-                }
-
-                self.cursor_offset = new_offset;
+                self.set_cursor_line(self.current_line + 1, offs);
             }
         }
+    }
+
+    fn set_cursor_line(&mut self, line: usize, offs: usize) -> bool {
+        let Some(line_info) = self.inner.line_info(line) else {
+            return false;
+        };
+
+        self.current_line = line;
+
+        if self.current_line < self.line_offset {
+            self.line_offset = self.current_line;
+        }
+
+        if self.current_line >= self.size.y + self.line_offset {
+            self.line_offset = self.current_line - self.size.y + 1;
+        }
+
+        self.cursor_offset = line_info.character_offset + line_info.length.min(offs);
+
+        true
     }
 }
 
@@ -272,6 +264,7 @@ mod tests {
         let mut lines: Vec<_> = inner.lines().map(|v| v.to_owned()).collect();
         let mut expected_pos = Vec2::new(0, 0);
         let mut rng = rand::thread_rng();
+
         for _ in 0..n {
             let dir = rng.gen_range(0..4);
             let dir = match dir {
@@ -281,18 +274,20 @@ mod tests {
                 3 => Direction::Right,
                 _ => unreachable!(),
             };
-            r.move_cursor(1, dir);
+            r.move_cursor(dir, 1);
             match dir {
                 Direction::Up => {
                     if expected_pos.y > 0 {
                         expected_pos.y -= 1;
+                        expected_pos.x = expected_pos.x.min(lines[expected_pos.y].len())
+                    } else {
+                        expected_pos.x = 0;
                     }
-                    expected_pos.x = 0;
                 }
                 Direction::Down => {
                     if expected_pos.y + 1 < lines.len() {
                         expected_pos.y += 1;
-                        expected_pos.x = 0;
+                        expected_pos.x = expected_pos.x.min(lines[expected_pos.y].len())
                     }
                 }
                 Direction::Left => {
@@ -306,6 +301,7 @@ mod tests {
                     }
                 }
             }
+
             if rng.gen_range(0..16) < 1 {
                 r.write('c');
                 let s = format!(
@@ -327,12 +323,13 @@ mod tests {
             cursor_offs += expected_pos.x;
 
             assert_eq!(r.cursor_offset, cursor_offs);
+            assert_eq!(r.current_line, expected_pos.y);
         }
     }
 
     #[test]
     fn movement() {
-        const TRIES: usize = 1024;
+        const TRIES: usize = 1024 * 16;
 
         test_inputs("\n\n", TRIES);
         test_inputs("\nHe", TRIES);

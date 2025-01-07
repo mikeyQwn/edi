@@ -103,6 +103,7 @@ pub struct Lines<'a> {
 pub struct LineInfo {
     pub line_number: usize,
     pub character_offset: usize,
+    pub length: usize,
     pub contents: String,
 }
 
@@ -134,19 +135,22 @@ impl Iterator for Lines<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         let &(character_offset, _) = self.iter.peek()?;
         let line_number = self.seen_count;
-        let contents = if self.parse_contents {
+        let (contents, length) = if self.parse_contents {
             self.iter
                 .by_ref()
                 .take_while(|&(_, char)| char != '\n')
                 .map(|(_, char)| char)
-                .collect()
+                .fold((String::new(), 0), |(mut string, len), curr| {
+                    string.push(curr);
+                    (string, len + 1)
+                })
         } else {
-            // Consume line contents
-            self.iter
+            let len = self
+                .iter
                 .by_ref()
                 .take_while(|&(_, char)| char != '\n')
-                .for_each(|(_, _)| {});
-            String::new()
+                .count();
+            (String::new(), len)
         };
 
         self.seen_count += 1;
@@ -154,6 +158,7 @@ impl Iterator for Lines<'_> {
         Some(LineInfo {
             line_number,
             character_offset,
+            length,
             contents,
         })
     }

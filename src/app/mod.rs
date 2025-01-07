@@ -158,10 +158,10 @@ impl App {
                 }
                 let _ = self.window.render();
             }
-            Event::MoveCursor(dir) => {
+            Event::MoveCursor(dir, steps) => {
                 match self.buffers.front_mut() {
                     Some((b, _)) => {
-                        b.move_cursor(1, dir);
+                        b.move_cursor(dir, steps);
                         self.redraw();
                     }
                     None => {
@@ -222,6 +222,10 @@ impl App {
 
                     return self.handle_event(Event::Quit);
                 }
+            }
+
+            Event::MoveHalfScreen(_) => {
+                unimplemented!("MoveHalfScreen is not implemented yet")
             }
         }
 

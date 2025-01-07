@@ -27,6 +27,7 @@ pub enum Message {
 #[derive(Clone, Debug)]
 pub enum Input {
     Keypress(char),
+    Control(char),
     Escape,
     Enter,
     Backspace,
@@ -87,6 +88,8 @@ impl Stream {
                 break;
             }
 
+            log::debug!("{:?}", &buffer[..n]);
+
             let event = match buffer {
                 [127, _, _, _] => Input::Backspace,
                 [27, 91, 65, _] => Input::ArrowUp,
@@ -95,6 +98,8 @@ impl Stream {
                 [27, 91, 68, _] => Input::ArrowLeft,
                 [27, _, _, _] => Input::Escape,
                 [10, _, _, _] => Input::Enter,
+                [4, _, _, _] => Input::Control('d'),
+                [21, _, _, _] => Input::Control('u'),
                 [c, _, _, _] if c.is_ascii() => Input::Keypress(c as char),
                 _ => Input::Unimplemented(buffer[..n].into()),
             };

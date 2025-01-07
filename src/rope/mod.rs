@@ -308,6 +308,10 @@ impl Rope {
         Lines::new(&self.root).nth(n)
     }
 
+    pub fn line_info(&self, n: usize) -> Option<LineInfo> {
+        Lines::new(&self.root).parse_contents(false).nth(n)
+    }
+
     pub fn prev_line_start(&self, idx: usize) -> Option<usize> {
         if idx == 0 {
             return None;
