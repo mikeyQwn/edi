@@ -312,52 +312,8 @@ impl Rope {
         Lines::new(&self.root).parse_contents(false).nth(n)
     }
 
-    pub fn prev_line_start(&self, idx: usize) -> Option<usize> {
-        if idx == 0 {
-            return None;
-        }
-
-        let mut it = self
-            .chars()
-            .enumerate()
-            .take(idx)
-            .filter(|&(_, c)| c == '\n')
-            .peekable();
-
-        let mut res = None;
-        while let Some((pos, _)) = it.next() {
-            if it.peek().is_some() {
-                res = Some(pos + 1);
-            }
-        }
-
-        Some(res.unwrap_or(0))
-    }
-
-    pub fn next_line_start(&self, idx: usize) -> Option<usize> {
-        let mut it = self.chars().enumerate().skip(idx).peekable();
-        it.by_ref().find(|&(_, c)| c == '\n');
-        it.next().map(|(pos, _)| pos)
-    }
-
-    pub fn line_start(&self, n: usize) -> Option<usize> {
-        self.chars()
-            .enumerate()
-            .filter(|&(_, c)| c == '\n')
-            .nth(n)
-            .map(|(idx, _)| idx + 1)
-    }
-
-    pub fn line_starts(&self) -> impl Iterator<Item = usize> + '_ {
-        std::iter::once(0).chain(
-            self.chars()
-                .enumerate()
-                .filter(|&(_, c)| c == '\n')
-                .map(|(pos, _)| pos + 1),
-        )
-    }
-
     pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
+        let v = vec![…].into_iter()
         let mut range = self.normalize_range(range);
 
         let (node, skipped) = Self::skip_to(&self.root, range.start);

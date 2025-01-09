@@ -34,6 +34,8 @@
 )]
 #![allow(clippy::module_name_repetitions)]
 
+use log::set_debug;
+
 mod app;
 mod buffer;
 mod cli;
@@ -46,6 +48,10 @@ mod vec2;
 mod window;
 
 fn main() {
+    #[cfg(debug_assertions)]
+    set_debug(true);
+    set_debug(false);
+
     let args = cli::EdiCli::parse(std::env::args());
     let err = app::App::new().run(args);
 

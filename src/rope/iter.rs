@@ -3,7 +3,7 @@ use std::{
     ops::Range,
 };
 
-use super::{Node, Rope};
+use super::Node;
 
 #[derive(Default)]
 pub struct InorderIter<'a> {
@@ -109,7 +109,7 @@ pub struct LineInfo {
 
 impl<'a> Lines<'a> {
     #[must_use]
-    pub fn new(n: &'a Node) -> Self {
+    pub(super) fn new(n: &'a Node) -> Self {
         let iter = Chars::new(n).enumerate().peekable();
 
         Self::from_raw(iter)

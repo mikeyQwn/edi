@@ -37,6 +37,7 @@ enum AppMode {
 }
 
 pub struct App {
+    // TODO: Rename to WindowState
     state: AppState,
 
     mode: AppMode,
@@ -224,8 +225,17 @@ impl App {
                 }
             }
 
-            Event::MoveHalfScreen(_) => {
-                unimplemented!("MoveHalfScreen is not implemented yet")
+            Event::MoveHalfScreen(dir) => {
+                match self.buffers.front_mut() {
+                    Some((b, _)) => {
+                        b.move_cursor(dir, b.size.y / 2);
+                        self.redraw();
+                    }
+                    None => {
+                        log::debug!("handle_event: no buffers to move cursor in");
+                    }
+                }
+                let _ = self.window.render();
             }
         }
 
@@ -250,11 +260,13 @@ fn highlight_naive(rope: &Rope, hm: &mut HashMap<usize, Vec<Highlight>>) {
                 get_line_highlights(&line.contents, &C_KEYWORDS),
             )
         })
+        .filter(|(_, hls)| !hls.is_empty())
         .for_each(|(nr, hls)| {
             hm.insert(nr, hls);
         });
 }
 
+#[allow(unused)]
 const RUST_KEYWORDS: [(&str, ANSIColor); 38] = [
     ("as", ANSIColor::Magenta),
     ("break", ANSIColor::Magenta),
@@ -296,6 +308,7 @@ const RUST_KEYWORDS: [(&str, ANSIColor); 38] = [
     ("dyn", ANSIColor::Magenta),
 ];
 
+#[allow(unused)]
 const C_KEYWORDS: [(&str, ANSIColor); 32] = [
     ("auto", ANSIColor::Magenta),
     ("break", ANSIColor::Magenta),

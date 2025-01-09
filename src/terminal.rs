@@ -3,8 +3,6 @@ use std::{
     os::fd::{AsRawFd, RawFd},
 };
 
-use crate::log;
-
 type Result<T> = std::result::Result<T, std::io::Error>;
 
 pub struct Terminal;

@@ -23,9 +23,8 @@ pub const fn map_input(input: &Input, mode: &AppMode) -> Option<Event> {
 
 const fn map_normal(input: &Input) -> Option<Event> {
     match *input {
-        Input::Escape => Some(Event::Quit),
         Input::Control('d') => Some(Event::MoveHalfScreen(buffer::Direction::Down)),
-        Input::Keypress('u') => Some(Event::MoveHalfScreen(buffer::Direction::Up)),
+        Input::Control('u') => Some(Event::MoveHalfScreen(buffer::Direction::Up)),
         Input::Keypress('h') => Some(Event::MoveCursor(buffer::Direction::Left, 1)),
         Input::Keypress('j') => Some(Event::MoveCursor(buffer::Direction::Down, 1)),
         Input::Keypress('k') => Some(Event::MoveCursor(buffer::Direction::Up, 1)),
