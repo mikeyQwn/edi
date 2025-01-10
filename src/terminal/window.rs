@@ -1,21 +1,25 @@
-use std::io::{stdout, Write};
+//! An api for handling the raw mode terminal
+
+use std::io::{stdout, Result, Stdout, Write};
 
 use crate::{
     escaping::{ANSIColor, EscapeBuilder},
-    log,
     vec2::Vec2,
 };
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cell {
     character: char,
-    color: ANSIColor,
+    fg_color: ANSIColor,
 }
 
 impl Cell {
     #[must_use]
-    pub const fn new(character: char, color: ANSIColor) -> Self {
-        Self { character, color }
+    pub const fn new(character: char, fg_color: ANSIColor) -> Self {
+        Self {
+            character,
+            fg_color,
+        }
     }
 }
 
@@ -25,7 +29,15 @@ impl Default for Cell {
     }
 }
 
-pub struct Window {
+/// A TUI "Window"
+///
+/// It is used for drawing in the terminal that is exactly the size of the window
+/// The user is responsible for resizing the `Window` when necessary with the `set_size` method
+#[derive(Debug)]
+pub struct Window<W = Stdout>
+where
+    W: Write,
+{
     width: usize,
     height: usize,
 
@@ -33,35 +45,51 @@ pub struct Window {
 
     buffer: Vec<Cell>,
     back_buffer: Vec<Cell>,
+
+    writer: W,
+}
+
+impl<W> Window<W>
+where
+    W: Write,
+{
+    pub fn from_writer(writer: W) -> Self {
+        Self {
+            width: Default::default(),
+            height: Default::default(),
+
+            cursor_pos: Vec2::default(),
+
+            buffer: Vec::default(),
+            back_buffer: Vec::default(),
+
+            writer,
+        }
+    }
 }
 
 impl Window {
-    pub const fn new() -> Self {
-        Self {
-            width: 0,
-            height: 0,
+    pub fn new() -> Self {
+        Self::from_writer(stdout())
+    }
+}
 
-            cursor_pos: Vec2::new(0, 0),
+impl<W> Window<W>
+where
+    W: Write,
+{
+    pub fn set_size(&mut self, Vec2 { x, y }: Vec2<usize>) {
+        self.width = x;
+        self.height = y;
 
-            buffer: Vec::new(),
-            back_buffer: Vec::new(),
-        }
+        self.buffer = vec![Cell::default(); x * y];
+        self.back_buffer = self.buffer.clone();
     }
 
-    pub fn resize(&mut self, width: usize, height: usize) {
-        // TODO: Keep the window state maybe
-        self.width = width;
-        self.height = height;
-        self.buffer = vec![Cell::default(); width * height];
-        self.back_buffer = vec![Cell::default(); width * height];
-    }
-
-    pub fn render(&mut self) -> Result<(), std::io::Error> {
+    pub fn render(&mut self) -> Result<()> {
         let diffs = self.produce_diffs();
         self.buffer.copy_from_slice(&self.back_buffer);
-
-        stdout().write_all(diffs.build().as_bytes())?;
-        stdout().flush()
+        self.write_flush(diffs.build().as_bytes())
     }
 
     pub fn clear(&mut self) {
@@ -69,46 +97,47 @@ impl Window {
     }
 
     pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
-        log::debug!("set_cursor: {:?}", new_pos);
         self.cursor_pos = new_pos;
     }
 
-    pub fn rerender(&mut self) -> Result<(), std::io::Error> {
+    pub fn rerender(&mut self) -> Result<()> {
         self.buffer.copy_from_slice(&self.back_buffer);
         let string_diffs = self.as_string();
         let changes = EscapeBuilder::new()
             .clear_screen()
             .write(string_diffs.into())
-            .move_to(Vec2::new(0, 0))
+            .move_to(Vec2::default())
             .build();
-        stdout().write_all(changes.as_bytes())?;
-        stdout().flush()
+
+        self.write_flush(changes.as_bytes())
     }
 
     pub fn produce_diffs<'a>(&self) -> EscapeBuilder<'a> {
         let mut escape = EscapeBuilder::new();
 
         let mut prev_pos = None;
-
         let mut prev_color = None;
+
         for y in 0..self.height {
             let row_offs = y * self.width;
             for x in 0..self.width {
                 let index = row_offs + x;
                 let cell = self.back_buffer[index];
-                if cell != self.buffer[index] {
-                    if prev_pos != Some((x.saturating_sub(1), y)) {
-                        escape = escape.move_to(Vec2::new(x, y));
-                    }
-
-                    if prev_color != Some(cell.color) {
-                        prev_color = Some(cell.color);
-                        escape = escape.set_color(cell.color);
-                    }
-
-                    prev_pos = Some((x, y));
-                    escape = escape.write(cell.character.to_string().into());
+                if cell == self.buffer[index] {
+                    continue;
                 }
+
+                if prev_pos != Some((x.saturating_sub(1), y)) {
+                    escape = escape.move_to(Vec2::new(x, y));
+                }
+
+                if prev_color != Some(cell.fg_color) {
+                    prev_color = Some(cell.fg_color);
+                    escape = escape.set_color(cell.fg_color);
+                }
+
+                prev_pos = Some((x, y));
+                escape = escape.write(cell.character.to_string().into());
             }
         }
 
@@ -143,8 +172,8 @@ impl Window {
                 if index != 0 {
                     prev_cell = self.buffer.get(index - 1);
                 }
-                if prev_cell.map(|c| c.color) != Some(cell.color) {
-                    result = result.set_color(cell.color);
+                if prev_cell.map(|c| c.fg_color) != Some(cell.fg_color) {
+                    result = result.set_color(cell.fg_color);
                 }
                 result = result.write(cell.character.to_string().into());
             }
@@ -152,7 +181,9 @@ impl Window {
 
         result.build()
     }
-}
 
-#[cfg(test)]
-mod tests {}
+    fn write_flush(&mut self, buf: &[u8]) -> Result<()> {
+        self.writer.write_all(buf)?;
+        self.writer.flush()
+    }
+}

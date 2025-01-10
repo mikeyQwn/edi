@@ -4,8 +4,8 @@ use crate::{
     escaping::ANSIColor,
     log,
     rope::{iter::LineInfo, Rope},
+    terminal::window::{Cell, Window},
     vec2::Vec2,
-    window::{Cell, Window},
 };
 
 /// A range of bytes to highlight with a color

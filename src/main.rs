@@ -1,3 +1,5 @@
+//! Edi the text editor
+
 #![warn(
     clippy::cognitive_complexity,
     clippy::dbg_macro,
@@ -45,7 +47,6 @@ mod log;
 mod rope;
 mod terminal;
 mod vec2;
-mod window;
 
 fn main() {
     #[cfg(debug_assertions)]

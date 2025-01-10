@@ -313,7 +313,6 @@ impl Rope {
     }
 
     pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
-        let v = vec![…].into_iter()
         let mut range = self.normalize_range(range);
 
         let (node, skipped) = Self::skip_to(&self.root, range.start);

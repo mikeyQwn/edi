@@ -18,9 +18,9 @@ use crate::{
     input::{self, Stream},
     log,
     rope::Rope,
-    terminal::Terminal,
+    terminal,
+    terminal::window::Window,
     vec2::Vec2,
-    window::Window,
 };
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ pub struct App {
 
 impl App {
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         App {
             mode: AppMode::Normal,
             state: AppState::Stopped,
@@ -57,30 +57,29 @@ impl App {
     }
 
     pub fn setup(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
-        let size = Terminal::get_size()?;
+        let size = terminal::get_size()?.map(|v| v as usize);
+
         if let Some(f) = args.edit_file {
             let contents = std::fs::read_to_string(&f)?;
-            let buffer = Buffer::new(contents, Vec2::new(size.0 as usize, size.1 as usize));
+            let buffer = Buffer::new(contents, size);
             let mut meta = BufferMeta::default().with_filepath(Some(f));
             highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
             self.buffers.push_back((buffer, meta));
         }
 
-        let (w, h) = Terminal::get_size()?;
-        self.window.resize(w as usize, h as usize);
+        self.window.set_size(size);
 
-        Terminal::into_raw()?;
+        terminal::into_raw()?;
 
         self.window.set_cursor(Vec2::new(0, 0));
         self.window.rerender()?;
-        Terminal::flush()?;
 
         Ok(())
     }
 
     pub fn run(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
         self.state = AppState::Running {
-            prev_state: Terminal::get_current_state()?,
+            prev_state: terminal::get_current_state()?,
         };
         self.setup(args)?;
 
@@ -88,7 +87,7 @@ impl App {
         self.redraw();
         self.handle_inputs(&input_stream);
 
-        Terminal::restore_state(&match self.state {
+        terminal::restore_state(&match self.state {
             AppState::Running { prev_state } => prev_state,
             AppState::Stopped => panic!("App::run: state is stopped"),
         })?;
@@ -127,8 +126,8 @@ impl App {
             Event::SwitchMode(mode) => {
                 self.mode = mode;
                 if self.mode == AppMode::Terminal {
-                    let size = Terminal::get_size().unwrap_or((10, 0));
-                    let mut buf = Buffer::new(String::from(":"), Vec2::new(size.0 as usize, 1));
+                    let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
+                    let mut buf = Buffer::new(String::from(":"), Vec2::new(size.x as usize, 1));
                     buf.cursor_offset = 1;
                     self.buffers.push_front((buf, BufferMeta::default()));
                     self.redraw();
@@ -376,7 +375,7 @@ fn get_line_highlights(line: &str, keywords: &[(&str, ANSIColor)]) -> Vec<Highli
 impl Drop for App {
     fn drop(&mut self) {
         if let AppState::Running { prev_state } = self.state {
-            let _ = Terminal::restore_state(&prev_state);
+            let _ = terminal::restore_state(&prev_state);
         }
     }
 }
