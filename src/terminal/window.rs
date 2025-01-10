@@ -3,17 +3,21 @@
 use std::io::{stdout, Result, Stdout, Write};
 
 use crate::{
-    escaping::{ANSIColor, EscapeBuilder},
+    terminal::escaping::{ANSIColor, EscapeBuilder},
     vec2::Vec2,
 };
 
+/// A terminal cell representation
+/// A cell has an associated chacater, foreground and background colors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cell {
     character: char,
     fg_color: ANSIColor,
+    // TODO: bg_color
 }
 
 impl Cell {
+    /// Constructs a `Cell` out of its parts
     #[must_use]
     pub const fn new(character: char, fg_color: ANSIColor) -> Self {
         Self {
@@ -53,6 +57,7 @@ impl<W> Window<W>
 where
     W: Write,
 {
+    /// Converts a writer into a `Window` with default settings
     pub fn from_writer(writer: W) -> Self {
         Self {
             width: Default::default(),
@@ -68,9 +73,17 @@ where
     }
 }
 
-impl Window {
-    pub fn new() -> Self {
+impl Default for Window {
+    fn default() -> Self {
         Self::from_writer(stdout())
+    }
+}
+
+impl Window {
+    /// Creates a new `Window` from stdout. Same as `Default` implementation
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -78,6 +91,9 @@ impl<W> Window<W>
 where
     W: Write,
 {
+    /// Sets the width of the window to x and the height to y
+    /// This should be called after display resizes to draw properly
+    /// All drawn characters are lost
     pub fn set_size(&mut self, Vec2 { x, y }: Vec2<usize>) {
         self.width = x;
         self.height = y;
@@ -86,33 +102,61 @@ where
         self.back_buffer = self.buffer.clone();
     }
 
+    /// Draws everyting in the writer and flushes
+    ///
+    /// # Errors
+    /// Fails when writing/flushing to the writer fails
     pub fn render(&mut self) -> Result<()> {
         let diffs = self.produce_diffs();
         self.buffer.copy_from_slice(&self.back_buffer);
         self.write_flush(diffs.build().as_bytes())
     }
 
+    /// Resets all drawn cells to `Cell::default()`. Does not draw
     pub fn clear(&mut self) {
         self.back_buffer = vec![Cell::default(); self.width * self.height];
     }
 
+    /// Sets the cursor position to the `new_pos`
     pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
         self.cursor_pos = new_pos;
     }
 
+    /// Draws everyting in the writer and flushes
+    /// The difference between this and `render()` is that this method does not rely on previous
+    /// state to efficiently generate new output. The `render()` method should be preferred, unless
+    /// the display got messed up in between render calls
+    ///
+    /// # Errors
+    /// Fails when writing/flushing to the writer fails
     pub fn rerender(&mut self) -> Result<()> {
         self.buffer.copy_from_slice(&self.back_buffer);
-        let string_diffs = self.as_string();
         let changes = EscapeBuilder::new()
             .clear_screen()
-            .write(string_diffs.into())
+            .concat(self.as_escapes())
             .move_to(Vec2::default())
             .build();
 
         self.write_flush(changes.as_bytes())
     }
 
-    pub fn produce_diffs<'a>(&self) -> EscapeBuilder<'a> {
+    /// Puts a `Cell` in the position `pos`. Does not draw
+    pub fn put_cell(&mut self, pos: Vec2<usize>, cell: Cell) -> bool {
+        if pos.x >= self.width || pos.y >= self.height {
+            return false;
+        }
+
+        if cell.character.is_control() {
+            return false;
+        }
+
+        let index = pos.y * self.width + pos.x;
+        self.back_buffer[index] = cell;
+
+        true
+    }
+
+    fn produce_diffs<'a>(&self) -> EscapeBuilder<'a> {
         let mut escape = EscapeBuilder::new();
 
         let mut prev_pos = None;
@@ -146,22 +190,7 @@ where
         escape
     }
 
-    pub fn put_cell(&mut self, pos: Vec2<usize>, cell: Cell) -> bool {
-        if pos.x >= self.width || pos.y >= self.height {
-            return false;
-        }
-
-        if cell.character.is_control() {
-            return false;
-        }
-
-        let index = pos.y * self.width + pos.x;
-        self.back_buffer[index] = cell;
-
-        true
-    }
-
-    fn as_string(&self) -> String {
+    fn as_escapes(&self) -> EscapeBuilder {
         let mut result = EscapeBuilder::new();
 
         for i in 0..self.height {
@@ -179,7 +208,7 @@ where
             }
         }
 
-        result.build()
+        result
     }
 
     fn write_flush(&mut self, buf: &[u8]) -> Result<()> {

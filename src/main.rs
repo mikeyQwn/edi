@@ -35,17 +35,16 @@
     clippy::pedantic
 )]
 #![allow(clippy::module_name_repetitions)]
+#![deny(missing_docs)]
 
 use log::set_debug;
 
 mod app;
 mod buffer;
 mod cli;
-mod escaping;
-mod input;
 mod log;
 mod rope;
-mod terminal;
+pub mod terminal;
 mod vec2;
 
 fn main() {

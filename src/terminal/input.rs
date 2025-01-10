@@ -1,3 +1,5 @@
+//! Raw mode terminal input hadnler implementation
+
 use std::{
     io::Read,
     os::fd::AsFd,
@@ -6,50 +8,73 @@ use std::{
 
 use thiserror::Error;
 
-use crate::log;
-
+/// An error that occurs during reading from stdio/sending the input signals through channels
 #[derive(Error, Debug)]
 pub enum InputError {
+    /// Occurs when io reads fail
     #[error("error while reading: `{0}`")]
     IO(#[from] std::io::Error),
+    /// Occurs when send to event channel fails
     #[error("unable to send to a channel: `{0}`")]
     Send(#[from] Box<SendError<Message>>),
+    /// Occurs when receive from event channel fails
     #[error("unable to receive from a channel: `{0}`")]
     Receive(#[from] RecvError),
 }
 
+/// A message sent through the event channel
 #[derive(Debug)]
 pub enum Message {
+    /// A received input
     Input(Input),
+    /// An error while reading from the file
+    /// The caller might use this error to signal the read stream to stop
     Error(InputError),
 }
 
+/// An input receieved in the raw terminal mode
 #[derive(Clone, Debug)]
 pub enum Input {
+    /// A keypress that can be represented with a single ascii character
     Keypress(char),
+    /// Simmilar to keypress, but with the ctrl key held
     Control(char),
+    /// Esc key
     Escape,
+    /// Enter key
     Enter,
+    /// Backspace key
     Backspace,
+    /// Arrow up
     ArrowUp,
+    /// Arrow down
     ArrowDown,
+    /// Arrow left
     ArrowLeft,
+    /// Arrow right
     ArrowRight,
 
+    /// Inputs for which the handlers are yet to be imlemented
     #[allow(unused)]
     Unimplemented(Vec<u8>),
 }
 
 /// A stream of input events
+///
 /// This struct is used to read input from a file descriptor
 /// and convert it into a stream of input events
+///
 /// The stream can be read from using the `recv` method
+#[derive(Debug)]
 pub struct Stream {
     kill: Sender<()>,
     events: Receiver<Message>,
 }
 
 impl Stream {
+    /// Transforms anything that implements `Read` and `AsFd` into an event stream
+    ///
+    /// You may not want to use this with anything but the `stdin()`, though
     pub fn from_read<H>(input_handle: H) -> Self
     where
         H: Read + AsFd + Send + 'static,
@@ -58,6 +83,10 @@ impl Stream {
         Self { kill, events }
     }
 
+    /// Receive a single input event. A call to recv blocks indefinitely
+    ///
+    /// # Errors
+    /// Returns error when receiving from the underlying channel fails
     pub fn recv(&self) -> Result<Message, RecvError> {
         self.events.recv()
     }
@@ -88,8 +117,6 @@ impl Stream {
                 break;
             }
 
-            log::debug!("{:?}", &buffer[..n]);
-
             let event = match buffer {
                 [127, _, _, _] => Input::Backspace,
                 [27, 91, 65, _] => Input::ArrowUp,
@@ -115,6 +142,7 @@ impl Stream {
 
 impl Drop for Stream {
     fn drop(&mut self) {
+        // There is nowhere we can handle this error
         let _ = self.kill.send(());
     }
 }

@@ -1,4 +1,4 @@
-use crate::{buffer, input::Input};
+use crate::{buffer, terminal::input::Input};
 
 use super::AppMode;
 

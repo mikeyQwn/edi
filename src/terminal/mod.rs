@@ -1,5 +1,7 @@
 //! Terminal state management
 
+pub mod escaping;
+pub mod input;
 pub mod window;
 
 use std::{
@@ -11,6 +13,9 @@ use crate::vec2::Vec2;
 
 /// Returns the current state of the terminal
 /// May be used to restore the state after manipulating it with the `restore_state` function
+///
+/// # Errors
+/// Returns an `io::Error` if underlying c function fails
 pub fn get_current_state() -> Result<termios::Termios> {
     termios::Termios::from_fd(get_stdin_fd())
 }
@@ -19,6 +24,9 @@ pub fn get_current_state() -> Result<termios::Termios> {
 ///
 /// It shoud be restored to the initial state, as the "raw" state
 /// may persist after the program exits
+///
+/// # Errors
+/// Returns an `io::Error` if underlying c functions fails
 pub fn into_raw() -> Result<()> {
     let fd = get_stdin_fd();
     let mut termios = termios::Termios::from_fd(fd)?;
@@ -27,11 +35,17 @@ pub fn into_raw() -> Result<()> {
 }
 
 /// Restores the terminal state to the given state
+///
+/// # Errors
+/// Returns an `io::Error` if underlying c function fails
 pub fn restore_state(state: &termios::Termios) -> Result<()> {
     termios::tcsetattr(get_stdin_fd(), termios::TCSAFLUSH, state)
 }
 
 /// Returns the size of the current terminal (columns and rows)
+///
+/// # Errors
+/// Returns an `io::Error` if underlying c function fails
 pub fn get_size() -> Result<Vec2<u16>> {
     let mut winsize = libc::winsize {
         ws_row: 0,

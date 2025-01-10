@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    escaping::ANSIColor,
     log,
     rope::{iter::LineInfo, Rope},
+    terminal::escaping::ANSIColor,
     terminal::window::{Cell, Window},
     vec2::Vec2,
 };

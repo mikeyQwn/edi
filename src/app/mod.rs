@@ -14,11 +14,11 @@ use meta::BufferMeta;
 use crate::{
     buffer::{Buffer, Highlight},
     cli::EdiCli,
-    escaping::ANSIColor,
-    input::{self, Stream},
     log,
     rope::Rope,
     terminal,
+    terminal::escaping::ANSIColor,
+    terminal::input::{self, Stream},
     terminal::window::Window,
     vec2::Vec2,
 };
