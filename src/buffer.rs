@@ -1,11 +1,16 @@
 use std::collections::HashMap;
 
+use edi::{
+    terminal::{
+        escaping::ANSIColor,
+        window::{Cell, Window},
+    },
+    vec2::Vec2,
+};
+
 use crate::{
     log,
     rope::{iter::LineInfo, Rope},
-    terminal::escaping::ANSIColor,
-    terminal::window::{Cell, Window},
-    vec2::Vec2,
 };
 
 /// A range of bytes to highlight with a color
@@ -256,7 +261,6 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::vec2::Vec2;
     use rand::Rng;
 
     use super::*;

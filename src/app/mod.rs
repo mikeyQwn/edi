@@ -8,6 +8,13 @@ use std::{
     path::PathBuf,
 };
 
+use edi::terminal::{
+    self,
+    escaping::ANSIColor,
+    input::{self, Stream},
+    window::Window,
+};
+use edi::vec2::Vec2;
 use event::Event;
 use meta::BufferMeta;
 
@@ -16,11 +23,6 @@ use crate::{
     cli::EdiCli,
     log,
     rope::Rope,
-    terminal,
-    terminal::escaping::ANSIColor,
-    terminal::input::{self, Stream},
-    terminal::window::Window,
-    vec2::Vec2,
 };
 
 #[derive(Debug)]

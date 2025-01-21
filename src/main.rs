@@ -44,8 +44,6 @@ mod buffer;
 mod cli;
 mod log;
 mod rope;
-pub mod terminal;
-mod vec2;
 
 fn main() {
     #[cfg(debug_assertions)]

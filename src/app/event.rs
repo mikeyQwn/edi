@@ -1,4 +1,6 @@
-use crate::{buffer, terminal::input::Input};
+use edi::terminal::input::Input;
+
+use crate::buffer;
 
 use super::AppMode;
 
