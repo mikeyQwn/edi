@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use edi::{
+    rope::{iter::LineInfo, Rope},
     terminal::{
         escaping::ANSIColor,
         window::{Cell, Window},
@@ -8,10 +9,7 @@ use edi::{
     vec2::Vec2,
 };
 
-use crate::{
-    log,
-    rope::{iter::LineInfo, Rope},
-};
+use crate::log;
 
 /// A range of bytes to highlight with a color
 /// The first element is the range [start, end), where start and end are byte offsets

@@ -37,13 +37,16 @@
 #![allow(clippy::module_name_repetitions)]
 #![deny(missing_docs)]
 
+use libc as _;
+use thiserror as _;
+use timeout_readwrite as _;
+
 use log::set_debug;
 
 mod app;
 mod buffer;
 mod cli;
 mod log;
-mod rope;
 
 fn main() {
     #[cfg(debug_assertions)]

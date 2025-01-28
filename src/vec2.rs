@@ -1,15 +1,24 @@
+//! A two-element vector
+
+/// A two-element vector, usually is used to represent 2d coordinates
+///
+/// Operations on the `Vec2` are performed for both elements respectively
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct Vec2<T> {
+    /// First element
     pub x: T,
+    /// Second element
     pub y: T,
 }
 
 impl<T> Vec2<T> {
+    /// Instantiates a vector of two elements
     #[must_use]
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 
+    /// Instantiates a vector of two elements
     #[must_use]
     pub fn map<U, F>(self, mut f: F) -> Vec2<U>
     where

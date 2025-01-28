@@ -1,3 +1,5 @@
+//! Edi's own library for string and terminal manipulation
+
 #![warn(
     clippy::cognitive_complexity,
     clippy::dbg_macro,
@@ -35,5 +37,12 @@
 #![allow(clippy::module_name_repetitions)]
 #![deny(missing_docs)]
 
+pub mod rope;
 pub mod terminal;
 pub mod vec2;
+
+// Unused dependency lint hack
+#[cfg(test)]
+mod tests {
+    use rand as _;
+}

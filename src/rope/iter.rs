@@ -1,3 +1,5 @@
+//! `Rope` iterators
+
 use std::{
     iter::{Enumerate, FlatMap, Peekable, Skip, Take},
     ops::Range,
@@ -5,8 +7,9 @@ use std::{
 
 use super::Node;
 
-#[derive(Default)]
-pub struct InorderIter<'a> {
+/// An iterator that does inorder `Rope` traversal starting from given `Node` and returns `Node`s met
+#[derive(Default, Debug)]
+pub(super) struct InorderIter<'a> {
     stack: Vec<&'a Node>,
 }
 
@@ -55,6 +58,11 @@ impl<'a> Iterator for InorderIter<'a> {
     }
 }
 
+/// An iterator over string characters that the `Node` represents
+///
+/// This iterator traverses `Rope`'s `Node` tree in-order and returns characters met, effectively
+/// "streaming" the `Rope` contents
+#[derive(Debug)]
 pub struct Chars<'a>(FlatMap<InorderIter<'a>, std::str::Chars<'a>, fn(&str) -> std::str::Chars>);
 
 impl<'a> Chars<'a> {
@@ -64,6 +72,7 @@ impl<'a> Chars<'a> {
         Self(out)
     }
 
+    /// Converts interator over chars to iterator over lines
     pub fn lines(self) -> Lines<'a> {
         Lines::from_raw(self.enumerate().peekable())
     }
@@ -77,9 +86,13 @@ impl Iterator for Chars<'_> {
     }
 }
 
+/// A substring iterator that is returned after calling `substr` method of `Rope`
+#[derive(Debug)]
 pub struct Substring<'a>(Take<Skip<Chars<'a>>>);
 
 impl<'a> Substring<'a> {
+    /// Initializes `Substring` using the `Chars` and a substring range
+    #[must_use]
     pub fn new(it: Chars<'a>, range: Range<usize>) -> Self {
         Self(it.skip(range.start).take(range.len()))
     }
@@ -93,17 +106,28 @@ impl Iterator for Substring<'_> {
     }
 }
 
+/// An iterator over lines of the `Rope`
+///
+/// Can be modified to not parse the contents of the string into `contents` field of `LineInfo`
+/// returned
+#[derive(Debug)]
 pub struct Lines<'a> {
     iter: Peekable<Enumerate<Chars<'a>>>,
     parse_contents: bool,
     seen_count: usize,
 }
 
+/// Represents information about a string line
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineInfo {
+    /// Zero-indexed line number
     pub line_number: usize,
+    /// Offset from the start of the string
     pub character_offset: usize,
+    /// A total number of characters in a string line, NOT number of bytes that the line takes
     pub length: usize,
+    /// A string representation of the line. It will be empty if `parse_contents` is `false` OR if
+    /// line is actually empty
     pub contents: String,
 }
 
@@ -123,6 +147,7 @@ impl<'a> Lines<'a> {
         }
     }
 
+    /// Modifies the iterator to not include the string representing the line in it's output
     pub fn parse_contents(&mut self, parse_contents: bool) -> &mut Self {
         self.parse_contents = parse_contents;
         self

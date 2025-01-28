@@ -1,3 +1,5 @@
+//! A data structure suited for frequent write operations
+
 pub mod iter;
 
 use std::ops::{Range, RangeBounds};
@@ -65,19 +67,20 @@ impl Default for Node {
     }
 }
 
-// A rope data structure
+/// Rope data structure. It is optimized for frequent modification
 #[derive(Debug)]
 pub struct Rope {
     root: Box<Node>,
 }
 
 impl Rope {
+    /// Initiates an empty `Rope`
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    // Returns the depth of the tree
+    /// Returns the depth of `Ropes`'s `Node` tree
     #[must_use]
     pub fn depth(&self) -> usize {
         Self::depth_inner(&self.root)
@@ -94,7 +97,7 @@ impl Rope {
         }
     }
 
-    // Concatenates `self` with `other`
+    /// Concatenates `self` with `other`. The string representation becomes exactly `self` + `other`
     pub fn concat(&mut self, mut other: Rope) {
         // An edge case where the current rope is empty to avoid keeping empty nodes in the tree
         if self.root.weight() == 0 {
@@ -111,12 +114,19 @@ impl Rope {
         self.root = Box::new(new_root);
     }
 
-    // Returns the length in characters of the string represented by the rope.
+    /// Returns the character length of the string represented by the rope
+    #[must_use]
     pub fn len(&self) -> usize {
         self.root.full_weight()
     }
 
-    // Removes characters in the given range from the rope
+    /// Returns `true` if the `Rope` contains no characters
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Removes substring in the given character range from the `Rope`
     pub fn delete(&mut self, range: impl std::ops::RangeBounds<usize>) {
         let range = self.normalize_range(range);
         let (mut left, mut right) = self.split(range.start);
@@ -211,7 +221,8 @@ impl Rope {
         }
     }
 
-    // Returns nth character of the string representation of the rope
+    /// Returns nth character of the string representation of the rope
+    #[must_use]
     pub fn get(&self, n: usize) -> Option<char> {
         Self::get_inner(&self.root, n)
     }
@@ -229,7 +240,7 @@ impl Rope {
         }
     }
 
-    // Splits the rope in two at the character index
+    /// Splits the rope in two at the character index
     pub fn split(&mut self, idx: usize) -> (Rope, Rope) {
         let (l_node, r_node) = Self::split_inner(std::mem::take(&mut self.root), idx);
 
@@ -273,6 +284,7 @@ impl Rope {
         }
     }
 
+    /// Inserts `s` at `idx` character position
     pub fn insert(&mut self, idx: usize, s: &str) {
         if idx == 0 {
             self.prepend(s);
@@ -296,22 +308,43 @@ impl Rope {
         *self = new;
     }
 
+    /// Returns iterator over represented string's characters
+    #[must_use]
     pub fn chars(&self) -> Chars<'_> {
         Chars::new(&self.root)
     }
 
+    /// Returns iterator over represented string's lines
+    ///
+    /// The iterator yeilds not just string representations, but line's character offset, number
+    /// and length
+    #[must_use]
     pub fn lines(&self) -> Lines<'_> {
         Lines::new(&self.root)
     }
 
+    /// Returns `n`th line information, including string representatin
+    ///
+    /// If string representation is not needed, consider using `line_info` instead, to avoid
+    /// allocation
+    #[must_use]
     pub fn line(&self, n: usize) -> Option<LineInfo> {
         Lines::new(&self.root).nth(n)
     }
 
+    /// Returns `n`th line information, excluding string representatin
+    ///
+    /// If string representation is needed, use `line` instead
+    #[must_use]
     pub fn line_info(&self, n: usize) -> Option<LineInfo> {
         Lines::new(&self.root).parse_contents(false).nth(n)
     }
 
+    /// Returns iterator over represented string's substring
+    ///
+    /// Functionally is the same as `self.chars().skip(range.start).take(range.len())`, but
+    /// optimized to skip `Node`s that don't include the range
+    #[must_use]
     pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
         let mut range = self.normalize_range(range);
 
@@ -338,7 +371,7 @@ impl Rope {
         start..end
     }
 
-    fn skip_to<'a>(mut from: &Node, target: usize) -> (&Node, usize) {
+    fn skip_to(mut from: &Node, target: usize) -> (&Node, usize) {
         let mut skipped = 0;
         // Skip the left subtree if it is not included in the substring
         while let Node::Value { val, r, .. } = from {

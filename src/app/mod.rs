@@ -1,6 +1,9 @@
 mod event;
 mod meta;
 
+use event::Event;
+use meta::BufferMeta;
+
 use std::{
     collections::{HashMap, VecDeque},
     fs::OpenOptions,
@@ -8,21 +11,21 @@ use std::{
     path::PathBuf,
 };
 
-use edi::terminal::{
-    self,
-    escaping::ANSIColor,
-    input::{self, Stream},
-    window::Window,
+use edi::{
+    rope::Rope,
+    terminal::{
+        self,
+        escaping::ANSIColor,
+        input::{self, Stream},
+        window::Window,
+    },
+    vec2::Vec2,
 };
-use edi::vec2::Vec2;
-use event::Event;
-use meta::BufferMeta;
 
 use crate::{
     buffer::{Buffer, Highlight},
     cli::EdiCli,
     log,
-    rope::Rope,
 };
 
 #[derive(Debug)]
