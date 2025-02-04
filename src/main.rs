@@ -54,7 +54,7 @@ fn main() {
     set_debug(false);
 
     let args = cli::EdiCli::parse(std::env::args());
-    let err = app::App::new().run(args);
+    let err = app::run(args);
 
     if let Err(e) = err {
         log::debug!("fatal error: {:?}", e);

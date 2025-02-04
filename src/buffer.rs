@@ -65,12 +65,12 @@ pub struct Buffer {
 
 impl Buffer {
     #[must_use]
-    pub fn new(inner: String, size: Vec2<usize>) -> Self {
+    pub fn new(inner: String, dimensions: Vec2<usize>) -> Self {
         let line_count = inner.lines().count();
 
         Self {
             inner: Rope::from(inner),
-            size,
+            size: dimensions,
             line_count,
 
             ..Default::default()

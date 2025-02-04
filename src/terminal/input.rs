@@ -72,9 +72,16 @@ pub struct Stream {
 }
 
 impl Stream {
+    /// Initiates an input stream from stdin
+    #[must_use]
+    pub fn from_stdin() -> Self {
+        Self::from_read(std::io::stdin())
+    }
+
     /// Transforms anything that implements `Read` and `AsFd` into an event stream
     ///
     /// You may not want to use this with anything but the `stdin()`, though
+    #[must_use]
     pub fn from_read<H>(input_handle: H) -> Self
     where
         H: Read + AsFd + Send + 'static,

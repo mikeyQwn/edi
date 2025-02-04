@@ -28,231 +28,209 @@ use crate::{
     log,
 };
 
-#[derive(Debug)]
-enum AppState {
-    Stopped,
-    Running { prev_state: termios::Termios },
-}
-
 #[derive(Debug, PartialEq, Eq)]
-enum AppMode {
+enum Mode {
     Normal,
     Insert,
     Terminal,
 }
 
-pub struct App {
-    // TODO: Rename to WindowState
-    state: AppState,
-
-    mode: AppMode,
-    window: Window,
+#[derive(Debug)]
+struct State {
+    mode: Mode,
     buffers: VecDeque<(Buffer, BufferMeta)>,
 }
 
-impl App {
+impl State {
+    /// Instantiates an empty `State` with nothing stored in buffers and mode set to `Normal`
     #[must_use]
-    pub fn new() -> Self {
-        App {
-            mode: AppMode::Normal,
-            state: AppState::Stopped,
-            window: Window::new(),
+    pub const fn new() -> Self {
+        Self {
+            mode: Mode::Normal,
             buffers: VecDeque::new(),
         }
     }
 
-    pub fn setup(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
-        let size = terminal::get_size()?.map(|v| v as usize);
+    /// Opens a file with the given path, appending it's contents to the leftmost buffer
+    pub fn open_file(
+        &mut self,
+        filepath: impl AsRef<std::path::Path>,
+        buff_dimensions: Vec2<usize>,
+    ) -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string(&filepath)?;
 
-        if let Some(f) = args.edit_file {
-            let contents = std::fs::read_to_string(&f)?;
-            let buffer = Buffer::new(contents, size);
-            let mut meta = BufferMeta::default().with_filepath(Some(f));
-            highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
-            self.buffers.push_back((buffer, meta));
-        }
+        let buffer = Buffer::new(contents, buff_dimensions);
+        let mut meta = BufferMeta::default().with_filepath(Some(filepath.as_ref().into()));
 
-        self.window.set_size(size);
-
-        terminal::into_raw()?;
-
-        self.window.set_cursor(Vec2::new(0, 0));
-        self.window.rerender()?;
+        highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
+        self.buffers.push_back((buffer, meta));
 
         Ok(())
     }
+}
 
-    pub fn run(&mut self, args: EdiCli) -> Result<(), std::io::Error> {
-        self.state = AppState::Running {
-            prev_state: terminal::get_current_state()?,
-        };
-        self.setup(args)?;
-
-        let input_stream = Stream::from_read(std::io::stdin());
-        self.redraw();
-        self.handle_inputs(&input_stream);
-
-        terminal::restore_state(&match self.state {
-            AppState::Running { prev_state } => prev_state,
-            AppState::Stopped => panic!("App::run: state is stopped"),
-        })?;
-
-        self.state = AppState::Stopped;
-
-        Ok(())
-    }
-
-    fn handle_inputs(&mut self, input_stream: &Stream) {
-        loop {
-            let message = input_stream.recv().unwrap();
-            let input = match message {
-                input::Message::Input(event) => event,
-                input::Message::Error(e) => {
-                    log::debug!("handle_inputs: received an error {:?}", e);
-                    continue;
-                }
-            };
-
-            let Some(event) = event::map_input(&input, &self.mode) else {
-                log::debug!("handle_inputs: no event for input {:?}", input);
+fn handle_inputs(
+    input_stream: &Stream,
+    state: &mut State,
+    render_window: &mut Window,
+) -> anyhow::Result<()> {
+    loop {
+        let message = input_stream.recv()?;
+        let input = match message {
+            input::Message::Input(event) => event,
+            input::Message::Error(e) => {
+                log::debug!("handle_inputs: received an error {:?}", e);
                 continue;
-            };
-
-            log::debug!("handle_inputs: received event {:?}", event);
-
-            if self.handle_event(event) {
-                break;
             }
+        };
+
+        let Some(event) = event::map_input(&input, &state.mode) else {
+            log::debug!("handle_inputs: no event for input {:?}", input);
+            continue;
+        };
+
+        log::debug!("handle_inputs: received event {:?}", event);
+
+        match handle_event(event, state, render_window) {
+            Ok(true) => break,
+            Err(err) => return Err(err)?,
+            _ => {}
         }
     }
 
-    fn handle_event(&mut self, event: Event) -> bool {
-        match event {
-            Event::SwitchMode(mode) => {
-                self.mode = mode;
-                if self.mode == AppMode::Terminal {
-                    let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
-                    let mut buf = Buffer::new(String::from(":"), Vec2::new(size.x as usize, 1));
-                    buf.cursor_offset = 1;
-                    self.buffers.push_front((buf, BufferMeta::default()));
-                    self.redraw();
-                }
-            }
-            Event::InsertChar(c) => {
-                match self.buffers.front_mut() {
-                    Some((b, m)) => {
-                        b.write(c);
-                        highlight_naive(&b.inner, &mut m.flush_options.highlights);
-                        self.redraw();
-                    }
-                    None => {
-                        log::debug!("handle_event: no buffers to write to");
-                    }
-                }
-                let _ = self.window.render();
-            }
-            Event::DeleteChar => {
-                match self.buffers.front_mut() {
-                    Some((b, _)) => {
-                        b.delete();
-                        self.redraw();
-                    }
-                    None => {
-                        log::debug!("handle_event: no buffers to delete from");
-                    }
-                }
-                let _ = self.window.render();
-            }
-            Event::MoveCursor(dir, steps) => {
-                match self.buffers.front_mut() {
-                    Some((b, _)) => {
-                        b.move_cursor(dir, steps);
-                        self.redraw();
-                    }
-                    None => {
-                        log::debug!("handle_event: no buffers to move cursor in");
-                    }
-                }
-                let _ = self.window.render();
-            }
-            Event::Quit => return true,
-            Event::Submit => {
-                // TODO: Add proper error handling
-                let (cmd_buf, _) = self.buffers.pop_front().unwrap();
-                self.redraw();
-                let cmd: String = cmd_buf.inner.chars().collect();
-                if cmd == ":q" {
-                    return self.handle_event(Event::Quit);
-                }
-                if cmd == ":wq" {
-                    let Some((b, meta)) = self.buffers.pop_front() else {
-                        log::fatal!("app::handle_event no buffer to write")
-                    };
+    Ok(())
+}
 
-                    let swap_name = meta
-                        .filepath
-                        .as_ref()
-                        .map_or(PathBuf::from("out.swp"), |fp| {
-                            let mut fp = fp.clone();
-                            fp.set_extension(".swp");
-                            fp
-                        });
+// TODO: Refactor this mess into map-based handler system
 
-                    let file = match OpenOptions::new()
-                        .write(true)
-                        .truncate(true)
-                        .create(true)
-                        .open(&swap_name)
-                    {
-                        Ok(f) => f,
-                        Err(e) => {
-                            log::debug!(
-                                "handle_event: unable to create output file {e} {swap_name:?}"
-                            );
-                            return true;
-                        }
-                    };
+/// Handles a signle event, returning Ok(true), if the program should terminate
+fn handle_event(
+    event: Event,
+    state: &mut State,
+    render_window: &mut Window,
+) -> anyhow::Result<bool> {
+    match event {
+        Event::SwitchMode(mode) => {
+            state.mode = mode;
+            if state.mode == Mode::Terminal {
+                let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
+                let mut buf = Buffer::new(String::from(":"), Vec2::new(size.x as usize, 1));
+                buf.cursor_offset = 1;
+                state.buffers.push_front((buf, BufferMeta::default()));
+                redraw(state, render_window)?;
+            }
+        }
+        Event::InsertChar(c) => {
+            match state.buffers.front_mut() {
+                Some((b, m)) => {
+                    b.write(c);
+                    highlight_naive(&b.inner, &mut m.flush_options.highlights);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    log::debug!("handle_event: no buffers to write to");
+                }
+            }
+            render_window.render()?;
+        }
+        Event::DeleteChar => {
+            match state.buffers.front_mut() {
+                Some((b, _)) => {
+                    b.delete();
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    log::debug!("handle_event: no buffers to delete from");
+                }
+            }
+            render_window.render()?;
+        }
+        Event::MoveCursor(dir, steps) => {
+            match state.buffers.front_mut() {
+                Some((b, _)) => {
+                    b.move_cursor(dir, steps);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    log::debug!("handle_event: no buffers to move cursor in");
+                }
+            }
+            render_window.render()?;
+        }
+        Event::Quit => return Ok(true),
+        Event::Submit => {
+            // TODO: Add proper error handling
+            let (cmd_buf, _) = state.buffers.pop_front().unwrap();
+            redraw(state, render_window)?;
+            let cmd: String = cmd_buf.inner.chars().collect();
+            if cmd == ":q" {
+                return handle_event(Event::Quit, state, render_window);
+            }
+            if cmd == ":wq" {
+                let Some((b, meta)) = state.buffers.pop_front() else {
+                    log::fatal!("app::handle_event no buffer to write")
+                };
 
-                    let mut w = BufWriter::new(file);
-                    b.inner.chars().for_each(|c| {
-                        let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
+                let swap_name = meta
+                    .filepath
+                    .as_ref()
+                    .map_or(PathBuf::from("out.swp"), |fp| {
+                        let mut fp = fp.clone();
+                        fp.set_extension(".swp");
+                        fp
                     });
 
-                    if let Err(e) = std::fs::rename(
-                        swap_name,
-                        meta.filepath.unwrap_or(PathBuf::from("out.txt")),
-                    ) {
-                        log::debug!("app::handle_event failed to rename file {e}");
-                    };
-
-                    return self.handle_event(Event::Quit);
-                }
-            }
-
-            Event::MoveHalfScreen(dir) => {
-                match self.buffers.front_mut() {
-                    Some((b, _)) => {
-                        b.move_cursor(dir, b.size.y / 2);
-                        self.redraw();
+                let file = match OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(&swap_name)
+                {
+                    Ok(f) => f,
+                    Err(e) => {
+                        log::debug!("handle_event: unable to create output file {e} {swap_name:?}");
+                        return Ok(true);
                     }
-                    None => {
-                        log::debug!("handle_event: no buffers to move cursor in");
-                    }
-                }
-                let _ = self.window.render();
+                };
+
+                let mut w = BufWriter::new(file);
+                b.inner.chars().for_each(|c| {
+                    let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
+                });
+
+                if let Err(e) =
+                    std::fs::rename(swap_name, meta.filepath.unwrap_or(PathBuf::from("out.txt")))
+                {
+                    log::debug!("app::handle_event failed to rename file {e}");
+                };
+
+                return handle_event(Event::Quit, state, render_window);
             }
         }
 
-        false
+        Event::MoveHalfScreen(dir) => {
+            match state.buffers.front_mut() {
+                Some((b, _)) => {
+                    b.move_cursor(dir, b.size.y / 2);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    log::debug!("handle_event: no buffers to move cursor in");
+                }
+            }
+            render_window.render()?;
+        }
     }
 
-    fn redraw(&mut self) {
-        log::debug!("app::redraw drawing {} buffers", self.buffers.len());
-        self.buffers.iter().rev().for_each(|(b, m)| {
-            b.flush(&mut self.window, &m.flush_options);
-        });
-        let _ = self.window.render();
-    }
+    Ok(false)
+}
+
+fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
+    log::debug!("app::redraw drawing {} buffers", state.buffers.len());
+    state.buffers.iter().rev().for_each(|(b, m)| {
+        b.flush(draw_window, &m.flush_options);
+    });
+    draw_window.render()
 }
 
 fn highlight_naive(rope: &Rope, hm: &mut HashMap<usize, Vec<Highlight>>) {
@@ -377,10 +355,34 @@ fn get_line_highlights(line: &str, keywords: &[(&str, ANSIColor)]) -> Vec<Highli
     line_highlights
 }
 
-impl Drop for App {
-    fn drop(&mut self) {
-        if let AppState::Running { prev_state } = self.state {
-            let _ = terminal::restore_state(&prev_state);
+/// Runs the `edi` application, blocknig until receiving an error / close signal
+pub fn run(args: EdiCli) -> anyhow::Result<()> {
+    let initial_state = terminal::get_current_state()?;
+
+    // Make sure the initial state is restored even in case of application error
+    (|| -> anyhow::Result<()> {
+        terminal::into_raw()?;
+
+        let mut render_window = Window::new();
+        let mut app_state = State::new();
+        let input_stream = Stream::from_stdin();
+
+        let size = terminal::get_size()?.map(|v| v as usize);
+
+        if let Some(filepath) = args.edit_file {
+            app_state.open_file(filepath, size)?;
         }
-    }
+
+        render_window.set_size(size);
+        render_window.set_cursor(Vec2::new(0, 0));
+        render_window.rerender()?;
+
+        redraw(&app_state, &mut render_window)?;
+
+        handle_inputs(&input_stream, &mut app_state, &mut render_window)
+    })()?;
+
+    terminal::restore_state(&initial_state)?;
+
+    Ok(())
 }

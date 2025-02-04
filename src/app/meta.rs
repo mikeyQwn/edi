@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::buffer::FlushOptions;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BufferMeta {
     pub flush_options: FlushOptions,
     pub filepath: Option<PathBuf>,
