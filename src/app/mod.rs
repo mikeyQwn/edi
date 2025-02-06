@@ -5,28 +5,24 @@ use event::Event;
 use meta::BufferMeta;
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     fs::OpenOptions,
     io::{BufWriter, Write},
     path::PathBuf,
 };
 
 use edi::{
-    rope::Rope,
+    fs::Filetype,
+    string::highlight::get_highlights,
     terminal::{
         self,
-        escaping::ANSIColor,
         input::{self, Stream},
         window::Window,
     },
     vec2::Vec2,
 };
 
-use crate::{
-    buffer::{Buffer, Highlight},
-    cli::EdiCli,
-    log,
-};
+use crate::{buffer::Buffer, cli::EdiCli, log};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Mode {
@@ -57,12 +53,25 @@ impl State {
         filepath: impl AsRef<std::path::Path>,
         buff_dimensions: Vec2<usize>,
     ) -> anyhow::Result<()> {
-        let contents = std::fs::read_to_string(&filepath)?;
+        let filepath = filepath.as_ref();
+        let contents = std::fs::read_to_string(filepath)?;
 
         let buffer = Buffer::new(contents, buff_dimensions);
-        let mut meta = BufferMeta::default().with_filepath(Some(filepath.as_ref().into()));
+        let filetype = Filetype::from_ext(
+            filepath
+                .extension()
+                .and_then(|v| v.to_str())
+                .unwrap_or("unknown"),
+        );
 
-        highlight_naive(&buffer.inner, &mut meta.flush_options.highlights);
+        let mut meta = BufferMeta::default()
+            .with_filepath(Some(filepath.into()))
+            .with_filetype(filetype);
+
+        meta.flush_options = meta
+            .flush_options
+            .with_highlights(get_highlights(&buffer.inner, &meta.filetype));
+
         self.buffers.push_back((buffer, meta));
 
         Ok(())
@@ -122,9 +131,8 @@ fn handle_event(
         }
         Event::InsertChar(c) => {
             match state.buffers.front_mut() {
-                Some((b, m)) => {
+                Some((b, _)) => {
                     b.write(c);
-                    highlight_naive(&b.inner, &mut m.flush_options.highlights);
                     redraw(state, render_window)?;
                 }
                 None => {
@@ -231,128 +239,6 @@ fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
         b.flush(draw_window, &m.flush_options);
     });
     draw_window.render()
-}
-
-fn highlight_naive(rope: &Rope, hm: &mut HashMap<usize, Vec<Highlight>>) {
-    hm.clear();
-    rope.lines()
-        .map(|line| {
-            (
-                line.line_number,
-                get_line_highlights(&line.contents, &C_KEYWORDS),
-            )
-        })
-        .filter(|(_, hls)| !hls.is_empty())
-        .for_each(|(nr, hls)| {
-            hm.insert(nr, hls);
-        });
-}
-
-#[allow(unused)]
-const RUST_KEYWORDS: [(&str, ANSIColor); 38] = [
-    ("as", ANSIColor::Magenta),
-    ("break", ANSIColor::Magenta),
-    ("const", ANSIColor::Magenta),
-    ("continue", ANSIColor::Magenta),
-    ("crate", ANSIColor::Magenta),
-    ("else", ANSIColor::Magenta),
-    ("enum", ANSIColor::Magenta),
-    ("extern", ANSIColor::Magenta),
-    ("false", ANSIColor::Magenta),
-    ("fn", ANSIColor::Magenta),
-    ("for", ANSIColor::Magenta),
-    ("if", ANSIColor::Magenta),
-    ("impl", ANSIColor::Magenta),
-    ("in", ANSIColor::Magenta),
-    ("let", ANSIColor::Magenta),
-    ("loop", ANSIColor::Magenta),
-    ("match", ANSIColor::Magenta),
-    ("mod", ANSIColor::Magenta),
-    ("move", ANSIColor::Magenta),
-    ("mut", ANSIColor::Magenta),
-    ("pub", ANSIColor::Magenta),
-    ("ref", ANSIColor::Magenta),
-    ("return", ANSIColor::Magenta),
-    ("self", ANSIColor::Magenta),
-    ("Self", ANSIColor::Magenta),
-    ("static", ANSIColor::Magenta),
-    ("struct", ANSIColor::Magenta),
-    ("super", ANSIColor::Magenta),
-    ("trait", ANSIColor::Magenta),
-    ("true", ANSIColor::Magenta),
-    ("type", ANSIColor::Magenta),
-    ("unsafe", ANSIColor::Magenta),
-    ("use", ANSIColor::Magenta),
-    ("where", ANSIColor::Magenta),
-    ("while", ANSIColor::Magenta),
-    ("async", ANSIColor::Magenta),
-    ("await", ANSIColor::Magenta),
-    ("dyn", ANSIColor::Magenta),
-];
-
-#[allow(unused)]
-const C_KEYWORDS: [(&str, ANSIColor); 32] = [
-    ("auto", ANSIColor::Magenta),
-    ("break", ANSIColor::Magenta),
-    ("case", ANSIColor::Magenta),
-    ("char", ANSIColor::Magenta),
-    ("const", ANSIColor::Magenta),
-    ("continue", ANSIColor::Magenta),
-    ("default", ANSIColor::Magenta),
-    ("do", ANSIColor::Magenta),
-    ("double", ANSIColor::Magenta),
-    ("else", ANSIColor::Magenta),
-    ("enum", ANSIColor::Magenta),
-    ("extern", ANSIColor::Magenta),
-    ("float", ANSIColor::Magenta),
-    ("for", ANSIColor::Magenta),
-    ("if", ANSIColor::Magenta),
-    ("int", ANSIColor::Magenta),
-    ("long", ANSIColor::Magenta),
-    ("register", ANSIColor::Magenta),
-    ("return", ANSIColor::Magenta),
-    ("short", ANSIColor::Magenta),
-    ("signed", ANSIColor::Magenta),
-    ("sizeof", ANSIColor::Magenta),
-    ("static", ANSIColor::Magenta),
-    ("struct", ANSIColor::Magenta),
-    ("switch", ANSIColor::Magenta),
-    ("typedef", ANSIColor::Magenta),
-    ("union", ANSIColor::Magenta),
-    ("unsigned", ANSIColor::Magenta),
-    ("void", ANSIColor::Magenta),
-    ("goto", ANSIColor::Magenta),
-    ("volatile", ANSIColor::Magenta),
-    ("while", ANSIColor::Magenta),
-];
-
-fn get_line_highlights(line: &str, keywords: &[(&str, ANSIColor)]) -> Vec<Highlight> {
-    let mut line_highlights = Vec::new();
-    for &(word, color) in keywords {
-        line_highlights.extend(
-            line.match_indices(word)
-                .map(|(idx, _)| (idx, idx + word.len()))
-                .filter(|&(start, end)| {
-                    let starts_with_space = start == 0
-                        || line
-                            .chars()
-                            .nth(start - 1)
-                            .filter(|&c| !c.is_whitespace())
-                            .is_none();
-
-                    let ends_with_space = line
-                        .chars()
-                        .nth(end)
-                        .filter(|&c| !c.is_whitespace())
-                        .is_none();
-
-                    starts_with_space && ends_with_space
-                })
-                .map(|(start, end)| (Vec2::new(start, end), color)),
-        );
-    }
-
-    line_highlights
 }
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal

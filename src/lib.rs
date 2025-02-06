@@ -23,7 +23,6 @@
     clippy::shadow_unrelated,
     clippy::similar_names,
     clippy::suspicious_operation_groupings,
-    unused_crate_dependencies,
     unused_extern_crates,
     unused_import_braces,
     clippy::unused_self,
@@ -37,12 +36,8 @@
 #![allow(clippy::module_name_repetitions)]
 #![deny(missing_docs)]
 
+pub mod fs;
 pub mod rope;
+pub mod string;
 pub mod terminal;
 pub mod vec2;
-
-// Unused dependency lint hack
-#[cfg(test)]
-mod tests {
-    use rand as _;
-}
