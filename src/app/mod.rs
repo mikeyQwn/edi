@@ -131,8 +131,10 @@ fn handle_event(
         }
         Event::InsertChar(c) => {
             match state.buffers.front_mut() {
-                Some((b, _)) => {
+                Some((b, m)) => {
                     b.write(c);
+                    m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
+
                     redraw(state, render_window)?;
                 }
                 None => {
@@ -143,8 +145,9 @@ fn handle_event(
         }
         Event::DeleteChar => {
             match state.buffers.front_mut() {
-                Some((b, _)) => {
+                Some((b, m)) => {
                     b.delete();
+                    m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
                     redraw(state, render_window)?;
                 }
                 None => {

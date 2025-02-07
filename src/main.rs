@@ -38,10 +38,9 @@
 #![deny(missing_docs)]
 
 use libc as _;
+use termios as _;
 use thiserror as _;
 use timeout_readwrite as _;
-
-use log::set_debug;
 
 mod app;
 mod buffer;
@@ -50,8 +49,8 @@ mod log;
 
 fn main() {
     #[cfg(debug_assertions)]
-    set_debug(true);
-    set_debug(false);
+    log::set_debug(true);
+    log::set_debug(false);
 
     let args = cli::EdiCli::parse(std::env::args());
     let err = app::run(args);
