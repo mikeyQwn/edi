@@ -231,6 +231,19 @@ fn handle_event(
             }
             render_window.render()?;
         }
+
+        Event::MoveToLineStart => {
+            match state.buffers.front_mut() {
+                Some((b, _)) => {
+                    b.move_to(b.inner.line_info(b.current_line).unwrap().character_offset);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    log::debug!("handle_event: no buffers to move cursor in");
+                }
+            }
+            render_window.render()?;
+        }
     }
 
     Ok(false)

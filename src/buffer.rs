@@ -262,6 +262,28 @@ impl Buffer {
 
         true
     }
+
+    // TODO: properly test '\n' offsets
+    pub fn move_to(&mut self, offset: usize) {
+        let start = self.cursor_offset.min(offset);
+        let end = self.cursor_offset.max(offset);
+        let lines = self.inner.substr(start..end).filter(|&c| c == '\n').count();
+        if offset == start {
+            self.current_line += lines;
+        } else {
+            self.current_line -= lines;
+        }
+
+        if self.current_line < self.line_offset {
+            self.line_offset = self.current_line;
+        }
+
+        if self.current_line >= self.size.y + self.line_offset {
+            self.line_offset = self.current_line - self.size.y + 1;
+        }
+
+        self.cursor_offset = offset.min(self.inner.len());
+    }
 }
 
 #[cfg(test)]

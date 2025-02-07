@@ -13,6 +13,7 @@ pub enum Event {
     MoveHalfScreen(buffer::Direction),
     Quit,
     Submit,
+    MoveToLineStart,
 }
 
 pub const fn map_input(input: &Input, mode: &Mode) -> Option<Event> {
@@ -33,6 +34,7 @@ const fn map_normal(input: &Input) -> Option<Event> {
         Input::Keypress('l') => Some(Event::MoveCursor(buffer::Direction::Right, 1)),
         Input::Keypress('i') => Some(Event::SwitchMode(Mode::Insert)),
         Input::Keypress(':') => Some(Event::SwitchMode(Mode::Terminal)),
+        Input::Keypress('0') => Some(Event::MoveToLineStart),
         _ => None,
     }
 }
