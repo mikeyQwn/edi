@@ -34,9 +34,13 @@
     clippy::pedantic
 )]
 #![allow(clippy::module_name_repetitions)]
-#![deny(missing_docs)]
 
+// TODO: Turn back on when finished buffer refactor
+//#![deny(missing_docs)]
+
+pub mod buffer;
 pub mod fs;
+pub mod log;
 pub mod rope;
 pub mod string;
 pub mod terminal;

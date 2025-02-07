@@ -1,4 +1,5 @@
-use edi::{
+use crate::{
+    log,
     rope::{iter::LineInfo, Rope},
     string::highlight::{self, Highlight},
     terminal::{
@@ -7,8 +8,6 @@ use edi::{
     },
     vec2::Vec2,
 };
-
-use crate::log;
 
 #[derive(Debug)]
 pub struct FlushOptions {

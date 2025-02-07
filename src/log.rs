@@ -28,18 +28,20 @@ pub fn __fatal_internal(msg: &str) -> ! {
     std::process::exit(1)
 }
 
+#[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {{
-        use crate::log::__debug_internal;
+        use $crate::log::__debug_internal;
         __debug_internal(&format!($($arg)*));
 
     }};
 }
 pub(crate) use debug;
 
+#[macro_export]
 macro_rules! fatal {
     ($($arg:tt)*) => {{
-        use crate::log::__fatal_internal;
+        use $crate::log::__fatal_internal;
         __fatal_internal(&format!($($arg)*));
     }};
 }

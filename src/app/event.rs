@@ -1,6 +1,6 @@
 use edi::terminal::input::Input;
 
-use crate::buffer;
+use edi::buffer;
 
 use super::Mode;
 

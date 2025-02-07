@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use edi::fs::Filetype;
 
-use crate::buffer::FlushOptions;
+use edi::buffer::FlushOptions;
 
 #[derive(Default, Debug)]
 pub struct BufferMeta {

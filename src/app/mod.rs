@@ -22,7 +22,9 @@ use edi::{
     vec2::Vec2,
 };
 
-use crate::{buffer::Buffer, cli::EdiCli, log};
+use edi::{buffer::Buffer, log};
+
+use crate::cli::EdiCli;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Mode {
@@ -88,17 +90,17 @@ fn handle_inputs(
         let input = match message {
             input::Message::Input(event) => event,
             input::Message::Error(e) => {
-                log::debug!("handle_inputs: received an error {:?}", e);
+                edi::debug!("handle_inputs: received an error {:?}", e);
                 continue;
             }
         };
 
         let Some(event) = event::map_input(&input, &state.mode) else {
-            log::debug!("handle_inputs: no event for input {:?}", input);
+            edi::debug!("handle_inputs: no event for input {:?}", input);
             continue;
         };
 
-        log::debug!("handle_inputs: received event {:?}", event);
+        edi::debug!("handle_inputs: received event {:?}", event);
 
         match handle_event(event, state, render_window) {
             Ok(true) => break,
@@ -138,7 +140,7 @@ fn handle_event(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    log::debug!("handle_event: no buffers to write to");
+                    edi::debug!("handle_event: no buffers to write to");
                 }
             }
             render_window.render()?;
@@ -151,7 +153,7 @@ fn handle_event(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    log::debug!("handle_event: no buffers to delete from");
+                    edi::debug!("handle_event: no buffers to delete from");
                 }
             }
             render_window.render()?;
@@ -163,7 +165,7 @@ fn handle_event(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    log::debug!("handle_event: no buffers to move cursor in");
+                    edi::debug!("handle_event: no buffers to move cursor in");
                 }
             }
             render_window.render()?;
@@ -179,7 +181,7 @@ fn handle_event(
             }
             if cmd == ":wq" {
                 let Some((b, meta)) = state.buffers.pop_front() else {
-                    log::fatal!("app::handle_event no buffer to write")
+                    edi::fatal!("app::handle_event no buffer to write")
                 };
 
                 let swap_name = meta
@@ -199,7 +201,7 @@ fn handle_event(
                 {
                     Ok(f) => f,
                     Err(e) => {
-                        log::debug!("handle_event: unable to create output file {e} {swap_name:?}");
+                        edi::debug!("handle_event: unable to create output file {e} {swap_name:?}");
                         return Ok(true);
                     }
                 };
@@ -212,7 +214,7 @@ fn handle_event(
                 if let Err(e) =
                     std::fs::rename(swap_name, meta.filepath.unwrap_or(PathBuf::from("out.txt")))
                 {
-                    log::debug!("app::handle_event failed to rename file {e}");
+                    edi::debug!("app::handle_event failed to rename file {e}");
                 };
 
                 return handle_event(Event::Quit, state, render_window);
@@ -226,7 +228,7 @@ fn handle_event(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    log::debug!("handle_event: no buffers to move cursor in");
+                    edi::debug!("handle_event: no buffers to move cursor in");
                 }
             }
             render_window.render()?;
@@ -239,7 +241,7 @@ fn handle_event(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    log::debug!("handle_event: no buffers to move cursor in");
+                    edi::debug!("handle_event: no buffers to move cursor in");
                 }
             }
             render_window.render()?;
@@ -250,7 +252,7 @@ fn handle_event(
 }
 
 fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
-    log::debug!("app::redraw drawing {} buffers", state.buffers.len());
+    edi::debug!("app::redraw drawing {} buffers", state.buffers.len());
     state.buffers.iter().rev().for_each(|(b, m)| {
         b.flush(draw_window, &m.flush_options);
     });

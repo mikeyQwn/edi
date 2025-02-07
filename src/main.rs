@@ -43,19 +43,17 @@ use thiserror as _;
 use timeout_readwrite as _;
 
 mod app;
-mod buffer;
 mod cli;
-mod log;
 
 fn main() {
     #[cfg(debug_assertions)]
-    log::set_debug(true);
-    log::set_debug(false);
+    edi::log::set_debug(true);
+    edi::log::set_debug(false);
 
     let args = cli::EdiCli::parse(std::env::args());
     let err = app::run(args);
 
     if let Err(e) = err {
-        log::debug!("fatal error: {:?}", e);
+        edi::debug!("fatal error: {:?}", e);
     }
 }
