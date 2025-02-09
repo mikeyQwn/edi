@@ -1,3 +1,5 @@
+mod draw;
+
 use crate::{
     log,
     rope::{iter::LineInfo, Rope},

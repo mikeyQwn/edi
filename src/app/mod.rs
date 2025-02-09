@@ -22,7 +22,7 @@ use edi::{
     vec2::Vec2,
 };
 
-use edi::{buffer::Buffer, log};
+use edi::buffer::Buffer;
 
 use crate::cli::EdiCli;
 

@@ -1,40 +1,5 @@
 //! Edi's own library for string and terminal manipulation
 
-#![warn(
-    clippy::cognitive_complexity,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::doc_link_with_quotes,
-    clippy::doc_markdown,
-    clippy::empty_line_after_outer_attr,
-    clippy::empty_structs_with_brackets,
-    clippy::float_cmp,
-    clippy::float_cmp_const,
-    clippy::float_equality_without_abs,
-    keyword_idents,
-    clippy::missing_const_for_fn,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    non_ascii_idents,
-    noop_method_call,
-    clippy::option_if_let_else,
-    clippy::semicolon_if_nothing_returned,
-    clippy::unseparated_literal_suffix,
-    clippy::shadow_unrelated,
-    clippy::similar_names,
-    clippy::suspicious_operation_groupings,
-    unused_extern_crates,
-    unused_import_braces,
-    clippy::unused_self,
-    clippy::used_underscore_binding,
-    clippy::useless_let_if_seq,
-    clippy::wildcard_dependencies,
-    clippy::wildcard_imports,
-    clippy::all,
-    clippy::pedantic
-)]
-#![allow(clippy::module_name_repetitions)]
-
 // TODO: Turn back on when finished buffer refactor
 //#![deny(missing_docs)]
 
@@ -45,3 +10,5 @@ pub mod rope;
 pub mod string;
 pub mod terminal;
 pub mod vec2;
+
+use anyhow as _;
