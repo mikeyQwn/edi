@@ -35,7 +35,7 @@ pub struct Highlight {
 
 impl PartialOrd for Highlight {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.start.partial_cmp(&other.start)
+        Some(self.start.cmp(&other.start))
     }
 }
 
@@ -80,6 +80,7 @@ fn get_line_highlights(line: &str, keywords: &[(&str, Type)]) -> Vec<Highlight> 
 }
 
 /// Get all highlights of `contents` based on the `filetype`. Highlights are sorted by default
+#[must_use]
 pub fn get_highlights(content: &Rope, filetype: &Filetype) -> Vec<Highlight> {
     let kw = filetype_to_keywords(filetype);
     content
@@ -94,7 +95,7 @@ pub fn get_highlights(content: &Rope, filetype: &Filetype) -> Vec<Highlight> {
         .collect()
 }
 
-fn filetype_to_keywords<'a, 'b, 'c>(ft: &'a Filetype) -> &'b [(&'c str, Type)] {
+fn filetype_to_keywords<'b, 'c>(ft: &Filetype) -> &'b [(&'c str, Type)] {
     if *ft.0 == *C_FILETYPE {
         return &C_KEYWORDS;
     }
@@ -103,7 +104,7 @@ fn filetype_to_keywords<'a, 'b, 'c>(ft: &'a Filetype) -> &'b [(&'c str, Type)] {
         return &RUST_KEYWORDS;
     }
 
-    return &[];
+    &[]
 }
 
 const C_KEYWORDS: [(&str, Type); 32] = [

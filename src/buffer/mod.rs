@@ -1,44 +1,6 @@
-mod draw;
+pub mod draw;
 
-use crate::{
-    log,
-    rope::{iter::LineInfo, Rope},
-    string::highlight::{self, Highlight},
-    terminal::{
-        escaping::ANSIColor,
-        window::{Cell, Window},
-    },
-    vec2::Vec2,
-};
-
-#[derive(Debug)]
-pub struct FlushOptions {
-    pub wrap: bool,
-    pub highlights: Vec<Highlight>,
-}
-
-impl FlushOptions {
-    #[must_use]
-    pub const fn with_wrap(mut self, wrap: bool) -> Self {
-        self.wrap = wrap;
-        self
-    }
-
-    #[must_use]
-    pub fn with_highlights(mut self, highlights: Vec<Highlight>) -> Self {
-        self.highlights = highlights;
-        self
-    }
-}
-
-impl Default for FlushOptions {
-    fn default() -> Self {
-        Self {
-            wrap: true,
-            highlights: Vec::new(),
-        }
-    }
-}
+use crate::{log, rope::Rope, vec2::Vec2};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -72,94 +34,6 @@ impl Buffer {
         }
     }
 
-    pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
-        let mut draw_pos = Vec2::new(0, 0);
-        let mut found_cursor = false;
-        let highlights: &[Highlight] = &opts.highlights;
-        let lines = self.inner.lines().skip(self.line_offset).take(self.size.y);
-        window.clear();
-        log::debug!(
-            "buffer::flush cursor_offset: {} opts: {:?}",
-            self.cursor_offset,
-            opts
-        );
-
-        for LineInfo {
-            contents,
-            character_offset,
-            line_number: _,
-            length,
-        } in lines
-        {
-            draw_pos.x = 0;
-
-            if draw_pos.y > self.size.y {
-                break;
-            }
-
-            if contents.is_empty() && character_offset == self.cursor_offset {
-                window.set_cursor(draw_pos);
-                found_cursor = true;
-            }
-
-            for (i, c) in contents.chars().enumerate() {
-                if char::is_control(c) {
-                    unimplemented!("control characters are not supported yet");
-                }
-                let character_offset = character_offset + i;
-
-                if self.cursor_offset == character_offset {
-                    window.set_cursor(draw_pos);
-                    found_cursor = true;
-                }
-
-                match (draw_pos.x > self.size.x, opts.wrap) {
-                    (true, true) => {
-                        draw_pos.x = 0;
-                        draw_pos.y += 1;
-                    }
-                    (true, false) => {
-                        break;
-                    }
-                    _ => {}
-                }
-
-                let color = Self::get_highlight_color(character_offset, &mut highlights.as_ref())
-                    .unwrap_or(ANSIColor::White);
-
-                window.put_cell(draw_pos, Cell::new(c, color));
-                draw_pos.x += 1;
-            }
-
-            if !found_cursor && self.cursor_offset == character_offset + length {
-                window.set_cursor(draw_pos);
-                found_cursor = true;
-            }
-
-            draw_pos.y += 1;
-        }
-
-        log::debug!("buffer::flush finished");
-    }
-
-    fn get_highlight_color(offs: usize, highlights: &mut &[Highlight]) -> Option<ANSIColor> {
-        let first_hl = highlights.first()?;
-
-        if first_hl.start + first_hl.len < offs {
-            *highlights = &highlights[1..];
-            return Self::get_highlight_color(offs, highlights);
-        }
-
-        if !(first_hl.start..first_hl.start + first_hl.len).contains(&offs) {
-            return None;
-        }
-
-        Some(match first_hl.ty {
-            highlight::Type::Keyword => ANSIColor::Magenta,
-            _ => ANSIColor::Red,
-        })
-    }
-
     pub fn write(&mut self, c: char) {
         self.inner
             .insert(self.cursor_offset, c.to_string().as_ref());
@@ -189,6 +63,9 @@ impl Buffer {
         }
     }
 
+    /// # Panics
+    ///
+    /// Never panics
     pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
         log::debug!("buffer::move_cursor offs: {}", self.cursor_offset);
         match direction {

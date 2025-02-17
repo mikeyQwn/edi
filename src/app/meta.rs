@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use edi::fs::Filetype;
-
-use edi::buffer::FlushOptions;
+use edi::{buffer::draw::FlushOptions, fs::Filetype};
 
 #[derive(Default, Debug)]
 pub struct BufferMeta {
