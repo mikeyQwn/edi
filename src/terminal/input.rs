@@ -59,6 +59,27 @@ pub enum Input {
     Unimplemented(Vec<u8>),
 }
 
+impl Input {
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        match bytes {
+            [4] => Input::Control('d'),
+            [10] => Input::Enter,
+            [21] => Input::Control('u'),
+            [27] => Input::Escape,
+            [127] => Input::Backspace,
+            [c] if c.is_ascii() => Input::Keypress(*c as char),
+
+            [27, 91, 65] => Input::ArrowUp,
+            [27, 91, 66] => Input::ArrowDown,
+            [27, 91, 67] => Input::ArrowRight,
+            [27, 91, 68] => Input::ArrowLeft,
+
+            _ => Input::Unimplemented(bytes.into()),
+        }
+    }
+}
+
 /// A stream of input events
 ///
 /// This struct is used to read input from a file descriptor
@@ -93,6 +114,7 @@ impl Stream {
     /// Receive a single input event. A call to recv blocks indefinitely
     ///
     /// # Errors
+    ///
     /// Returns error when receiving from the underlying channel fails
     pub fn recv(&self) -> Result<Message, RecvError> {
         self.events.recv()
@@ -115,7 +137,12 @@ impl Stream {
                     if e.kind() == std::io::ErrorKind::TimedOut {
                         continue;
                     }
-                    let _ = t_events.send(Message::Error(InputError::from(e)));
+
+                    // If the receiver is gone, we should probably kill the read loop
+                    // and exit
+                    if t_events.send(Message::Error(InputError::from(e))).is_err() {
+                        break;
+                    };
                     continue;
                 }
             };
@@ -124,22 +151,11 @@ impl Stream {
                 break;
             }
 
-            let event = match buffer {
-                [127, _, _, _] => Input::Backspace,
-                [27, 91, 65, _] => Input::ArrowUp,
-                [27, 91, 66, _] => Input::ArrowDown,
-                [27, 91, 67, _] => Input::ArrowRight,
-                [27, 91, 68, _] => Input::ArrowLeft,
-                [27, _, _, _] => Input::Escape,
-                [10, _, _, _] => Input::Enter,
-                [4, _, _, _] => Input::Control('d'),
-                [21, _, _, _] => Input::Control('u'),
-                [c, _, _, _] if c.is_ascii() => Input::Keypress(c as char),
-                _ => Input::Unimplemented(buffer[..n].into()),
-            };
+            let input = Input::from_bytes(&buffer[..n]);
 
-            if let Err(e) = t_events.send(Message::Input(event)) {
-                let _ = t_events.send(Message::Error(InputError::from(Box::new(e))));
+            // Same here. There is no point in reading if no one's receiving
+            if t_events.send(Message::Input(input)).is_err() {
+                break;
             }
         });
 
@@ -149,7 +165,8 @@ impl Stream {
 
 impl Drop for Stream {
     fn drop(&mut self) {
-        // There is nowhere we can handle this error
-        let _ = self.kill.send(());
+        self.kill
+            .send(())
+            .expect("the receiver should not be dropped yet");
     }
 }

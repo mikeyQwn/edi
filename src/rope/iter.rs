@@ -73,6 +73,7 @@ impl<'a> Chars<'a> {
     }
 
     /// Converts interator over chars to iterator over lines
+    #[must_use]
     pub fn lines(self) -> Lines<'a> {
         Lines::from_raw(self.enumerate().peekable())
     }
