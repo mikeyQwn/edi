@@ -45,6 +45,7 @@ pub fn restore_state(state: &termios::Termios) -> Result<()> {
 /// Returns the size of the current terminal (columns and rows)
 ///
 /// # Errors
+///
 /// Returns an `io::Error` if underlying c function fails
 pub fn get_size() -> Result<Vec2<u16>> {
     let mut winsize = libc::winsize {
@@ -68,6 +69,36 @@ pub fn get_size() -> Result<Vec2<u16>> {
     Ok(Vec2::new(winsize.ws_col, winsize.ws_row))
 }
 
+/// Executes a function within raw mode, ensuring that state is restored after function returns
+///
+/// # Errors
+///
+/// Returns an error if unable to enter raw mode / restore the state
+pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T> {
+    let initial_state = get_current_state()?;
+    into_raw()?;
+
+    let ret = f();
+
+    restore_state(&initial_state)?;
+    Ok(ret)
+}
+
 fn get_stdin_fd() -> RawFd {
     std::io::stdin().as_raw_fd()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn within_raw() {
+        let init_state = get_current_state().unwrap();
+        let raw_state = within_raw_mode(|| get_current_state().unwrap()).unwrap();
+
+        let exit_state = get_current_state().unwrap();
+        assert_eq!(init_state, exit_state);
+        assert_ne!(init_state, raw_state);
+    }
 }

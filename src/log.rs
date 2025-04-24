@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::sync::OnceLock;
+use std::time::SystemTime;
 
 const DEBUG_FILE: &str = "log";
 static DEBUG_ENABLED: OnceLock<bool> = OnceLock::new();
@@ -8,6 +9,9 @@ pub fn set_debug(value: bool) -> bool {
     DEBUG_ENABLED.set(value).is_ok()
 }
 
+/// # Panics
+///
+/// Panics when system clock runs backward
 pub fn __debug_internal(msg: &str) {
     if !matches!(DEBUG_ENABLED.get(), Some(true)) {
         return;
@@ -19,7 +23,14 @@ pub fn __debug_internal(msg: &str) {
         .open(DEBUG_FILE);
 
     if let Ok(mut f) = f {
-        let _ = writeln!(f, "[-] {msg}");
+        let _ = writeln!(
+            f,
+            "[-] {:?} {msg}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("system clock should not run backwards")
+                .as_secs()
+        );
     }
 }
 
@@ -45,4 +56,3 @@ macro_rules! fatal {
         __fatal_internal(&format!($($arg)*));
     }};
 }
-pub(crate) use fatal;

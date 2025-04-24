@@ -48,15 +48,22 @@ pub enum ANSIEscape<'a> {
     Write(Cow<'a, str>),
     /// Sets the foreground color to the ANSI color
     SetColor(ANSIColor),
+    /// Enters the alternate screen state
+    EnterAlternateScreen,
+    /// Exits the alternate screen state
+    ExitAlternateScreen,
 }
 
 impl<'a> ANSIEscape<'a> {
-    fn value(self) -> Cow<'a, str> {
+    #[must_use]
+    pub fn to_str(self) -> Cow<'a, str> {
         match self {
             Self::ClearScreen => Cow::Borrowed("\x1b[2J"),
             Self::MoveTo(pos) => Cow::Owned(format!("\x1b[{};{}H", pos.y + 1, pos.x + 1)),
             Self::Write(text) => text,
             Self::SetColor(color) => Cow::Borrowed(color.value()),
+            Self::EnterAlternateScreen => Cow::Borrowed("\x1b[?1049h"),
+            Self::ExitAlternateScreen => Cow::Borrowed("\x1b[?1049l"),
         }
     }
 }
@@ -119,7 +126,7 @@ impl<'a> EscapeBuilder<'a> {
         self.inner
             .into_iter()
             .fold(String::new(), |mut acc, escape| {
-                let escape_string = escape.value();
+                let escape_string = escape.to_str();
                 acc.push_str(&escape_string);
                 acc
             })

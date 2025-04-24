@@ -7,7 +7,7 @@ use meta::BufferMeta;
 use std::{
     collections::VecDeque,
     fs::OpenOptions,
-    io::{BufWriter, Write},
+    io::{stdout, BufWriter, Write},
     path::PathBuf,
 };
 
@@ -16,6 +16,7 @@ use edi::{
     string::highlight::get_highlights,
     terminal::{
         self,
+        escaping::ANSIEscape,
         input::{self, Stream},
         window::Window,
     },
@@ -85,6 +86,7 @@ fn handle_inputs(
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<()> {
+    edi::debug!("handle_inputs: running");
     loop {
         let message = input_stream.recv()?;
         let input = match message {
@@ -112,7 +114,7 @@ fn handle_inputs(
     Ok(())
 }
 
-// TODO: Refactor this mess into map-based handler system
+// TODO: Refactor this mess to map-based handler system
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
 fn handle_event(
@@ -261,15 +263,12 @@ fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal
 pub fn run(args: EdiCli) -> anyhow::Result<()> {
-    let initial_state = terminal::get_current_state()?;
-
-    // Make sure the initial state is restored even in case of application error
-    (|| -> anyhow::Result<()> {
-        terminal::into_raw()?;
-
+    terminal::within_raw_mode(|| {
         let mut render_window = Window::new();
         let mut app_state = State::new();
         let input_stream = Stream::from_stdin();
+
+        let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
         let size = terminal::get_size()?.map(|v| v as usize);
 
@@ -283,10 +282,10 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         redraw(&app_state, &mut render_window)?;
 
-        handle_inputs(&input_stream, &mut app_state, &mut render_window)
-    })()?;
+        handle_inputs(&input_stream, &mut app_state, &mut render_window)?;
 
-    terminal::restore_state(&initial_state)?;
+        let _ = stdout().write(ANSIEscape::ExitAlternateScreen.to_str().as_bytes());
 
-    Ok(())
+        Ok(())
+    })?
 }
