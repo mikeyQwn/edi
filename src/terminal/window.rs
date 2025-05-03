@@ -11,8 +11,8 @@ use crate::{
 /// A cell has an associated chacater, foreground and background colors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cell {
-    character: char,
-    fg_color: ANSIColor,
+    pub character: char,
+    pub fg_color: ANSIColor,
     // TODO: bg_color
 }
 

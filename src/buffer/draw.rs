@@ -1,13 +1,11 @@
 //! Draw-related buffer functionality
 
 use crate::{
+    draw::Surface,
     log,
     rope::iter::LineInfo,
     string::highlight::{Highlight, Type},
-    terminal::{
-        escaping::ANSIColor,
-        window::{Cell, Window},
-    },
+    terminal::{escaping::ANSIColor, window::Cell},
     vec2::Vec2,
 };
 
@@ -60,11 +58,11 @@ impl<'a> FlushState<'a> {
 }
 
 impl Buffer {
-    pub fn flush(&self, window: &mut Window, opts: &FlushOptions) {
+    pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
         let mut flush_state = FlushState::new(&opts.highlights);
 
         let lines = self.inner.lines().skip(self.line_offset).take(self.size.y);
-        window.clear();
+        surface.clear();
         log::debug!(
             "buffer::flush cursor_offset: {} opts: {:?}",
             self.cursor_offset,
@@ -72,15 +70,15 @@ impl Buffer {
         );
 
         lines.for_each(|li| {
-            self.flush_line(window, opts, li, &mut flush_state);
+            self.flush_line(surface, opts, li, &mut flush_state);
         });
 
         log::debug!("buffer::flush finished");
     }
 
-    fn flush_line(
+    fn flush_line<S: Surface>(
         &self,
-        window: &mut Window,
+        surface: &mut S,
         opts: &FlushOptions,
         info: LineInfo,
         flush_state: &mut FlushState,
@@ -105,7 +103,7 @@ impl Buffer {
         draw_pos.x = 0;
 
         if contents.is_empty() && character_offset == self.cursor_offset {
-            window.set_cursor(*draw_pos);
+            surface.move_cursor(*draw_pos);
             *found_cursor = true;
         }
 
@@ -116,7 +114,7 @@ impl Buffer {
             let character_offset = character_offset + i;
 
             if self.cursor_offset == character_offset {
-                window.set_cursor(*draw_pos);
+                surface.move_cursor(*draw_pos);
                 *found_cursor = true;
             }
 
@@ -134,12 +132,12 @@ impl Buffer {
             let color =
                 Self::get_highlight_color(character_offset, highlights).unwrap_or(ANSIColor::White);
 
-            window.put_cell(*draw_pos, Cell::new(c, color));
+            surface.set(*draw_pos, Cell::new(c, color).into());
             draw_pos.x += 1;
         }
 
         if !*found_cursor && self.cursor_offset == character_offset + length {
-            window.set_cursor(*draw_pos);
+            surface.move_cursor(*draw_pos);
             *found_cursor = true;
         }
 
