@@ -12,7 +12,9 @@ use std::{
 };
 
 use edi::{
+    draw::WindowBind,
     fs::Filetype,
+    rect::Rect,
     string::highlight::get_highlights,
     terminal::{
         self,
@@ -255,8 +257,11 @@ fn handle_event(
 
 fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
     edi::debug!("app::redraw drawing {} buffers", state.buffers.len());
+
+    let size = terminal::get_size()?;
     state.buffers.iter().rev().for_each(|(b, m)| {
-        b.flush(draw_window, &m.flush_options);
+        let mut bound = Rect::new(0, 0, size.x as usize, size.y as usize).bind(draw_window);
+        b.flush(&mut bound, &m.flush_options);
     });
     draw_window.render()
 }

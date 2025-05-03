@@ -61,7 +61,11 @@ impl Buffer {
     pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
         let mut flush_state = FlushState::new(&opts.highlights);
 
-        let lines = self.inner.lines().skip(self.line_offset).take(self.size.y);
+        let lines = self
+            .inner
+            .lines()
+            .skip(self.line_offset)
+            .take(surface.dimensions().y);
         surface.clear();
         log::debug!(
             "buffer::flush cursor_offset: {} opts: {:?}",
@@ -96,7 +100,7 @@ impl Buffer {
             highlights,
         } = flush_state;
 
-        if draw_pos.y > self.size.y {
+        if draw_pos.y > surface.dimensions().y {
             return;
         }
 
@@ -118,7 +122,7 @@ impl Buffer {
                 *found_cursor = true;
             }
 
-            match (draw_pos.x > self.size.x, opts.wrap) {
+            match (draw_pos.x > surface.dimensions().x, opts.wrap) {
                 (true, true) => {
                     draw_pos.x = 0;
                     draw_pos.y += 1;

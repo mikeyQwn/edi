@@ -1,4 +1,5 @@
 use crate::{
+    rect::Rect,
     terminal::{escaping::ANSIColor, window},
     vec2::Vec2,
 };
@@ -76,18 +77,45 @@ pub trait Surface {
     fn clear(&mut self);
     fn move_cursor(&mut self, point: Vec2<usize>);
     fn set(&mut self, position: Vec2<usize>, cell: Cell);
+    fn dimensions(&self) -> Vec2<usize>;
 }
 
-impl Surface for window::Window {
+pub trait WindowBind<'a> {
+    fn bind(self, window: &'a mut window::Window) -> BoundedWindow<'a>;
+}
+
+impl<'a> WindowBind<'a> for Rect {
+    fn bind(self, window: &'a mut window::Window) -> BoundedWindow<'a> {
+        BoundedWindow {
+            window,
+            bound: self,
+        }
+    }
+}
+
+pub struct BoundedWindow<'a> {
+    window: &'a mut window::Window,
+    bound: Rect,
+}
+
+impl Surface for BoundedWindow<'_> {
     fn set(&mut self, position: Vec2<usize>, cell: Cell) {
-        window::Window::put_cell(self, position, window::Cell::from(cell));
+        let origin = self.bound.origin();
+        let new_pos = Vec2::new(position.x + origin.x, position.y + origin.y);
+        window::Window::put_cell(self.window, new_pos, window::Cell::from(cell));
     }
 
     fn clear(&mut self) {
-        window::Window::clear(self);
+        window::Window::clear(self.window);
     }
 
     fn move_cursor(&mut self, point: Vec2<usize>) {
-        window::Window::set_cursor(self, point);
+        let origin = self.bound.origin();
+        let new_pos = Vec2::new(point.x + origin.x, point.y + origin.y);
+        window::Window::set_cursor(self.window, new_pos);
+    }
+
+    fn dimensions(&self) -> Vec2<usize> {
+        Vec2::new(self.bound.width(), self.bound.height())
     }
 }
