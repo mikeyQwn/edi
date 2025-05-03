@@ -61,7 +61,7 @@ impl State {
         let filepath = filepath.as_ref();
         let contents = std::fs::read_to_string(filepath)?;
 
-        let buffer = Buffer::new(contents, buff_dimensions);
+        let buffer = Buffer::new(contents);
         let filetype = Filetype::from_ext(
             filepath
                 .extension()
@@ -71,7 +71,8 @@ impl State {
 
         let mut meta = BufferMeta::default()
             .with_filepath(Some(filepath.into()))
-            .with_filetype(filetype);
+            .with_filetype(filetype)
+            .with_size(buff_dimensions);
 
         meta.flush_options = meta
             .flush_options
@@ -129,9 +130,12 @@ fn handle_event(
             state.mode = mode;
             if state.mode == Mode::Terminal {
                 let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
-                let mut buf = Buffer::new(String::from(":"), Vec2::new(size.x as usize, 1));
+                let mut buf = Buffer::new(String::from(":"));
                 buf.cursor_offset = 1;
-                state.buffers.push_front((buf, BufferMeta::default()));
+                state.buffers.push_front((
+                    buf,
+                    BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
+                ));
                 redraw(state, render_window)?;
             }
         }
@@ -227,8 +231,8 @@ fn handle_event(
 
         Event::MoveHalfScreen(dir) => {
             match state.buffers.front_mut() {
-                Some((b, _)) => {
-                    b.move_cursor(dir, b.size.y / 2);
+                Some((b, m)) => {
+                    b.move_cursor(dir, m.size.y / 2);
                     redraw(state, render_window)?;
                 }
                 None => {
@@ -241,7 +245,12 @@ fn handle_event(
         Event::MoveToLineStart => {
             match state.buffers.front_mut() {
                 Some((b, _)) => {
-                    b.move_to(b.inner.line_info(b.current_line).unwrap().character_offset);
+                    b.move_to(
+                        b.inner
+                            .line_info(b.current_line())
+                            .unwrap()
+                            .character_offset,
+                    );
                     redraw(state, render_window)?;
                 }
                 None => {
@@ -255,11 +264,12 @@ fn handle_event(
     Ok(false)
 }
 
-fn redraw(state: &State, draw_window: &mut Window) -> std::io::Result<()> {
+fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
     edi::debug!("app::redraw drawing {} buffers", state.buffers.len());
 
     let size = terminal::get_size()?;
-    state.buffers.iter().rev().for_each(|(b, m)| {
+    state.buffers.iter_mut().rev().for_each(|(b, m)| {
+        m.normalize(b);
         let mut bound = Rect::new(0, 0, size.x as usize, size.y as usize).bind(draw_window);
         b.flush(&mut bound, &m.flush_options);
     });
@@ -285,7 +295,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         render_window.set_cursor(Vec2::new(0, 0));
         render_window.rerender()?;
 
-        redraw(&app_state, &mut render_window)?;
+        redraw(&mut app_state, &mut render_window)?;
 
         handle_inputs(&input_stream, &mut app_state, &mut render_window)?;
 

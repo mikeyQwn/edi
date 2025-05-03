@@ -15,6 +15,7 @@ use super::Buffer;
 pub struct FlushOptions {
     pub wrap: bool,
     pub highlights: Vec<Highlight>,
+    pub line_offset: usize,
 }
 
 impl FlushOptions {
@@ -29,6 +30,12 @@ impl FlushOptions {
         self.highlights = highlights;
         self
     }
+
+    #[must_use]
+    pub fn with_line_offset(mut self, line_offset: usize) -> Self {
+        self.line_offset = line_offset;
+        self
+    }
 }
 
 impl Default for FlushOptions {
@@ -36,6 +43,7 @@ impl Default for FlushOptions {
         Self {
             wrap: true,
             highlights: Vec::new(),
+            line_offset: 0,
         }
     }
 }
@@ -64,7 +72,7 @@ impl Buffer {
         let lines = self
             .inner
             .lines()
-            .skip(self.line_offset)
+            .skip(opts.line_offset)
             .take(surface.dimensions().y);
         surface.clear();
         log::debug!(

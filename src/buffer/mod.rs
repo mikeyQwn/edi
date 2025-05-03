@@ -1,6 +1,6 @@
 pub mod draw;
 
-use crate::{log, rope::Rope, vec2::Vec2};
+use crate::{log, rope::Rope};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -13,18 +13,14 @@ pub enum Direction {
 #[derive(Debug, Default)]
 pub struct Buffer {
     pub inner: Rope,
-    pub size: Vec2<usize>,
     pub cursor_offset: usize,
-    pub line_offset: usize,
-    pub current_line: usize,
 }
 
 impl Buffer {
     #[must_use]
-    pub fn new(inner: String, dimensions: Vec2<usize>) -> Self {
+    pub fn new(inner: String) -> Self {
         Self {
             inner: Rope::from(inner),
-            size: dimensions,
 
             ..Default::default()
         }
@@ -36,10 +32,6 @@ impl Buffer {
 
         if c == '\n' {
             self.cursor_offset += 1;
-            self.current_line += 1;
-            if self.current_line >= self.size.y + self.line_offset {
-                self.line_offset += 1;
-            }
 
             return;
         }
@@ -50,9 +42,6 @@ impl Buffer {
     pub fn delete(&mut self) {
         if self.cursor_offset > 0 {
             self.cursor_offset -= 1;
-            if let Some('\n') = self.inner.get(self.cursor_offset) {
-                self.current_line -= 1;
-            }
             self.inner.delete(self.cursor_offset..=self.cursor_offset);
         }
     }
@@ -84,7 +73,7 @@ impl Buffer {
                 self.cursor_offset = new_offset;
             }
             Direction::Up => {
-                if self.current_line == 0 || self.inner.lines().count() == 0 {
+                if self.current_line() == 0 || self.inner.lines().count() == 0 {
                     self.cursor_offset = 0;
                     return;
                 }
@@ -92,11 +81,11 @@ impl Buffer {
                 let offs = self.cursor_offset
                     - self
                         .inner
-                        .line_info(self.current_line)
+                        .line_info(self.current_line())
                         .expect("current line should be in the rope")
                         .character_offset;
 
-                self.set_cursor_line(self.current_line.saturating_sub(steps), offs);
+                self.set_cursor_line(self.current_line().saturating_sub(steps), offs);
             }
             Direction::Down => {
                 if self.inner.lines().count() == 0 {
@@ -106,12 +95,12 @@ impl Buffer {
                 let offs = self.cursor_offset
                     - self
                         .inner
-                        .line_info(self.current_line)
+                        .line_info(self.current_line())
                         .expect("current line should be in the rope")
                         .character_offset;
 
                 self.set_cursor_line(
-                    (self.current_line + steps).min(self.inner.lines().count() - 1),
+                    (self.current_line() + steps).min(self.inner.lines().count() - 1),
                     offs,
                 );
             }
@@ -123,41 +112,24 @@ impl Buffer {
             return false;
         };
 
-        self.current_line = line;
-
-        if self.current_line < self.line_offset {
-            self.line_offset = self.current_line;
-        }
-
-        if self.current_line >= self.size.y + self.line_offset {
-            self.line_offset = self.current_line - self.size.y + 1;
-        }
-
         self.cursor_offset = line_info.character_offset + line_info.length.min(offs);
 
         true
     }
 
-    // TODO: properly test '\n' offsets
     pub fn move_to(&mut self, offset: usize) {
-        let start = self.cursor_offset.min(offset);
-        let end = self.cursor_offset.max(offset);
-        let lines = self.inner.substr(start..end).filter(|&c| c == '\n').count();
-        if offset == start {
-            self.current_line += lines;
-        } else {
-            self.current_line -= lines;
-        }
-
-        if self.current_line < self.line_offset {
-            self.line_offset = self.current_line;
-        }
-
-        if self.current_line >= self.size.y + self.line_offset {
-            self.line_offset = self.current_line - self.size.y + 1;
-        }
-
         self.cursor_offset = offset.min(self.inner.len());
+    }
+
+    pub fn current_line(&self) -> usize {
+        let mut curr_line = 0;
+        for line_info in self.inner.lines() {
+            if line_info.character_offset > self.cursor_offset {
+                break;
+            }
+            curr_line = line_info.line_number;
+        }
+        curr_line
     }
 }
 
@@ -165,10 +137,12 @@ impl Buffer {
 mod tests {
     use rand::Rng;
 
+    use crate::vec2::Vec2;
+
     use super::*;
 
     fn test_inputs(inner: &str, n: usize) {
-        let mut r = Buffer::new(inner.to_string(), Vec2::new(10, 10));
+        let mut r = Buffer::new(inner.to_string());
         let mut lines: Vec<_> = inner.lines().map(|v| v.to_owned()).collect();
         let mut expected_pos = Vec2::new(0, 0);
         let mut rng = rand::thread_rng();
@@ -231,7 +205,6 @@ mod tests {
             cursor_offs += expected_pos.x;
 
             assert_eq!(r.cursor_offset, cursor_offs);
-            assert_eq!(r.current_line, expected_pos.y);
         }
     }
 
@@ -253,7 +226,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let mut b = Buffer::new(String::new(), Vec2::new(10, 10));
+        let mut b = Buffer::new(String::new());
         b.write('c');
         b.write('c');
     }
