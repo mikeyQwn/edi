@@ -52,9 +52,9 @@ impl From<Color> for ANSIColor {
 
 #[derive(Debug, Default)]
 pub struct Cell {
-    char: char,
-    fg: Color,
-    bg: Color,
+    pub char: char,
+    pub fg: Color,
+    pub bg: Color,
 }
 
 impl From<window::Cell> for Cell {
