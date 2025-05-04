@@ -1,9 +1,7 @@
 //! Edi the text editor
 
-use libc as _;
 #[cfg(test)]
 use rand as _;
-use termios as _;
 use thiserror as _;
 use timeout_readwrite as _;
 

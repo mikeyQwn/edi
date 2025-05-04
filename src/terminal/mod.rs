@@ -4,10 +4,9 @@ pub mod escaping;
 pub mod input;
 pub mod window;
 
-use std::{
-    io::Result,
-    os::fd::{AsRawFd, RawFd},
-};
+use nix::{errno::Errno, ioctl_read_bad, libc::TIOCGWINSZ, sys::termios};
+
+use std::os::fd::{AsRawFd, RawFd};
 
 use crate::vec2::Vec2;
 
@@ -16,8 +15,8 @@ use crate::vec2::Vec2;
 ///
 /// # Errors
 /// Returns an `io::Error` if underlying c function fails
-pub fn get_current_state() -> Result<termios::Termios> {
-    termios::Termios::from_fd(get_stdin_fd())
+pub fn get_current_state() -> Result<termios::Termios, Errno> {
+    termios::tcgetattr(std::io::stdin())
 }
 
 /// Puts the stdin into "raw" mode
@@ -27,43 +26,37 @@ pub fn get_current_state() -> Result<termios::Termios> {
 ///
 /// # Errors
 /// Returns an `io::Error` if underlying c functions fails
-pub fn into_raw() -> Result<()> {
-    let fd = get_stdin_fd();
-    let mut termios = termios::Termios::from_fd(fd)?;
-    termios.c_lflag &= !(termios::ICANON | termios::ECHO);
-    termios::tcsetattr(fd, termios::TCSAFLUSH, &termios)
+pub fn into_raw() -> Result<(), Errno> {
+    let mut termios = termios::tcgetattr(std::io::stdin())?;
+    termios.local_flags &= !(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
+    termios::tcsetattr(std::io::stdin(), termios::SetArg::TCSAFLUSH, &termios)
 }
 
 /// Restores the terminal state to the given state
 ///
 /// # Errors
 /// Returns an `io::Error` if underlying c function fails
-pub fn restore_state(state: &termios::Termios) -> Result<()> {
-    termios::tcsetattr(get_stdin_fd(), termios::TCSAFLUSH, state)
+pub fn restore_state(state: &termios::Termios) -> Result<(), Errno> {
+    termios::tcsetattr(std::io::stdin(), termios::SetArg::TCSAFLUSH, state)
 }
+
+ioctl_read_bad!(get_win_size, TIOCGWINSZ, nix::pty::Winsize);
 
 /// Returns the size of the current terminal (columns and rows)
 ///
 /// # Errors
 ///
 /// Returns an `io::Error` if underlying c function fails
-pub fn get_size() -> Result<Vec2<u16>> {
-    let mut winsize = libc::winsize {
+pub fn get_size() -> Result<Vec2<u16>, Errno> {
+    let mut winsize = nix::pty::Winsize {
         ws_row: 0,
         ws_col: 0,
         ws_xpixel: 0,
         ws_ypixel: 0,
     };
 
-    // Safety: `winsize` is a valid `libc::winsize` struct.
-    // `TIOCGWINSZ` is a valid ioctl request for a terminal file descriptor.
-    // `winsize` is a valid pointer to a mutable `libc::winsize` struct.
-    // The return value of `ioctl` is checked for errors.
     unsafe {
-        let ok = libc::ioctl(get_stdin_fd(), libc::TIOCGWINSZ, &mut winsize);
-        if ok == -1 {
-            return Err(std::io::Error::last_os_error());
-        }
+        let _ = get_win_size(get_stdin_fd(), &mut winsize)?;
     }
 
     Ok(Vec2::new(winsize.ws_col, winsize.ws_row))
@@ -74,7 +67,7 @@ pub fn get_size() -> Result<Vec2<u16>> {
 /// # Errors
 ///
 /// Returns an error if unable to enter raw mode / restore the state
-pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T> {
+pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T, Errno> {
     let initial_state = get_current_state()?;
     into_raw()?;
 
