@@ -27,4 +27,14 @@ impl Rect {
     pub fn origin(&self) -> Vec2<usize> {
         self.origin
     }
+
+    pub fn contains_point(&self, point: Vec2<usize>) -> bool {
+        if point.x < self.origin.x || point.y < self.origin.y {
+            return false;
+        }
+        if point.x >= self.origin.x + self.width || point.y >= self.origin.y + self.height {
+            return false;
+        }
+        true
+    }
 }
