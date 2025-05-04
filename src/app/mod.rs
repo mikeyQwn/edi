@@ -270,7 +270,7 @@ fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
     let size = terminal::get_size()?;
     state.buffers.iter_mut().rev().for_each(|(b, m)| {
         m.normalize(b);
-        let mut bound = Rect::new(0, 0, size.x as usize, size.y as usize).bind(draw_window);
+        let mut bound = Rect::new_in_origin(size.x as usize, size.y as usize).bind(draw_window);
         b.flush(&mut bound, &m.flush_options);
     });
     draw_window.render()

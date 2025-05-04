@@ -172,7 +172,7 @@ impl Buffer {
             Vec2::new(x_offset, y_offset)
         };
 
-        Rect::new(0, 0, w, h).contains_point(pos).then_some(pos)
+        Rect::new_in_origin(w, h).contains_point(pos).then_some(pos)
     }
 
     fn get_highlight_color(offs: usize, highlights: &mut &[Highlight]) -> Option<ANSIColor> {

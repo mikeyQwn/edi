@@ -121,6 +121,7 @@ impl Buffer {
         self.cursor_offset = offset.min(self.inner.len());
     }
 
+    #[must_use]
     pub fn current_line(&self) -> usize {
         let mut curr_line = 0;
         for line_info in self.inner.lines() {

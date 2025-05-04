@@ -93,6 +93,7 @@ impl<'a> WindowBind<'a> for Rect {
     }
 }
 
+#[derive(Debug)]
 pub struct BoundedWindow<'a> {
     window: &'a mut window::Window,
     bound: Rect,
@@ -100,7 +101,7 @@ pub struct BoundedWindow<'a> {
 
 impl Surface for BoundedWindow<'_> {
     fn set(&mut self, position: Vec2<usize>, cell: Cell) {
-        let origin = self.bound.origin();
+        let origin = self.bound.position();
         let new_pos = Vec2::new(position.x + origin.x, position.y + origin.y);
         window::Window::put_cell(self.window, new_pos, window::Cell::from(cell));
     }
@@ -110,7 +111,7 @@ impl Surface for BoundedWindow<'_> {
     }
 
     fn move_cursor(&mut self, point: Vec2<usize>) {
-        let origin = self.bound.origin();
+        let origin = self.bound.position();
         let new_pos = Vec2::new(point.x + origin.x, point.y + origin.y);
         window::Window::set_cursor(self.window, new_pos);
     }
