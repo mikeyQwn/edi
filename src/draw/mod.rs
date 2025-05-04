@@ -17,6 +17,8 @@ pub enum Color {
     Cyan,
     #[default]
     White,
+
+    None,
 }
 
 impl From<ANSIColor> for Color {
@@ -46,15 +48,29 @@ impl From<Color> for ANSIColor {
             Color::Magenta => Self::Magenta,
             Color::Cyan => Self::Cyan,
             Color::White => Self::White,
+            Color::None => Self::Reset,
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Cell {
     pub char: char,
     pub fg: Color,
     pub bg: Color,
+}
+
+impl Cell {
+    #[must_use]
+    pub fn new(char: char, fg: Color, bg: Color) -> Self {
+        Self { char, fg, bg }
+    }
+}
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self::new(' ', Color::White, Color::None)
+    }
 }
 
 impl From<window::Cell> for Cell {

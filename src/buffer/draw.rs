@@ -1,12 +1,11 @@
 //! Draw-related buffer functionality
 
 use crate::{
-    draw::Surface,
+    draw::{Cell, Color, Surface},
     log,
     rect::Rect,
     rope::iter::LineInfo,
     string::highlight::{Highlight, Type},
-    terminal::{escaping::ANSIColor, window::Cell},
     vec2::Vec2,
 };
 
@@ -141,9 +140,9 @@ impl Buffer {
             }
 
             let color =
-                Self::get_highlight_color(character_offset, highlights).unwrap_or(ANSIColor::White);
+                Self::get_highlight_color(character_offset, highlights).unwrap_or(Color::White);
 
-            surface.set(char_pos, Cell::new(character, color).into());
+            surface.set(char_pos, Cell::new(character, color, Color::None));
         }
 
         if self.cursor_offset == line_character_offset + length {
@@ -175,7 +174,7 @@ impl Buffer {
         Rect::new_in_origin(w, h).contains_point(pos).then_some(pos)
     }
 
-    fn get_highlight_color(offs: usize, highlights: &mut &[Highlight]) -> Option<ANSIColor> {
+    fn get_highlight_color(offs: usize, highlights: &mut &[Highlight]) -> Option<Color> {
         let first_hl = highlights.first()?;
 
         if first_hl.start + first_hl.len < offs {
@@ -188,8 +187,8 @@ impl Buffer {
         }
 
         Some(match first_hl.ty {
-            Type::Keyword => ANSIColor::Magenta,
-            _ => ANSIColor::Red,
+            Type::Keyword => Color::Magenta,
+            _ => Color::Red,
         })
     }
 }
