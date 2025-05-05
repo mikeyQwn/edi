@@ -1,7 +1,7 @@
 mod event;
 mod meta;
 
-use event::Event;
+use event::{Event, InputMapper};
 use meta::BufferMeta;
 
 use std::{
@@ -29,7 +29,7 @@ use edi::buffer::Buffer;
 
 use crate::cli::EdiCli;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum Mode {
     Normal,
     Insert,
@@ -39,15 +39,17 @@ enum Mode {
 #[derive(Debug)]
 struct State {
     mode: Mode,
+    mapper: InputMapper,
     buffers: VecDeque<(Buffer, BufferMeta)>,
 }
 
 impl State {
     /// Instantiates an empty `State` with nothing stored in buffers and mode set to `Normal`
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             mode: Mode::Normal,
+            mapper: InputMapper::default(),
             buffers: VecDeque::new(),
         }
     }
@@ -100,7 +102,7 @@ fn handle_inputs(
             }
         };
 
-        let Some(event) = event::map_input(&input, &state.mode) else {
+        let Some(event) = state.mapper.map_input(input.clone(), state.mode) else {
             edi::debug!("handle_inputs: no event for input {:?}", input);
             continue;
         };

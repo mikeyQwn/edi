@@ -33,7 +33,7 @@ pub enum Message {
 }
 
 /// An input receieved in the raw terminal mode
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Input {
     /// A keypress that can be represented with a single ascii character
     Keypress(char),
