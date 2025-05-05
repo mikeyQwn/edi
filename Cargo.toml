@@ -15,7 +15,6 @@ rand = "0.8.5"
 [lints.rust]
 unused_crate_dependencies = "warn"
 keyword_idents = "warn"
-missing_copy_implementations = "warn"
 missing_debug_implementations = "warn"
 non_ascii_idents = "warn"
 noop_method_call = "warn"

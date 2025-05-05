@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 use edi::terminal::input::Input;
 
@@ -18,6 +20,56 @@ pub enum Event {
     MoveToLineStart,
 }
 
+trait KeyPair<K1, K2> {
+    fn key1(&self) -> &K1;
+    fn key2(&self) -> &K2;
+}
+
+impl<K1, K2> KeyPair<K1, K2> for (K1, K2) {
+    fn key1(&self) -> &K1 {
+        &self.0
+    }
+
+    fn key2(&self) -> &K2 {
+        &self.1
+    }
+}
+
+impl<'a, K1, K2> KeyPair<K1, K2> for (&'a K1, &'a K2) {
+    fn key1(&self) -> &K1 {
+        self.0
+    }
+
+    fn key2(&self) -> &K2 {
+        self.1
+    }
+}
+
+impl<'a, K1, K2> Borrow<dyn KeyPair<K1, K2> + 'a> for (K1, K2)
+where
+    K1: Eq + Hash + 'a,
+    K2: Eq + Hash + 'a,
+{
+    fn borrow(&self) -> &(dyn KeyPair<K1, K2> + 'a) {
+        self
+    }
+}
+
+impl<K1: Hash, K2: Hash> Hash for dyn KeyPair<K1, K2> + '_ {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key1().hash(state);
+        self.key2().hash(state);
+    }
+}
+
+impl<A: Eq, B: Eq> PartialEq for dyn KeyPair<A, B> + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.key1() == other.key1() && self.key2() == other.key2()
+    }
+}
+
+impl<A: Eq, B: Eq> Eq for dyn KeyPair<A, B> + '_ {}
+
 #[derive(Debug)]
 pub struct InputMapper {
     mappings: HashMap<(Mode, Input), Event>,
@@ -35,10 +87,6 @@ impl Default for InputMapper {
 }
 
 impl InputMapper {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     fn add_default_mappings(&mut self) {
         self.add_mapping(
             Mode::Normal,
@@ -130,13 +178,16 @@ impl InputMapper {
         self.mappings.insert((mode, input), event);
     }
 
-    pub fn map_input(&self, input: Input, mode: Mode) -> Option<Event> {
-        if let Some(event) = self.mappings.get(&(mode, input.clone())) {
+    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Event> {
+        if let Some(event) = self
+            .mappings
+            .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
+        {
             return Some(event).cloned();
         }
 
         match (mode, input) {
-            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => Some(Event::InsertChar(c)),
+            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => Some(Event::InsertChar(*c)),
             _ => None,
         }
     }

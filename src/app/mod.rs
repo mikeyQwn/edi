@@ -102,7 +102,7 @@ fn handle_inputs(
             }
         };
 
-        let Some(event) = state.mapper.map_input(input.clone(), state.mode) else {
+        let Some(event) = state.mapper.map_input(&input, state.mode) else {
             edi::debug!("handle_inputs: no event for input {:?}", input);
             continue;
         };
