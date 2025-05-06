@@ -1,7 +1,7 @@
 mod action;
 mod meta;
 
-use action::{Action, InputMapper};
+use action::{Action, InputMapper, MoveAction};
 use meta::BufferMeta;
 
 use std::{
@@ -119,8 +119,6 @@ fn handle_inputs(
     Ok(())
 }
 
-// TODO: Refactor this mess to map-based handler system
-
 /// Handles a signle event, returning Ok(true), if the program should terminate
 fn handle_event(
     event: Action,
@@ -164,18 +162,6 @@ fn handle_event(
                 }
                 None => {
                     edi::debug!("handle_event: no buffers to delete from");
-                }
-            }
-            render_window.render()?;
-        }
-        Action::MoveCursor(dir, steps) => {
-            match state.buffers.front_mut() {
-                Some((b, _)) => {
-                    b.move_cursor(dir, steps);
-                    redraw(state, render_window)?;
-                }
-                None => {
-                    edi::debug!("handle_event: no buffers to move cursor in");
                 }
             }
             render_window.render()?;
@@ -231,28 +217,10 @@ fn handle_event(
             }
         }
 
-        Action::MoveHalfScreen(dir) => {
+        Action::Move { action, repeat } => {
             match state.buffers.front_mut() {
-                Some((b, m)) => {
-                    b.move_cursor(dir, m.size.y / 2);
-                    redraw(state, render_window)?;
-                }
-                None => {
-                    edi::debug!("handle_event: no buffers to move cursor in");
-                }
-            }
-            render_window.render()?;
-        }
-
-        Action::MoveToLineStart => {
-            match state.buffers.front_mut() {
-                Some((b, _)) => {
-                    b.move_to(
-                        b.inner
-                            .line_info(b.current_line())
-                            .unwrap()
-                            .character_offset,
-                    );
+                Some((buffer, meta)) => {
+                    handle_move(buffer, meta, action, repeat);
                     redraw(state, render_window)?;
                 }
                 None => {
@@ -264,6 +232,29 @@ fn handle_event(
     }
 
     Ok(false)
+}
+
+fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, repeat: usize) {
+    let _ = repeat;
+
+    match action {
+        MoveAction::Regular(direction) => {
+            buffer.move_cursor(direction.into(), repeat);
+        }
+        MoveAction::To(action::LinePosition::Start) => {
+            buffer.move_to(
+                buffer
+                    .inner
+                    .line_info(buffer.current_line())
+                    .unwrap()
+                    .character_offset,
+            );
+        }
+        MoveAction::HalfScreen(direction) => {
+            buffer.move_cursor(direction.into(), meta.size.y / 2);
+        }
+        MoveAction::To(_) => todo!("handle_move: not all move actions are implemented yet"),
+    }
 }
 
 fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {

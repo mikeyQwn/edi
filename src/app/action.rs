@@ -2,22 +2,58 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
+use edi::buffer;
 use edi::terminal::input::Input;
 
-use edi::buffer::{self, Direction};
-
 use super::Mode;
+
+#[derive(Debug, Clone)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl From<Direction> for buffer::Direction {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::Up => Self::Up,
+            Direction::Down => Self::Down,
+            Direction::Left => Self::Left,
+            Direction::Right => Self::Right,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Action {
     SwitchMode(Mode),
     InsertChar(char),
     DeleteChar,
-    MoveCursor(buffer::Direction, usize),
-    MoveHalfScreen(buffer::Direction),
     Quit,
     Submit,
-    MoveToLineStart,
+    Move { action: MoveAction, repeat: usize },
+}
+
+impl Action {
+    pub fn move_once(action: MoveAction) -> Self {
+        Self::Move { action, repeat: 1 }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum MoveAction {
+    Regular(Direction),
+    HalfScreen(Direction),
+    To(LinePosition),
+}
+
+#[derive(Debug, Clone)]
+pub enum LinePosition {
+    Start,
+    CharacterStart,
+    End,
 }
 
 trait KeyPair<K1, K2> {
@@ -91,32 +127,50 @@ impl InputMapper {
         self.add_mapping(
             Mode::Normal,
             Input::Control('d'),
-            Action::MoveHalfScreen(Direction::Down),
+            Action::Move {
+                action: MoveAction::HalfScreen(Direction::Down),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
             Input::Control('u'),
-            Action::MoveHalfScreen(Direction::Up),
+            Action::Move {
+                action: MoveAction::HalfScreen(Direction::Up),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('h'),
-            Action::MoveCursor(Direction::Left, 1),
+            Action::Move {
+                action: MoveAction::Regular(Direction::Left),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('j'),
-            Action::MoveCursor(Direction::Down, 1),
+            Action::Move {
+                action: MoveAction::Regular(Direction::Down),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('k'),
-            Action::MoveCursor(Direction::Up, 1),
+            Action::Move {
+                action: MoveAction::Regular(Direction::Up),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('l'),
-            Action::MoveCursor(Direction::Right, 1),
+            Action::Move {
+                action: MoveAction::Regular(Direction::Right),
+                repeat: 1,
+            },
         );
         self.add_mapping(
             Mode::Normal,
@@ -128,7 +182,14 @@ impl InputMapper {
             Input::Keypress(':'),
             Action::SwitchMode(Mode::Terminal),
         );
-        self.add_mapping(Mode::Normal, Input::Keypress('0'), Action::MoveToLineStart);
+        self.add_mapping(
+            Mode::Normal,
+            Input::Keypress('0'),
+            Action::Move {
+                action: MoveAction::To(LinePosition::Start),
+                repeat: 1,
+            },
+        );
 
         self.add_mapping(
             Mode::Insert,
@@ -140,22 +201,22 @@ impl InputMapper {
         self.add_mapping(
             Mode::Insert,
             Input::ArrowLeft,
-            Action::MoveCursor(Direction::Left, 1),
+            Action::move_once(MoveAction::Regular(Direction::Left)),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowDown,
-            Action::MoveCursor(Direction::Down, 1),
+            Action::move_once(MoveAction::Regular(Direction::Down)),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowUp,
-            Action::MoveCursor(Direction::Up, 1),
+            Action::move_once(MoveAction::Regular(Direction::Up)),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowRight,
-            Action::MoveCursor(Direction::Right, 1),
+            Action::move_once(MoveAction::Regular(Direction::Right)),
         );
 
         // Terminal mode
@@ -168,12 +229,12 @@ impl InputMapper {
         self.add_mapping(
             Mode::Terminal,
             Input::ArrowLeft,
-            Action::MoveCursor(Direction::Left, 1),
+            Action::move_once(MoveAction::Regular(Direction::Left)),
         );
         self.add_mapping(
             Mode::Terminal,
             Input::ArrowRight,
-            Action::MoveCursor(Direction::Right, 1),
+            Action::move_once(MoveAction::Regular(Direction::Left)),
         );
         self.add_mapping(Mode::Terminal, Input::Enter, Action::Submit);
     }

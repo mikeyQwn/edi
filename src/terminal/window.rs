@@ -105,6 +105,7 @@ where
     /// Draws everyting in the writer and flushes
     ///
     /// # Errors
+    ///
     /// Fails when writing/flushing to the writer fails
     pub fn render(&mut self) -> Result<()> {
         let diffs = self.produce_diffs();
