@@ -1,5 +1,6 @@
 //! Edi the text editor
 
+use nix as _;
 #[cfg(test)]
 use rand as _;
 use thiserror as _;

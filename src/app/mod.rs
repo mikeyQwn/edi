@@ -1,7 +1,7 @@
-mod event;
+mod action;
 mod meta;
 
-use event::{Event, InputMapper};
+use action::{Action, InputMapper};
 use meta::BufferMeta;
 
 use std::{
@@ -123,12 +123,12 @@ fn handle_inputs(
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
 fn handle_event(
-    event: Event,
+    event: Action,
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<bool> {
     match event {
-        Event::SwitchMode(mode) => {
+        Action::SwitchMode(mode) => {
             state.mode = mode;
             if state.mode == Mode::Terminal {
                 let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
@@ -141,7 +141,7 @@ fn handle_event(
                 redraw(state, render_window)?;
             }
         }
-        Event::InsertChar(c) => {
+        Action::InsertChar(c) => {
             match state.buffers.front_mut() {
                 Some((b, m)) => {
                     b.write(c);
@@ -155,7 +155,7 @@ fn handle_event(
             }
             render_window.render()?;
         }
-        Event::DeleteChar => {
+        Action::DeleteChar => {
             match state.buffers.front_mut() {
                 Some((b, m)) => {
                     b.delete();
@@ -168,7 +168,7 @@ fn handle_event(
             }
             render_window.render()?;
         }
-        Event::MoveCursor(dir, steps) => {
+        Action::MoveCursor(dir, steps) => {
             match state.buffers.front_mut() {
                 Some((b, _)) => {
                     b.move_cursor(dir, steps);
@@ -180,14 +180,14 @@ fn handle_event(
             }
             render_window.render()?;
         }
-        Event::Quit => return Ok(true),
-        Event::Submit => {
+        Action::Quit => return Ok(true),
+        Action::Submit => {
             // TODO: Add proper error handling
             let (cmd_buf, _) = state.buffers.pop_front().unwrap();
             redraw(state, render_window)?;
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
-                return handle_event(Event::Quit, state, render_window);
+                return handle_event(Action::Quit, state, render_window);
             }
             if cmd == ":wq" {
                 let Some((b, meta)) = state.buffers.pop_front() else {
@@ -227,11 +227,11 @@ fn handle_event(
                     edi::debug!("app::handle_event failed to rename file {e}");
                 };
 
-                return handle_event(Event::Quit, state, render_window);
+                return handle_event(Action::Quit, state, render_window);
             }
         }
 
-        Event::MoveHalfScreen(dir) => {
+        Action::MoveHalfScreen(dir) => {
             match state.buffers.front_mut() {
                 Some((b, m)) => {
                     b.move_cursor(dir, m.size.y / 2);
@@ -244,7 +244,7 @@ fn handle_event(
             render_window.render()?;
         }
 
-        Event::MoveToLineStart => {
+        Action::MoveToLineStart => {
             match state.buffers.front_mut() {
                 Some((b, _)) => {
                     b.move_to(

@@ -9,7 +9,7 @@ use edi::buffer::{self, Direction};
 use super::Mode;
 
 #[derive(Debug, Clone)]
-pub enum Event {
+pub enum Action {
     SwitchMode(Mode),
     InsertChar(char),
     DeleteChar,
@@ -72,7 +72,7 @@ impl<A: Eq, B: Eq> Eq for dyn KeyPair<A, B> + '_ {}
 
 #[derive(Debug)]
 pub struct InputMapper {
-    mappings: HashMap<(Mode, Input), Event>,
+    mappings: HashMap<(Mode, Input), Action>,
 }
 
 impl Default for InputMapper {
@@ -91,94 +91,98 @@ impl InputMapper {
         self.add_mapping(
             Mode::Normal,
             Input::Control('d'),
-            Event::MoveHalfScreen(Direction::Down),
+            Action::MoveHalfScreen(Direction::Down),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Control('u'),
-            Event::MoveHalfScreen(Direction::Up),
+            Action::MoveHalfScreen(Direction::Up),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('h'),
-            Event::MoveCursor(Direction::Left, 1),
+            Action::MoveCursor(Direction::Left, 1),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('j'),
-            Event::MoveCursor(Direction::Down, 1),
+            Action::MoveCursor(Direction::Down, 1),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('k'),
-            Event::MoveCursor(Direction::Up, 1),
+            Action::MoveCursor(Direction::Up, 1),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('l'),
-            Event::MoveCursor(Direction::Right, 1),
+            Action::MoveCursor(Direction::Right, 1),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress('i'),
-            Event::SwitchMode(Mode::Insert),
+            Action::SwitchMode(Mode::Insert),
         );
         self.add_mapping(
             Mode::Normal,
             Input::Keypress(':'),
-            Event::SwitchMode(Mode::Terminal),
+            Action::SwitchMode(Mode::Terminal),
         );
-        self.add_mapping(Mode::Normal, Input::Keypress('0'), Event::MoveToLineStart);
+        self.add_mapping(Mode::Normal, Input::Keypress('0'), Action::MoveToLineStart);
 
-        self.add_mapping(Mode::Insert, Input::Escape, Event::SwitchMode(Mode::Normal));
-        self.add_mapping(Mode::Insert, Input::Enter, Event::InsertChar('\n'));
-        self.add_mapping(Mode::Insert, Input::Backspace, Event::DeleteChar);
+        self.add_mapping(
+            Mode::Insert,
+            Input::Escape,
+            Action::SwitchMode(Mode::Normal),
+        );
+        self.add_mapping(Mode::Insert, Input::Enter, Action::InsertChar('\n'));
+        self.add_mapping(Mode::Insert, Input::Backspace, Action::DeleteChar);
         self.add_mapping(
             Mode::Insert,
             Input::ArrowLeft,
-            Event::MoveCursor(Direction::Left, 1),
+            Action::MoveCursor(Direction::Left, 1),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowDown,
-            Event::MoveCursor(Direction::Down, 1),
+            Action::MoveCursor(Direction::Down, 1),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowUp,
-            Event::MoveCursor(Direction::Up, 1),
+            Action::MoveCursor(Direction::Up, 1),
         );
         self.add_mapping(
             Mode::Insert,
             Input::ArrowRight,
-            Event::MoveCursor(Direction::Right, 1),
+            Action::MoveCursor(Direction::Right, 1),
         );
 
         // Terminal mode
         self.add_mapping(
             Mode::Terminal,
             Input::Escape,
-            Event::SwitchMode(Mode::Normal),
+            Action::SwitchMode(Mode::Normal),
         );
-        self.add_mapping(Mode::Terminal, Input::Backspace, Event::DeleteChar);
+        self.add_mapping(Mode::Terminal, Input::Backspace, Action::DeleteChar);
         self.add_mapping(
             Mode::Terminal,
             Input::ArrowLeft,
-            Event::MoveCursor(Direction::Left, 1),
+            Action::MoveCursor(Direction::Left, 1),
         );
         self.add_mapping(
             Mode::Terminal,
             Input::ArrowRight,
-            Event::MoveCursor(Direction::Right, 1),
+            Action::MoveCursor(Direction::Right, 1),
         );
-        self.add_mapping(Mode::Terminal, Input::Enter, Event::Submit);
+        self.add_mapping(Mode::Terminal, Input::Enter, Action::Submit);
     }
 
-    pub fn add_mapping(&mut self, mode: Mode, input: Input, event: Event) {
+    pub fn add_mapping(&mut self, mode: Mode, input: Input, event: Action) {
         self.mappings.insert((mode, input), event);
     }
 
-    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Event> {
+    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Action> {
         if let Some(event) = self
             .mappings
             .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
@@ -187,7 +191,7 @@ impl InputMapper {
         }
 
         match (mode, input) {
-            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => Some(Event::InsertChar(*c)),
+            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => Some(Action::InsertChar(*c)),
             _ => None,
         }
     }
