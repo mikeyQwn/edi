@@ -1,8 +1,8 @@
 //! Draw-related buffer functionality
 
 use crate::{
+    debug,
     draw::{Cell, Color, Surface},
-    log,
     rect::Rect,
     rope::iter::LineInfo,
     string::highlight::{Highlight, Type},
@@ -68,14 +68,13 @@ impl Buffer {
         let mut flush_state = FlushState::new(&opts.highlights);
 
         surface.clear();
-        log::debug!(
+        debug!(
             "buffer::flush cursor_offset: {} opts: {:?}",
-            self.cursor_offset,
-            opts
+            self.cursor_offset, opts
         );
 
         self.flush_lines(surface, opts, &mut flush_state);
-        log::debug!("buffer::flush finished");
+        debug!("buffer::flush finished");
     }
 
     fn flush_lines<S: Surface>(

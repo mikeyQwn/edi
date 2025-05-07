@@ -11,6 +11,7 @@ pub mod rect;
 pub mod rope;
 pub mod string;
 pub mod terminal;
+pub mod trace;
 pub mod vec2;
 
 use anyhow as _;

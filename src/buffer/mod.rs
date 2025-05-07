@@ -1,6 +1,6 @@
 pub mod draw;
 
-use crate::{log, rope::Rope};
+use crate::{debug, rope::Rope};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -50,7 +50,7 @@ impl Buffer {
     ///
     /// Never panics
     pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
-        log::debug!("buffer::move_cursor offs: {}", self.cursor_offset);
+        debug!("buffer::move_cursor offs: {}", self.cursor_offset);
         match direction {
             Direction::Left => {
                 let new_offset = self.cursor_offset.saturating_sub(steps);
