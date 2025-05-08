@@ -15,6 +15,7 @@ use edi::{
     draw::WindowBind,
     fs::Filetype,
     rect::Rect,
+    span,
     string::highlight::get_highlights,
     terminal::{
         self,
@@ -258,7 +259,8 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
 }
 
 fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
-    edi::debug!("app::redraw drawing {} buffers", state.buffers.len());
+    let _guard = span!("redraw");
+    edi::debug!("drawing {} buffers", state.buffers.len());
 
     let size = terminal::get_size()?;
     state.buffers.iter_mut().rev().for_each(|(b, m)| {
