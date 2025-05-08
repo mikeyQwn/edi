@@ -38,7 +38,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn move_once(action: MoveAction) -> Self {
+    pub const fn move_once(action: MoveAction) -> Self {
         Self::Move { action, repeat: 1 }
     }
 }
@@ -118,139 +118,102 @@ impl Default for InputMapper {
 
 impl InputMapper {
     fn add_default_mappings(&mut self) {
-        self.add_mapping(
-            Mode::Normal,
-            Input::Control('d'),
-            Action::Move {
-                action: MoveAction::HalfScreen(Direction::Down),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Control('u'),
-            Action::Move {
-                action: MoveAction::HalfScreen(Direction::Up),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('h'),
-            Action::Move {
-                action: MoveAction::Regular(Direction::Left),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('j'),
-            Action::Move {
-                action: MoveAction::Regular(Direction::Down),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('k'),
-            Action::Move {
-                action: MoveAction::Regular(Direction::Up),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('l'),
-            Action::Move {
-                action: MoveAction::Regular(Direction::Right),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('i'),
-            Action::SwitchMode(Mode::Insert),
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress(':'),
-            Action::SwitchMode(Mode::Terminal),
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('0'),
-            Action::Move {
-                action: MoveAction::To(LinePosition::Start),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('$'),
-            Action::Move {
-                action: MoveAction::To(LinePosition::End),
-                repeat: 1,
-            },
-        );
-        self.add_mapping(
-            Mode::Normal,
-            Input::Keypress('^'),
-            Action::Move {
-                action: MoveAction::To(LinePosition::CharacterStart),
-                repeat: 1,
-            },
-        );
+        self.add_default_mappings_n();
+        self.add_default_mappings_i();
+        self.add_default_mappings_t();
+    }
 
-        self.add_mapping(
-            Mode::Insert,
-            Input::Escape,
-            Action::SwitchMode(Mode::Normal),
+    fn add_default_mappings_n(&mut self) {
+        let mut map = |input, action| {
+            self.add_mapping(Mode::Normal, input, action);
+        };
+
+        map(
+            Input::Control('d'),
+            Action::move_once(MoveAction::HalfScreen(Direction::Down)),
         );
-        self.add_mapping(Mode::Insert, Input::Enter, Action::InsertChar('\n'));
-        self.add_mapping(Mode::Insert, Input::Backspace, Action::DeleteChar);
-        self.add_mapping(
-            Mode::Insert,
+        map(
+            Input::Control('u'),
+            Action::move_once(MoveAction::HalfScreen(Direction::Up)),
+        );
+        map(
+            Input::Keypress('h'),
+            Action::move_once(MoveAction::Regular(Direction::Left)),
+        );
+        map(
+            Input::Keypress('j'),
+            Action::move_once(MoveAction::Regular(Direction::Down)),
+        );
+        map(
+            Input::Keypress('k'),
+            Action::move_once(MoveAction::Regular(Direction::Up)),
+        );
+        map(
+            Input::Keypress('l'),
+            Action::move_once(MoveAction::Regular(Direction::Right)),
+        );
+        map(Input::Keypress('i'), Action::SwitchMode(Mode::Insert));
+        map(Input::Keypress(':'), Action::SwitchMode(Mode::Terminal));
+        map(
+            Input::Keypress('0'),
+            Action::move_once(MoveAction::To(LinePosition::Start)),
+        );
+        map(
+            Input::Keypress('$'),
+            Action::move_once(MoveAction::To(LinePosition::End)),
+        );
+        map(
+            Input::Keypress('^'),
+            Action::move_once(MoveAction::To(LinePosition::CharacterStart)),
+        );
+    }
+
+    fn add_default_mappings_i(&mut self) {
+        let mut map = |input, action| {
+            self.add_mapping(Mode::Insert, input, action);
+        };
+
+        map(Input::Escape, Action::SwitchMode(Mode::Normal));
+        map(Input::Enter, Action::InsertChar('\n'));
+        map(Input::Backspace, Action::DeleteChar);
+        map(
             Input::ArrowLeft,
             Action::move_once(MoveAction::Regular(Direction::Left)),
         );
-        self.add_mapping(
-            Mode::Insert,
+        map(
             Input::ArrowDown,
             Action::move_once(MoveAction::Regular(Direction::Down)),
         );
-        self.add_mapping(
-            Mode::Insert,
+        map(
             Input::ArrowUp,
             Action::move_once(MoveAction::Regular(Direction::Up)),
         );
-        self.add_mapping(
-            Mode::Insert,
+        map(
             Input::ArrowRight,
             Action::move_once(MoveAction::Regular(Direction::Right)),
         );
+    }
 
-        // Terminal mode
-        self.add_mapping(
-            Mode::Terminal,
-            Input::Escape,
-            Action::SwitchMode(Mode::Normal),
-        );
-        self.add_mapping(Mode::Terminal, Input::Backspace, Action::DeleteChar);
-        self.add_mapping(
-            Mode::Terminal,
+    fn add_default_mappings_t(&mut self) {
+        let mut map = |input, action| {
+            self.add_mapping(Mode::Terminal, input, action);
+        };
+
+        map(Input::Escape, Action::SwitchMode(Mode::Normal));
+        map(Input::Backspace, Action::DeleteChar);
+        map(
             Input::ArrowLeft,
             Action::move_once(MoveAction::Regular(Direction::Left)),
         );
-        self.add_mapping(
-            Mode::Terminal,
+        map(
             Input::ArrowRight,
             Action::move_once(MoveAction::Regular(Direction::Left)),
         );
-        self.add_mapping(Mode::Terminal, Input::Enter, Action::Submit);
+        map(Input::Enter, Action::Submit);
     }
 
-    pub fn add_mapping(&mut self, mode: Mode, input: Input, event: Action) {
-        self.mappings.insert((mode, input), event);
+    pub fn add_mapping(&mut self, mode: Mode, input: Input, action: Action) {
+        self.mappings.insert((mode, input), action);
     }
 
     pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Action> {

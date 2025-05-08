@@ -1,5 +1,4 @@
 use crate::{
-    debug,
     rect::Rect,
     terminal::{escaping::ANSIColor, window},
     vec2::Vec2,
@@ -63,7 +62,7 @@ pub struct Cell {
 
 impl Cell {
     #[must_use]
-    pub fn new(char: char, fg: Color, bg: Color) -> Self {
+    pub const fn new(char: char, fg: Color, bg: Color) -> Self {
         Self { char, fg, bg }
     }
 }

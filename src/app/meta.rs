@@ -25,7 +25,7 @@ impl BufferMeta {
         self
     }
 
-    pub fn with_size(mut self, size: Vec2<usize>) -> Self {
+    pub const fn with_size(mut self, size: Vec2<usize>) -> Self {
         self.size = size;
         self
     }
