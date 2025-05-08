@@ -79,7 +79,8 @@ impl State {
 
         meta.flush_options = meta
             .flush_options
-            .with_highlights(get_highlights(&buffer.inner, &meta.filetype));
+            .with_highlights(get_highlights(&buffer.inner, &meta.filetype))
+            .with_line_numbers(true);
 
         self.buffers.push_back((buffer, meta));
 
