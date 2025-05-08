@@ -129,7 +129,9 @@ where
     /// the display got messed up in between render calls
     ///
     /// # Errors
+    ///
     /// Fails when writing/flushing to the writer fails
+    ///
     pub fn rerender(&mut self) -> Result<()> {
         self.buffer.copy_from_slice(&self.back_buffer);
         let changes = EscapeBuilder::new()

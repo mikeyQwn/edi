@@ -16,7 +16,7 @@ use edi::{
     fs::Filetype,
     rect::Rect,
     span,
-    string::highlight::get_highlights,
+    string::{highlight::get_highlights, position::LinePosition},
     terminal::{
         self,
         escaping::ANSIEscape,
@@ -242,19 +242,12 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
         MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
         }
-        MoveAction::To(action::LinePosition::Start) => {
-            buffer.move_to(
-                buffer
-                    .inner
-                    .line_info(buffer.current_line())
-                    .unwrap()
-                    .character_offset,
-            );
+        MoveAction::To(line_position) => {
+            buffer.move_to(line_position);
         }
         MoveAction::HalfScreen(direction) => {
             buffer.move_cursor(direction.into(), meta.size.y / 2);
         }
-        MoveAction::To(_) => todo!("handle_move: not all move actions are implemented yet"),
     }
 }
 

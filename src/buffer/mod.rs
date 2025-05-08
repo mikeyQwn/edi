@@ -1,6 +1,10 @@
 pub mod draw;
 
-use crate::{debug, rope::Rope};
+use crate::{
+    debug,
+    rope::{iter::LineInfo, Rope},
+    string::{position::LinePosition, search},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -117,8 +121,23 @@ impl Buffer {
         true
     }
 
-    pub fn move_to(&mut self, offset: usize) {
-        self.cursor_offset = offset.min(self.inner.len());
+    pub fn move_to(&mut self, position: LinePosition) {
+        let current_line = self.current_line();
+        let Some(LineInfo {
+            character_offset,
+            length,
+            contents,
+            ..
+        }) = self.inner.line(current_line)
+        else {
+            return;
+        };
+
+        self.cursor_offset = match position {
+            LinePosition::Start => character_offset,
+            LinePosition::End => character_offset + length,
+            LinePosition::CharacterStart => character_offset + search::character_start(&contents),
+        }
     }
 
     #[must_use]

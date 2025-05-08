@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use edi::buffer;
+use edi::string::position::LinePosition;
 use edi::terminal::input::Input;
 
 use super::Mode;
@@ -47,13 +48,6 @@ pub enum MoveAction {
     Regular(Direction),
     HalfScreen(Direction),
     To(LinePosition),
-}
-
-#[derive(Debug, Clone)]
-pub enum LinePosition {
-    Start,
-    CharacterStart,
-    End,
 }
 
 trait KeyPair<K1, K2> {
@@ -187,6 +181,22 @@ impl InputMapper {
             Input::Keypress('0'),
             Action::Move {
                 action: MoveAction::To(LinePosition::Start),
+                repeat: 1,
+            },
+        );
+        self.add_mapping(
+            Mode::Normal,
+            Input::Keypress('$'),
+            Action::Move {
+                action: MoveAction::To(LinePosition::End),
+                repeat: 1,
+            },
+        );
+        self.add_mapping(
+            Mode::Normal,
+            Input::Keypress('^'),
+            Action::Move {
+                action: MoveAction::To(LinePosition::CharacterStart),
                 repeat: 1,
             },
         );

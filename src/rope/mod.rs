@@ -323,7 +323,7 @@ impl Rope {
         Lines::new(&self.root)
     }
 
-    /// Returns `n`th line information, including string representatin
+    /// Returns `n`th line information, including string representation
     ///
     /// If string representation is not needed, consider using `line_info` instead, to avoid
     /// allocation
@@ -332,7 +332,7 @@ impl Rope {
         Lines::new(&self.root).nth(n)
     }
 
-    /// Returns `n`th line information, excluding string representatin
+    /// Returns `n`th line information, excluding string representation
     ///
     /// If string representation is needed, use `line` instead
     #[must_use]
