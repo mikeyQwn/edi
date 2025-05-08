@@ -13,23 +13,24 @@ use crate::{
 pub struct Cell {
     pub character: char,
     pub fg_color: ANSIColor,
-    // TODO: bg_color
+    pub bg_color: ANSIColor,
 }
 
 impl Cell {
     /// Constructs a `Cell` out of its parts
     #[must_use]
-    pub const fn new(character: char, fg_color: ANSIColor) -> Self {
+    pub const fn new(character: char, fg_color: ANSIColor, bg_color: ANSIColor) -> Self {
         Self {
             character,
             fg_color,
+            bg_color,
         }
     }
 }
 
 impl Default for Cell {
     fn default() -> Self {
-        Self::new(' ', ANSIColor::Red)
+        Self::new(' ', ANSIColor::Red, ANSIColor::Default)
     }
 }
 
@@ -164,6 +165,7 @@ where
 
         let mut prev_pos = None;
         let mut prev_color = None;
+        let mut prev_bg = None;
 
         for y in 0..self.height {
             let row_offs = y * self.width;
@@ -181,6 +183,11 @@ where
                 if prev_color != Some(cell.fg_color) {
                     prev_color = Some(cell.fg_color);
                     escape = escape.set_color(cell.fg_color);
+                }
+
+                if prev_bg != Some(cell.bg_color) {
+                    prev_bg = Some(cell.bg_color);
+                    escape = escape.set_bg_color(cell.bg_color);
                 }
 
                 prev_pos = Some((x, y));

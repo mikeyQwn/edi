@@ -131,7 +131,7 @@ impl Buffer {
             .for_each(|(i, c)| {
                 surface.set(
                     Vec2::new(i, flush_state.current_y),
-                    Cell::new(c, Color::Cyan, Color::Black),
+                    Cell::new(c, Color::Cyan, Color::None),
                 );
             });
 

@@ -48,7 +48,7 @@ impl From<Color> for ANSIColor {
             Color::Magenta => Self::Magenta,
             Color::Cyan => Self::Cyan,
             Color::White => Self::White,
-            Color::None => Self::Reset,
+            Color::None => Self::Default,
         }
     }
 }
@@ -85,7 +85,11 @@ impl From<window::Cell> for Cell {
 
 impl From<Cell> for window::Cell {
     fn from(value: Cell) -> Self {
-        Self::new(value.char, ANSIColor::from(value.fg))
+        Self::new(
+            value.char,
+            ANSIColor::from(value.fg),
+            ANSIColor::from(value.bg),
+        )
     }
 }
 

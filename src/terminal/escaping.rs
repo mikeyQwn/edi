@@ -11,6 +11,7 @@ use crate::vec2::Vec2;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ANSIColor {
     Reset,
+    Default,
     Black,
     Red,
     Green,
@@ -25,6 +26,7 @@ impl ANSIColor {
     const fn value(self) -> &'static str {
         match self {
             Self::Reset => "\x1b[0m",
+            Self::Default => "\x1b[39m",
             Self::Black => "\x1b[30m",
             Self::Red => "\x1b[31m",
             Self::Green => "\x1b[32m",
@@ -33,6 +35,21 @@ impl ANSIColor {
             Self::Magenta => "\x1b[35m",
             Self::Cyan => "\x1b[36m",
             Self::White => "\x1b[37m",
+        }
+    }
+
+    const fn value_bg(self) -> &'static str {
+        match self {
+            Self::Reset => "\x1b[0m",
+            Self::Default => "\x1b[49m",
+            Self::Black => "\x1b[40m",
+            Self::Red => "\x1b[41m",
+            Self::Green => "\x1b[42m",
+            Self::Yellow => "\x1b[43m",
+            Self::Blue => "\x1b[44m",
+            Self::Magenta => "\x1b[45m",
+            Self::Cyan => "\x1b[46m",
+            Self::White => "\x1b[47m",
         }
     }
 }
@@ -48,6 +65,8 @@ pub enum ANSIEscape<'a> {
     Write(Cow<'a, str>),
     /// Sets the foreground color to the ANSI color
     SetColor(ANSIColor),
+    /// Sets the backgrounod color to the ANSI color
+    SetBgColor(ANSIColor),
     /// Enters the alternate screen state
     EnterAlternateScreen,
     /// Exits the alternate screen state
@@ -62,6 +81,7 @@ impl<'a> ANSIEscape<'a> {
             Self::MoveTo(pos) => Cow::Owned(format!("\x1b[{};{}H", pos.y + 1, pos.x + 1)),
             Self::Write(text) => text,
             Self::SetColor(color) => Cow::Borrowed(color.value()),
+            Self::SetBgColor(color) => Cow::Borrowed(color.value_bg()),
             Self::EnterAlternateScreen => Cow::Borrowed("\x1b[?1049h"),
             Self::ExitAlternateScreen => Cow::Borrowed("\x1b[?1049l"),
         }
@@ -107,6 +127,13 @@ impl<'a> EscapeBuilder<'a> {
     #[must_use]
     pub fn set_color(mut self, color: ANSIColor) -> Self {
         self.inner.push(ANSIEscape::SetColor(color));
+        self
+    }
+
+    /// Sets the background color to the ANSI color
+    #[must_use]
+    pub fn set_bg_color(mut self, color: ANSIColor) -> Self {
+        self.inner.push(ANSIEscape::SetBgColor(color));
         self
     }
 
