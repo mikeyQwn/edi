@@ -15,6 +15,7 @@ use super::Buffer;
 #[derive(Debug)]
 pub struct FlushOptions {
     pub wrap: bool,
+    pub line_numbers: bool,
     pub highlights: Vec<Highlight>,
     pub line_offset: usize,
 }
@@ -23,6 +24,12 @@ impl FlushOptions {
     #[must_use]
     pub const fn with_wrap(mut self, wrap: bool) -> Self {
         self.wrap = wrap;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_line_numbers(mut self, line_numbers: bool) -> Self {
+        self.line_numbers = line_numbers;
         self
     }
 
@@ -43,6 +50,7 @@ impl Default for FlushOptions {
     fn default() -> Self {
         Self {
             wrap: true,
+            line_numbers: true,
             highlights: Vec::new(),
             line_offset: 0,
         }
@@ -52,14 +60,16 @@ impl Default for FlushOptions {
 struct FlushState<'a> {
     current_y: usize,
     highlights: &'a [Highlight],
+    x_offs: usize,
 }
 
 impl<'a> FlushState<'a> {
     #[must_use]
-    pub const fn new(highlights: &'a [Highlight]) -> Self {
+    pub const fn new(highlights: &'a [Highlight], x_offs: usize) -> Self {
         Self {
             current_y: 0,
             highlights,
+            x_offs,
         }
     }
 }
@@ -68,10 +78,11 @@ impl Buffer {
     pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
         let _span = span!("buffer::flush");
 
-        let mut flush_state = FlushState::new(&opts.highlights);
+        let mut flush_state = FlushState::new(&opts.highlights, 5);
         // debug!("cursor_offset: {} opts: {:?}", self.cursor_offset, opts);
 
         self.flush_lines(surface, opts, &mut flush_state);
+
         debug!("finished");
     }
 
@@ -109,13 +120,20 @@ impl Buffer {
             contents: line_contents,
             character_offset: line_character_offset,
             length,
-            ..
+            line_number,
         } = info;
 
-        let FlushState {
-            current_y,
-            highlights,
-        } = flush_state;
+        line_number
+            .to_string()
+            .chars()
+            .take(flush_state.x_offs)
+            .enumerate()
+            .for_each(|(i, c)| {
+                surface.set(
+                    Vec2::new(i, flush_state.current_y),
+                    Cell::new(c, Color::Cyan, Color::Black),
+                );
+            });
 
         for (idx, character) in line_contents.chars().enumerate() {
             if char::is_control(character) {
@@ -124,7 +142,7 @@ impl Buffer {
 
             let character_offset = line_character_offset + idx;
 
-            let Some(char_pos) = Self::get_char_pos(surface, *current_y, x_offset, opts) else {
+            let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) else {
                 continue;
             };
 
@@ -136,19 +154,19 @@ impl Buffer {
                 surface.move_cursor(char_pos);
             }
 
-            let color =
-                Self::get_highlight_color(character_offset, highlights).unwrap_or(Color::White);
+            let color = Self::get_highlight_color(character_offset, &mut flush_state.highlights)
+                .unwrap_or(Color::White);
 
             surface.set(char_pos, Cell::new(character, color, Color::None));
         }
 
         if self.cursor_offset == line_character_offset + length {
-            if let Some(char_pos) = Self::get_char_pos(surface, *current_y, x_offset, opts) {
+            if let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) {
                 surface.move_cursor(char_pos);
             };
         }
 
-        *current_y = max_y + 1;
+        flush_state.current_y = max_y + 1;
     }
 
     const fn char_len(_c: char) -> usize {
@@ -157,15 +175,17 @@ impl Buffer {
 
     fn get_char_pos<S: Surface>(
         surface: &S,
-        y_offset: usize,
         x_offset: usize,
         opts: &FlushOptions,
+        state: &FlushState,
     ) -> Option<Vec2<usize>> {
         let Vec2 { x: w, y: h } = surface.dimensions();
+        let y_offset = state.current_y;
+        let w = w - state.x_offs;
         let pos = if opts.wrap {
-            Vec2::new(x_offset % w, y_offset + x_offset / w)
+            Vec2::new(state.x_offs + (x_offset % w), y_offset + x_offset / w)
         } else {
-            Vec2::new(x_offset, y_offset)
+            Vec2::new(state.x_offs + x_offset, y_offset)
         };
 
         Rect::new_in_origin(w, h).contains_point(pos).then_some(pos)
