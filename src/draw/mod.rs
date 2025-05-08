@@ -1,4 +1,5 @@
 use crate::{
+    debug,
     rect::Rect,
     terminal::{escaping::ANSIColor, window},
     vec2::Vec2,
@@ -123,7 +124,18 @@ impl Surface for BoundedWindow<'_> {
     }
 
     fn clear(&mut self) {
-        window::Window::clear(self.window);
+        let Vec2 {
+            x: offs_x,
+            y: offs_y,
+        } = self.bound.position();
+        let w = self.bound.width();
+        let h = self.bound.height();
+        for y in 0..h {
+            for x in 0..w {
+                let pos = Vec2::new(x + offs_x, y + offs_y);
+                let _ = self.window.put_cell(pos, window::Cell::default());
+            }
+        }
     }
 
     fn move_cursor(&mut self, point: Vec2<usize>) {

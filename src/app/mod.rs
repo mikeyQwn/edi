@@ -12,11 +12,11 @@ use std::{
 };
 
 use edi::{
-    draw::WindowBind,
+    draw::{Surface, WindowBind},
     fs::Filetype,
     rect::Rect,
     span,
-    string::{highlight::get_highlights, position::LinePosition},
+    string::highlight::get_highlights,
     terminal::{
         self,
         escaping::ANSIEscape,
@@ -92,23 +92,24 @@ fn handle_inputs(
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<()> {
-    edi::debug!("handle_inputs: running");
+    let _span = span!("handle_inputs");
+    edi::debug!("running");
     loop {
         let message = input_stream.recv()?;
         let input = match message {
             input::Message::Input(event) => event,
             input::Message::Error(e) => {
-                edi::debug!("handle_inputs: received an error {:?}", e);
+                edi::debug!("received an error {:?}", e);
                 continue;
             }
         };
 
         let Some(event) = state.mapper.map_input(&input, state.mode) else {
-            edi::debug!("handle_inputs: no event for input {:?}", input);
+            edi::debug!("no event for input {:?}", input);
             continue;
         };
 
-        edi::debug!("handle_inputs: received event {:?}", event);
+        edi::debug!("received event {:?}", event);
 
         match handle_event(event, state, render_window) {
             Ok(true) => break,
@@ -126,6 +127,7 @@ fn handle_event(
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<bool> {
+    let _span = span!("handle_event");
     match event {
         Action::SwitchMode(mode) => {
             state.mode = mode;
@@ -178,7 +180,7 @@ fn handle_event(
             }
             if cmd == ":wq" {
                 let Some((b, meta)) = state.buffers.pop_front() else {
-                    edi::fatal!("app::handle_event no buffer to write")
+                    edi::fatal!("no buffer to write")
                 };
 
                 let swap_name = meta
@@ -198,14 +200,20 @@ fn handle_event(
                 {
                     Ok(f) => f,
                     Err(e) => {
-                        edi::debug!("handle_event: unable to create output file {e} {swap_name:?}");
+                        edi::debug!("unable to create output file {e} {swap_name:?}");
                         return Ok(true);
                     }
                 };
 
                 let mut w = BufWriter::new(file);
-                b.inner.chars().for_each(|c| {
-                    let _ = w.write(&c.to_string().bytes().collect::<Vec<_>>());
+                b.inner.lines().for_each(|line| {
+                    let Err(err) = w
+                        .write_all(line.contents.as_bytes())
+                        .and_then(|_| w.write_all(b"\n"))
+                    else {
+                        return;
+                    };
+                    edi::fatal!("unable to write line contents: {:?}", err);
                 });
 
                 if let Err(e) =
@@ -236,8 +244,6 @@ fn handle_event(
 }
 
 fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, repeat: usize) {
-    let _ = repeat;
-
     match action {
         MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
@@ -255,10 +261,11 @@ fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
     let _guard = span!("redraw");
     edi::debug!("drawing {} buffers", state.buffers.len());
 
-    let size = terminal::get_size()?;
+    draw_window.clear();
     state.buffers.iter_mut().rev().for_each(|(b, m)| {
         m.normalize(b);
-        let mut bound = Rect::new_in_origin(size.x as usize, size.y as usize).bind(draw_window);
+        let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(draw_window);
+        bound.clear();
         b.flush(&mut bound, &m.flush_options);
     });
     draw_window.render()

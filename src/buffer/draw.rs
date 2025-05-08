@@ -5,6 +5,7 @@ use crate::{
     draw::{Cell, Color, Surface},
     rect::Rect,
     rope::iter::LineInfo,
+    span,
     string::highlight::{Highlight, Type},
     vec2::Vec2,
 };
@@ -65,16 +66,13 @@ impl<'a> FlushState<'a> {
 
 impl Buffer {
     pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
-        let mut flush_state = FlushState::new(&opts.highlights);
+        let _span = span!("buffer::flush");
 
-        surface.clear();
-        debug!(
-            "buffer::flush cursor_offset: {} opts: {:?}",
-            self.cursor_offset, opts
-        );
+        let mut flush_state = FlushState::new(&opts.highlights);
+        // debug!("cursor_offset: {} opts: {:?}", self.cursor_offset, opts);
 
         self.flush_lines(surface, opts, &mut flush_state);
-        debug!("buffer::flush finished");
+        debug!("finished");
     }
 
     fn flush_lines<S: Surface>(

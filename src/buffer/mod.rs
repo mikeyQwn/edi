@@ -143,7 +143,7 @@ impl Buffer {
     #[must_use]
     pub fn current_line(&self) -> usize {
         let mut curr_line = 0;
-        for line_info in self.inner.lines() {
+        for line_info in self.inner.lines().parse_contents(false) {
             if line_info.character_offset > self.cursor_offset {
                 break;
             }
