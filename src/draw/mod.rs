@@ -93,6 +93,7 @@ impl From<Cell> for window::Cell {
     }
 }
 
+/// A generic terminal-like surface that can be drawn to
 pub trait Surface {
     fn clear(&mut self);
     fn move_cursor(&mut self, point: Vec2<usize>);
@@ -113,6 +114,88 @@ impl<'a> WindowBind<'a> for Rect {
     }
 }
 
+/// An extension trait that adds bounding capabilities to `Rect`
+pub trait BoundExt<S>
+where
+    S: Surface,
+{
+    fn clear(&self, surface: &mut S);
+    fn move_cursor(&self, point: Vec2<usize>, surface: &mut S);
+    fn set(&self, position: Vec2<usize>, cell: Cell, surface: &mut S);
+    fn dimensions(&self, surface: &S) -> Vec2<usize>;
+}
+
+fn get_bounded_position(position: Vec2<usize>, bound: &Rect) -> Option<Vec2<usize>> {
+    let bound_position = bound.position();
+    let position = Vec2::new(position.x + bound_position.x, position.y + bound_position.y);
+    bound.contains_point(position).then_some(position)
+}
+
+impl<S> BoundExt<S> for Rect
+where
+    S: Surface,
+{
+    fn set(&self, position: Vec2<usize>, cell: Cell, surface: &mut S) {
+        let Some(position) = get_bounded_position(position, self) else {
+            return;
+        };
+
+        surface.set(position, cell);
+    }
+
+    fn clear(&self, surface: &mut S) {
+        let w = self.width();
+        let h = self.height();
+        for y in 0..h {
+            for x in 0..w {
+                let Some(position) = get_bounded_position(Vec2::new(x, y), self) else {
+                    continue;
+                };
+
+                surface.set(position, Cell::default());
+            }
+        }
+    }
+
+    fn dimensions(&self, surface: &S) -> Vec2<usize> {
+        let surface_dimensions = surface.dimensions();
+        let position = self.position();
+
+        Vec2::new(
+            self.width()
+                .min(surface_dimensions.x.saturating_sub(position.x)),
+            self.height()
+                .midpoint(surface_dimensions.y.saturating_sub(position.y)),
+        )
+    }
+
+    fn move_cursor(&self, point: Vec2<usize>, surface: &mut S) {
+        let Some(position) = get_bounded_position(point, self) else {
+            return;
+        };
+
+        surface.move_cursor(position);
+    }
+}
+
+impl Surface for window::Window {
+    fn set(&mut self, position: Vec2<usize>, cell: Cell) {
+        window::Window::put_cell(self, position, window::Cell::from(cell));
+    }
+
+    fn clear(&mut self) {
+        window::Window::clear(self);
+    }
+
+    fn dimensions(&self) -> Vec2<usize> {
+        window::Window::size(self)
+    }
+
+    fn move_cursor(&mut self, point: Vec2<usize>) {
+        window::Window::set_cursor(self, point);
+    }
+}
+
 #[derive(Debug)]
 pub struct BoundedWindow<'a> {
     window: &'a mut window::Window,
@@ -121,33 +204,18 @@ pub struct BoundedWindow<'a> {
 
 impl Surface for BoundedWindow<'_> {
     fn set(&mut self, position: Vec2<usize>, cell: Cell) {
-        let origin = self.bound.position();
-        let new_pos = Vec2::new(position.x + origin.x, position.y + origin.y);
-        window::Window::put_cell(self.window, new_pos, window::Cell::from(cell));
+        self.bound.set(position, cell, self.window);
     }
 
     fn clear(&mut self) {
-        let Vec2 {
-            x: offs_x,
-            y: offs_y,
-        } = self.bound.position();
-        let w = self.bound.width();
-        let h = self.bound.height();
-        for y in 0..h {
-            for x in 0..w {
-                let pos = Vec2::new(x + offs_x, y + offs_y);
-                let _ = self.window.put_cell(pos, window::Cell::default());
-            }
-        }
+        self.bound.clear(self.window);
     }
 
     fn move_cursor(&mut self, point: Vec2<usize>) {
-        let origin = self.bound.position();
-        let new_pos = Vec2::new(point.x + origin.x, point.y + origin.y);
-        window::Window::set_cursor(self.window, new_pos);
+        self.bound.move_cursor(point, self.window);
     }
 
     fn dimensions(&self) -> Vec2<usize> {
-        Vec2::new(self.bound.width(), self.bound.height())
+        self.bound.dimensions(self.window)
     }
 }

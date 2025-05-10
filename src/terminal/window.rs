@@ -103,6 +103,11 @@ where
         self.back_buffer = self.buffer.clone();
     }
 
+    /// Returns width and height of the window
+    pub const fn size(&self) -> Vec2<usize> {
+        Vec2::new(self.width, self.height)
+    }
+
     /// Draws everyting in the writer and flushes
     ///
     /// # Errors
