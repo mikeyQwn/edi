@@ -2,7 +2,7 @@
 
 use crate::{
     debug,
-    draw::{Cell, Color, Surface},
+    draw::{BoundExt, Cell, Color, Surface},
     rect::Rect,
     rope::iter::LineInfo,
     span,
@@ -18,6 +18,12 @@ pub struct FlushOptions {
     pub line_numbers: bool,
     pub highlights: Vec<Highlight>,
     pub line_offset: usize,
+}
+
+#[derive(Debug)]
+struct DrawBounds {
+    line_numbers: Rect,
+    main: Rect,
 }
 
 impl FlushOptions {
@@ -60,16 +66,16 @@ impl Default for FlushOptions {
 struct FlushState<'a> {
     current_y: usize,
     highlights: &'a [Highlight],
-    global_x_offs: usize,
+    bounds: DrawBounds,
 }
 
 impl<'a> FlushState<'a> {
     #[must_use]
-    pub const fn new(highlights: &'a [Highlight], global_x_offs: usize) -> Self {
+    pub const fn new(highlights: &'a [Highlight], bounds: DrawBounds) -> Self {
         Self {
             current_y: 0,
             highlights,
-            global_x_offs,
+            bounds,
         }
     }
 }
@@ -79,8 +85,11 @@ impl Buffer {
         let _span = span!("buffer::flush");
 
         let line_number_offset = if opts.line_numbers { 5 } else { 0 };
+        let Vec2 { x, y } = surface.dimensions();
+        let (line_numbers, main) = Rect::new_in_origin(x, y).split_horizontal(line_number_offset);
+        let bounds = DrawBounds { line_numbers, main };
 
-        let mut flush_state = FlushState::new(&opts.highlights, line_number_offset);
+        let mut flush_state = FlushState::new(&opts.highlights, bounds);
         // debug!("cursor_offset: {} opts: {:?}", self.cursor_offset, opts);
 
         self.flush_lines(surface, opts, &mut flush_state);
@@ -100,7 +109,7 @@ impl Buffer {
             .skip(opts.line_offset)
             .take(available_height)
             .for_each(|line_info| {
-                self.flush_line(surface, opts, line_info, state);
+                self.flush_line(surface, opts, &line_info, state);
             });
     }
 
@@ -108,41 +117,66 @@ impl Buffer {
         &self,
         surface: &mut S,
         opts: &FlushOptions,
-        info: LineInfo,
+        info: &LineInfo,
         flush_state: &mut FlushState,
     ) {
         if flush_state.current_y >= surface.dimensions().y {
             return;
         }
 
-        let mut x_offset = 0;
         let mut max_y = flush_state.current_y;
 
+        if opts.line_numbers {
+            Self::flush_line_number(info.line_number, flush_state, surface);
+        }
+
+        self.flush_main(&info, &mut max_y, flush_state, opts, surface);
+
+        flush_state.current_y = max_y + 1;
+    }
+
+    fn flush_line_number<S: Surface>(
+        line_number: usize,
+        flush_state: &FlushState,
+        surface: &mut S,
+    ) {
+        let line_number_str = line_number.to_string();
+        let offs = flush_state
+            .bounds
+            .line_numbers
+            .width()
+            .saturating_sub(line_number_str.len())
+            .saturating_sub(1);
+
+        line_number_str
+            .chars()
+            .take(flush_state.bounds.line_numbers.width().saturating_sub(1))
+            .enumerate()
+            .for_each(|(i, c)| {
+                flush_state.bounds.line_numbers.set(
+                    Vec2::new(offs + i, flush_state.current_y),
+                    Cell::new(c, Color::Cyan, Color::None),
+                    surface,
+                );
+            });
+    }
+
+    fn flush_main<S: Surface>(
+        &self,
+        info: &LineInfo,
+        max_y: &mut usize,
+        flush_state: &mut FlushState,
+        opts: &FlushOptions,
+        surface: &mut S,
+    ) {
         let LineInfo {
             contents: line_contents,
             character_offset: line_character_offset,
             length,
-            line_number,
+            ..
         } = info;
 
-        if opts.line_numbers {
-            let line_number_str = line_number.to_string();
-            let offs = flush_state
-                .global_x_offs
-                .saturating_sub(line_number_str.len())
-                .saturating_sub(1);
-
-            line_number_str
-                .chars()
-                .take(flush_state.global_x_offs)
-                .enumerate()
-                .for_each(|(i, c)| {
-                    surface.set(
-                        Vec2::new(offs + i, flush_state.current_y),
-                        Cell::new(c, Color::Cyan, Color::None),
-                    );
-                });
-        }
+        let mut x_offset = 0;
 
         for (idx, character) in line_contents.chars().enumerate() {
             if char::is_control(character) {
@@ -155,27 +189,29 @@ impl Buffer {
                 continue;
             };
 
-            max_y = char_pos.y.max(max_y);
+            *max_y = char_pos.y.max(*max_y);
 
             x_offset += Self::char_len(character);
 
             if self.cursor_offset == character_offset {
-                surface.move_cursor(char_pos);
+                flush_state.bounds.main.move_cursor(char_pos, surface);
             }
 
             let color = Self::get_highlight_color(character_offset, &mut flush_state.highlights)
                 .unwrap_or(Color::White);
 
-            surface.set(char_pos, Cell::new(character, color, Color::None));
+            flush_state.bounds.main.set(
+                char_pos,
+                Cell::new(character, color, Color::None),
+                surface,
+            );
         }
 
         if self.cursor_offset == line_character_offset + length {
             if let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) {
-                surface.move_cursor(char_pos);
+                flush_state.bounds.main.move_cursor(char_pos, surface);
             };
         }
-
-        flush_state.current_y = max_y + 1;
     }
 
     const fn char_len(_c: char) -> usize {
@@ -190,14 +226,10 @@ impl Buffer {
     ) -> Option<Vec2<usize>> {
         let Vec2 { x: w, y: h } = surface.dimensions();
         let y_offset = state.current_y;
-        let w = w - state.global_x_offs;
         let pos = if opts.wrap {
-            Vec2::new(
-                state.global_x_offs + (x_offset % w),
-                y_offset + x_offset / w,
-            )
+            Vec2::new(x_offset % w, y_offset + x_offset / w)
         } else {
-            Vec2::new(state.global_x_offs + x_offset, y_offset)
+            Vec2::new(x_offset, y_offset)
         };
 
         Rect::new_in_origin(w, h).contains_point(pos).then_some(pos)
@@ -244,6 +276,11 @@ mod tests {
         }
         pub fn get_contents(&self) -> Vec<String> {
             self.chars.iter().map(|row| row.iter().collect()).collect()
+        }
+
+        pub fn clear(&mut self) {
+            self.chars = vec![vec![' '; self.chars[0].len()]; self.chars.len()];
+            self.cursor_pos = None;
         }
     }
 
@@ -358,14 +395,16 @@ mod tests {
         assert_eq!(contents[2], "Third line          ");
 
         let opts = FlushOptions::default().with_line_offset(1);
+        surface.clear();
         buf.flush(&mut surface, &opts);
         let contents = surface.get_contents();
         assert_eq!(contents[0], "Second line         ");
-        assert_eq!(contents[1], "Third linee         ");
+        assert_eq!(contents[1], "Third line          ");
         assert_eq!(contents[2], "Fourth line         ");
 
         let opts = FlushOptions::default().with_line_offset(10);
         buf.flush(&mut surface, &opts);
+        surface.clear();
         let contents = surface.get_contents();
         assert_eq!(contents[0], "                    ");
         assert_eq!(contents[1], "                    ");
