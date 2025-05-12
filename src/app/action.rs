@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use edi::buffer;
-use edi::string::position::LinePosition;
+use edi::string::position::{GlobalPosition, LinePosition};
 use edi::terminal::input::Input;
 
 use super::Mode;
@@ -47,7 +47,8 @@ impl Action {
 pub enum MoveAction {
     Regular(Direction),
     HalfScreen(Direction),
-    To(LinePosition),
+    InLine(LinePosition),
+    Global(GlobalPosition),
 }
 
 trait KeyPair<K1, K2> {
@@ -156,15 +157,19 @@ impl InputMapper {
         map(Input::Keypress(':'), Action::SwitchMode(Mode::Terminal));
         map(
             Input::Keypress('0'),
-            Action::move_once(MoveAction::To(LinePosition::Start)),
+            Action::move_once(MoveAction::InLine(LinePosition::Start)),
         );
         map(
             Input::Keypress('$'),
-            Action::move_once(MoveAction::To(LinePosition::End)),
+            Action::move_once(MoveAction::InLine(LinePosition::End)),
         );
         map(
             Input::Keypress('^'),
-            Action::move_once(MoveAction::To(LinePosition::CharacterStart)),
+            Action::move_once(MoveAction::InLine(LinePosition::CharacterStart)),
+        );
+        map(
+            Input::Keypress('G'),
+            Action::move_once(MoveAction::Global(GlobalPosition::End)),
         );
     }
 

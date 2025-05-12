@@ -3,7 +3,10 @@ pub mod draw;
 use crate::{
     debug,
     rope::{iter::LineInfo, Rope},
-    string::{position::LinePosition, search},
+    string::{
+        position::{GlobalPosition, LinePosition},
+        search,
+    },
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -121,7 +124,7 @@ impl Buffer {
         true
     }
 
-    pub fn move_to(&mut self, position: LinePosition) {
+    pub fn move_in_line(&mut self, position: LinePosition) {
         let current_line = self.current_line();
         let Some(LineInfo {
             character_offset,
@@ -137,6 +140,13 @@ impl Buffer {
             LinePosition::Start => character_offset,
             LinePosition::End => character_offset + length,
             LinePosition::CharacterStart => character_offset + search::character_start(&contents),
+        }
+    }
+
+    pub fn move_global(&mut self, position: GlobalPosition) {
+        match position {
+            GlobalPosition::Start => self.cursor_offset = 0,
+            GlobalPosition::End => self.cursor_offset = self.inner.len().saturating_sub(1),
         }
     }
 

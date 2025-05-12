@@ -249,12 +249,13 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
         MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
         }
-        MoveAction::To(line_position) => {
-            buffer.move_to(line_position);
+        MoveAction::InLine(line_position) => {
+            buffer.move_in_line(line_position);
         }
         MoveAction::HalfScreen(direction) => {
             buffer.move_cursor(direction.into(), meta.size.y / 2);
         }
+        MoveAction::Global(global_position) => buffer.move_global(global_position),
     }
 }
 

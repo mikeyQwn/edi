@@ -4,3 +4,9 @@ pub enum LinePosition {
     CharacterStart,
     End,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum GlobalPosition {
+    Start,
+    End,
+}
