@@ -178,11 +178,6 @@ impl InputMapper {
             Action::move_once(MoveAction::Global(GlobalPosition::End)),
         );
 
-        map(
-            Input::Keypress('I'),
-            Action::move_once(MoveAction::Global(GlobalPosition::End)),
-        );
-
         // TODO: Add 'gg' mapping
         let mut multimap = |input, actions| {
             self.add_multi_mapping(Mode::Normal, input, actions);
