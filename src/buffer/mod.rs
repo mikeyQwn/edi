@@ -39,7 +39,6 @@ impl Buffer {
 
         if c == '\n' {
             self.cursor_offset += 1;
-
             return;
         }
 
@@ -80,56 +79,60 @@ impl Buffer {
                 self.cursor_offset = new_offset;
             }
             Direction::Up => {
-                if self.current_line() == 0 || self.inner.lines().count() == 0 {
+                if self.current_line() == 0 || self.inner.lines().next().is_none() {
                     self.cursor_offset = 0;
                     return;
                 }
 
+                let current_line = self.current_line();
+
                 let offs = self.cursor_offset
                     - self
                         .inner
-                        .line_info(self.current_line())
+                        .line_info(current_line)
                         .expect("current line should be in the rope")
                         .character_offset;
 
-                self.set_cursor_line(self.current_line().saturating_sub(steps), offs);
+                self.set_cursor_line(current_line.saturating_sub(steps), offs);
             }
             Direction::Down => {
-                if self.inner.lines().count() == 0 {
+                if self.inner.lines().next().is_none() {
                     return;
                 }
 
+                let current_line = self.current_line();
+
                 let offs = self.cursor_offset
                     - self
                         .inner
-                        .line_info(self.current_line())
+                        .line_info(current_line)
                         .expect("current line should be in the rope")
                         .character_offset;
 
-                self.set_cursor_line(
-                    (self.current_line() + steps).min(self.inner.lines().count() - 1),
-                    offs,
-                );
+                self.set_cursor_line(current_line + steps, offs);
             }
         }
     }
 
-    fn set_cursor_line(&mut self, line: usize, offs: usize) -> bool {
-        let Some(line_info) = self.inner.line_info(line) else {
-            return false;
+    fn set_cursor_line(&mut self, line: usize, offs: usize) {
+        let Some(line_info) = self
+            .inner
+            .line_info(line)
+            .or_else(|| self.inner.lines().parse_contents(false).last())
+        else {
+            self.cursor_offset = 0;
+            return;
         };
 
         self.cursor_offset = line_info.character_offset + line_info.length.min(offs);
-
-        true
     }
 
     pub fn move_in_line(&mut self, position: LinePosition) {
         let current_line = self.current_line();
         let Some(LineInfo {
-            character_offset,
+            mut character_offset,
             length,
-            contents,
+            mut contents,
             ..
         }) = self.inner.line(current_line)
         else {
@@ -141,8 +144,21 @@ impl Buffer {
             LinePosition::End => character_offset + length,
             LinePosition::CharacterStart => character_offset + search::character_start(&contents),
             LinePosition::CurrentWordEnd => {
-                character_offset
-                    + search::current_word_end(&contents, self.cursor_offset - character_offset)
+                let is_at_eol = self.cursor_offset - character_offset == length.saturating_sub(1);
+                let offset = if is_at_eol {
+                    0
+                } else {
+                    self.cursor_offset - character_offset
+                };
+                if is_at_eol {
+                    let Some(next_line) = self.inner.line(current_line + 1) else {
+                        // at the end of the file, nothing we can do
+                        return;
+                    };
+                    contents = next_line.contents;
+                    character_offset = next_line.character_offset;
+                }
+                character_offset + search::current_word_end(&contents, offset)
             }
         }
     }

@@ -84,7 +84,13 @@ impl Buffer {
     pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
         let _span = span!("buffer::flush");
 
-        let line_number_offset = if opts.line_numbers { 5 } else { 0 };
+        let line_number_offset = if opts.line_numbers {
+            // let total_lines = self.inner.chars().filter(|&c| c == '\n').count() + 1;
+            // total_lines.to_string().len() + 1
+            5
+        } else {
+            0
+        };
         let Vec2 { x, y } = surface.dimensions();
         let (line_numbers, main) = Rect::new_in_origin(x, y).split_horizontal(line_number_offset);
         let bounds = DrawBounds { line_numbers, main };
@@ -130,7 +136,7 @@ impl Buffer {
             Self::flush_line_number(info.line_number, flush_state, surface);
         }
 
-        self.flush_main(&info, &mut max_y, flush_state, opts, surface);
+        self.flush_main(info, &mut max_y, flush_state, opts, surface);
 
         flush_state.current_y = max_y + 1;
     }
@@ -179,8 +185,8 @@ impl Buffer {
         let mut x_offset = 0;
 
         for (idx, character) in line_contents.chars().enumerate() {
-            if char::is_control(character) {
-                unimplemented!("control characters are not supported yet");
+            if char::is_control(character) && character != '\t' {
+                todo!("control characters are not supported yet");
             }
 
             let character_offset = line_character_offset + idx;
@@ -200,11 +206,22 @@ impl Buffer {
             let color = Self::get_highlight_color(character_offset, &mut flush_state.highlights)
                 .unwrap_or(Color::White);
 
-            flush_state.bounds.main.set(
-                char_pos,
-                Cell::new(character, color, Color::None),
-                surface,
-            );
+            if character != '\t' {
+                flush_state.bounds.main.set(
+                    char_pos,
+                    Cell::new(character, color, Color::None),
+                    surface,
+                );
+            } else {
+                for i in 0..4 {
+                    let new_pos = Vec2::new(char_pos.x + i, char_pos.y);
+                    flush_state.bounds.main.set(
+                        new_pos,
+                        Cell::new(character, color, Color::None),
+                        surface,
+                    );
+                }
+            }
         }
 
         if self.cursor_offset == line_character_offset + length {
@@ -214,8 +231,11 @@ impl Buffer {
         }
     }
 
-    const fn char_len(_c: char) -> usize {
-        1
+    const fn char_len(c: char) -> usize {
+        match c {
+            '\t' => 4,
+            _other => 1,
+        }
     }
 
     fn get_char_pos<S: Surface>(

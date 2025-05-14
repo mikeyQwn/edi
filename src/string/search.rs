@@ -85,7 +85,7 @@ fn consume_whitespace(it: &mut Peekable<impl Iterator<Item = char>>) -> usize {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn find_current_word_end() {
+    fn current_word_end() {
         let cases = [
             (("hello", 0), 4),
             (("hello ", 0), 4),
