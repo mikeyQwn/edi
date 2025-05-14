@@ -56,7 +56,6 @@ impl Buffer {
     ///
     /// Never panics
     pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
-        debug!("buffer::move_cursor offs: {}", self.cursor_offset);
         match direction {
             Direction::Left => {
                 let new_offset = self.cursor_offset.saturating_sub(steps);
@@ -79,7 +78,7 @@ impl Buffer {
                 self.cursor_offset = new_offset;
             }
             Direction::Up => {
-                if self.current_line() == 0 || self.inner.lines().next().is_none() {
+                if self.current_line() == 0 || self.inner.total_lines() == 0 {
                     self.cursor_offset = 0;
                     return;
                 }
@@ -96,11 +95,13 @@ impl Buffer {
                 self.set_cursor_line(current_line.saturating_sub(steps), offs);
             }
             Direction::Down => {
-                if self.inner.lines().next().is_none() {
+                if self.inner.total_lines() == 0 {
+                    debug!("total lines is zero");
                     return;
                 }
 
                 let current_line = self.current_line();
+                debug!("current_line is: {}", current_line);
 
                 let offs = self.cursor_offset
                     - self
@@ -108,6 +109,7 @@ impl Buffer {
                         .line_info(current_line)
                         .expect("current line should be in the rope")
                         .character_offset;
+                debug!("target_offs: {}", offs);
 
                 self.set_cursor_line(current_line + steps, offs);
             }
@@ -123,6 +125,9 @@ impl Buffer {
             self.cursor_offset = 0;
             return;
         };
+        debug!("line_info: {:?}", line_info);
+        debug!("offs: {:?}", offs);
+        debug!("line: {:?}", line);
 
         self.cursor_offset = line_info.character_offset + line_info.length.min(offs);
     }
@@ -172,14 +177,7 @@ impl Buffer {
 
     #[must_use]
     pub fn current_line(&self) -> usize {
-        let mut curr_line = 0;
-        for line_info in self.inner.lines().parse_contents(false) {
-            if line_info.character_offset > self.cursor_offset {
-                break;
-            }
-            curr_line = line_info.line_number;
-        }
-        curr_line
+        self.inner.line_of_index(self.cursor_offset)
     }
 }
 

@@ -85,9 +85,8 @@ impl Buffer {
         let _span = span!("buffer::flush");
 
         let line_number_offset = if opts.line_numbers {
-            // let total_lines = self.inner.chars().filter(|&c| c == '\n').count() + 1;
-            // total_lines.to_string().len() + 1
-            5
+            let total_lines = self.inner.total_lines();
+            total_lines.to_string().len() + 1
         } else {
             0
         };
@@ -110,6 +109,7 @@ impl Buffer {
         state: &mut FlushState,
     ) {
         let available_height = surface.dimensions().y;
+        let _span = span!("flush_lines");
         self.inner
             .lines()
             .skip(opts.line_offset)
@@ -206,17 +206,20 @@ impl Buffer {
             let color = Self::get_highlight_color(character_offset, &mut flush_state.highlights)
                 .unwrap_or(Color::White);
 
-            if character != '\t' {
-                flush_state.bounds.main.set(
-                    char_pos,
-                    Cell::new(character, color, Color::None),
-                    surface,
-                );
-            } else {
-                for i in 0..4 {
-                    let new_pos = Vec2::new(char_pos.x + i, char_pos.y);
+            match character {
+                '\t' => {
+                    for i in 0..4 {
+                        let new_pos = Vec2::new(char_pos.x + i, char_pos.y);
+                        flush_state.bounds.main.set(
+                            new_pos,
+                            Cell::new(character, color, Color::None),
+                            surface,
+                        );
+                    }
+                }
+                _ => {
                     flush_state.bounds.main.set(
-                        new_pos,
+                        char_pos,
                         Cell::new(character, color, Color::None),
                         surface,
                     );

@@ -6,6 +6,8 @@ use std::ops::{Range, RangeBounds};
 
 use iter::{Chars, LineInfo, Lines, Substring};
 
+use crate::{debug, span};
+
 // A node in the rope binary tree.
 #[derive(Debug)]
 enum Node {
@@ -14,8 +16,10 @@ enum Node {
     Leaf(Box<str>),
     // A value node contains a cumulative length of the left subtree leaf nodes' lengths.
     Value {
-        // The value of the node is the cumulative length of the left subtree leaf nodes' lengths
-        val: usize,
+        // Cumulative length of the left subtree leaf nodes' lengths a.k.a. `weight`
+        left_len: usize,
+        // Cumulative length of the left subtree leaf nodes' newline counts
+        left_newlines: usize,
         // The left child of the node
         l: Option<Box<Node>>,
         // The right child of the node
@@ -24,11 +28,19 @@ enum Node {
 }
 
 impl Node {
-    // Returns the weight of the node.
+    // Returns the weight of the node
     pub fn weight(&self) -> usize {
         match self {
             Node::Leaf(s) => s.chars().count(),
-            Node::Value { val, .. } => *val,
+            Node::Value { left_len: val, .. } => *val,
+        }
+    }
+
+    // Returns number of newlines of the node and all it's children combined
+    pub fn newlines(&self) -> usize {
+        match self {
+            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
+            Node::Value { left_newlines, .. } => *left_newlines,
         }
     }
 
@@ -37,9 +49,24 @@ impl Node {
     pub fn full_weight(&self) -> usize {
         match self {
             Node::Leaf(s) => s.chars().count(),
-            Node::Value { val, r, .. } => {
-                let r_weight = r.as_ref().map_or(0, |ri| ri.full_weight());
+            Node::Value {
+                left_len: val, r, ..
+            } => {
+                let r_weight = r.as_deref().map_or(0, Self::full_weight);
                 val + r_weight
+            }
+        }
+    }
+
+    // Returns number of newlines of the node and all it's children combined
+    pub fn full_newlines(&self) -> usize {
+        match self {
+            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
+            Node::Value {
+                left_newlines, r, ..
+            } => {
+                let right_newlines = r.as_deref().map_or(0, Self::full_newlines);
+                right_newlines + left_newlines
             }
         }
     }
@@ -58,6 +85,60 @@ impl Node {
             Node::Leaf(_) => None,
             Node::Value { l, .. } => l.as_deref(),
         }
+    }
+
+    #[must_use]
+    fn index_of_line(&self, line: usize) -> usize {
+        let (node, skipped_chars, skipped_lines) = self.skip_to_line(line);
+        let lines_left = line - skipped_lines;
+
+        if lines_left == 0 {
+            return skipped_chars;
+        }
+
+        let mut pos = skipped_chars;
+        let mut newlines_seen = 0;
+
+        for c in Chars::new(node) {
+            if c == '\n' {
+                newlines_seen += 1;
+                if newlines_seen == lines_left {
+                    return pos + 1;
+                }
+            }
+            pos += 1;
+        }
+
+        pos
+    }
+
+    fn skip_to_line(&self, target: usize) -> (&Node, usize, usize) {
+        let mut from = self;
+        let mut skipped_chars = 0;
+        let mut skipped_lines = 0;
+
+        while let Node::Value {
+            left_len,
+            r,
+            left_newlines,
+            ..
+        } = from
+        {
+            debug!("(skipped_lines) {left_newlines}");
+            if *left_newlines >= target - skipped_lines {
+                break;
+            }
+
+            let Some(r) = r else {
+                break;
+            };
+
+            from = r;
+            skipped_chars += left_len;
+            skipped_lines += left_newlines;
+        }
+
+        (from, skipped_chars, skipped_lines)
     }
 }
 
@@ -105,19 +186,66 @@ impl Rope {
             return;
         }
 
+        debug!("{} {}", self.root.newlines(), other.root.newlines());
+
         let new_root = Node::Value {
-            val: self.len(),
+            left_len: self.len(),
+            left_newlines: self.total_lines(),
             l: Some(std::mem::take(&mut self.root)),
             r: Some(std::mem::take(&mut other.root)),
         };
 
         self.root = Box::new(new_root);
+        self.validate_newlines();
+    }
+
+    /// Validates that all `left_newlines` fields in the tree correctly represent
+    /// the number of newlines in their left subtrees.
+    /// Panics if any inconsistency is found.
+    pub fn validate_newlines(&self) {
+        let _span = span!("validate_newlines");
+        debug!("started");
+        Self::validate_newlines_inner(&self.root);
+        debug!("finished");
+    }
+
+    fn validate_newlines_inner(node: &Node) -> usize {
+        match node {
+            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
+            Node::Value {
+                left_len: _,
+                left_newlines,
+                l,
+                r,
+            } => {
+                let left_newlines_actual = l
+                    .as_ref()
+                    .map_or(0, |left| Self::validate_newlines_inner(left));
+                let right_newlines_actual = r
+                    .as_ref()
+                    .map_or(0, |right| Self::validate_newlines_inner(right));
+
+                assert_eq!(
+                    *left_newlines, left_newlines_actual,
+                    "left_newlines validation failed: stored={}, actual={}",
+                    left_newlines, left_newlines_actual
+                );
+
+                left_newlines_actual + right_newlines_actual
+            }
+        }
     }
 
     /// Returns the character length of the string represented by the rope
     #[must_use]
     pub fn len(&self) -> usize {
         self.root.full_weight()
+    }
+
+    /// Returns the number of lines in the rope
+    #[must_use]
+    pub fn total_lines(&self) -> usize {
+        self.root.full_newlines()
     }
 
     /// Returns `true` if the `Rope` contains no characters
@@ -166,12 +294,13 @@ impl Rope {
             return std::mem::take(&mut leaves[range.start]);
         }
         if len == 2 {
-            let Node::Leaf(ref l) = leaves[range.start] else {
+            let Node::Leaf(l) = &leaves[range.start] else {
                 unreachable!("all nodes passed to merge_range should be of type leaf");
             };
 
             return Node::Value {
-                val: l.chars().count(),
+                left_len: l.chars().count(),
+                left_newlines: l.chars().filter(|c| *c == '\n').count(),
                 l: Some(Box::new(std::mem::take(&mut leaves[range.start]))),
                 r: Some(Box::new(std::mem::take(&mut leaves[range.start + 1]))),
             };
@@ -180,10 +309,12 @@ impl Rope {
         let mid = range.start + len / 2;
         let left = Self::merge_range(leaves, range.start..mid);
         let left_weight = left.full_weight();
+        let left_newlines = left.full_newlines();
         let right = Self::merge_range(leaves, mid..range.end);
 
         Node::Value {
-            val: left_weight,
+            left_len: left_weight,
+            left_newlines,
             l: Some(Box::new(left)),
             r: Some(Box::new(right)),
         }
@@ -191,8 +322,10 @@ impl Rope {
 
     fn rebalance(&mut self) {
         if self.is_balanced() {
+            debug!("the tree is already balanced");
             return;
         }
+        debug!("the tree is not balanced");
 
         let mut leaves = self.get_leaves();
         let len = leaves.len();
@@ -230,7 +363,12 @@ impl Rope {
     fn get_inner(node: &Node, n: usize) -> Option<char> {
         match node {
             Node::Leaf(s) => s.chars().nth(n),
-            Node::Value { val, l, r } => {
+            Node::Value {
+                left_len: val,
+                l,
+                r,
+                ..
+            } => {
                 if n < *val {
                     Self::get_inner(l.as_ref()?, n)
                 } else {
@@ -260,11 +398,18 @@ impl Rope {
                 let right = Box::new(Node::Leaf(s[idx..].into()));
                 (left, right)
             }
-            Node::Value { val, l, r } => {
+            Node::Value {
+                left_len: val,
+                l,
+                r,
+                ..
+            } => {
                 if idx < val {
                     let (left, right) = Self::split_inner(*l.unwrap(), idx);
+                    let right_newlines = right.full_newlines();
                     let right = Box::new(Node::Value {
-                        val: val - idx,
+                        left_len: val - idx,
+                        left_newlines: right_newlines,
                         l: Some(right),
                         r,
                     });
@@ -273,7 +418,8 @@ impl Rope {
                 } else {
                     let (left, right) = Self::split_inner(*r.unwrap(), idx - val);
                     let left = Box::new(Node::Value {
-                        val,
+                        left_len: val,
+                        left_newlines: l.as_deref().map_or(0, Node::full_newlines),
                         l,
                         r: Some(left),
                     });
@@ -348,11 +494,28 @@ impl Rope {
     pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
         let mut range = self.normalize_range(range);
 
-        let (node, skipped) = Self::skip_to(&self.root, range.start);
+        let (node, skipped, _) = Self::skip_to(&self.root, range.start);
         range.start -= skipped;
         range.end -= skipped;
 
         Substring::new(Chars::new(node), range)
+    }
+
+    #[must_use]
+    pub fn line_of_index(&self, index: usize) -> usize {
+        let (node, skipped, lines_skipped) = Self::skip_to(&self.root, index);
+        let to_parse = index - skipped;
+
+        lines_skipped
+            + Chars::new(node)
+                .take(to_parse)
+                .filter(|&c| c == '\n')
+                .count()
+    }
+
+    #[must_use]
+    pub fn index_of_line(&self, line: usize) -> usize {
+        self.root.index_of_line(line)
     }
 
     fn normalize_range(&self, range: impl std::ops::RangeBounds<usize>) -> Range<usize> {
@@ -371,10 +534,17 @@ impl Rope {
         start..end
     }
 
-    fn skip_to(mut from: &Node, target: usize) -> (&Node, usize) {
+    fn skip_to(mut from: &Node, target: usize) -> (&Node, usize, usize) {
         let mut skipped = 0;
+        let mut skipped_lines = 0;
         // Skip the left subtree if it is not included in the substring
-        while let Node::Value { val, r, .. } = from {
+        while let Node::Value {
+            left_len: val,
+            r,
+            left_newlines,
+            ..
+        } = from
+        {
             if *val >= target - skipped {
                 break;
             }
@@ -385,18 +555,31 @@ impl Rope {
 
             from = r;
             skipped += val;
+            skipped_lines += left_newlines;
         }
 
-        (from, skipped)
+        (from, skipped, skipped_lines)
     }
 }
 
 impl From<String> for Rope {
     fn from(s: String) -> Self {
-        let node = Node::Leaf(s.into_boxed_str());
-        Rope {
-            root: Box::new(node),
+        const CHUNK_SIZE: usize = 16;
+        let mut rope = Rope::default();
+        let mut offset = 0;
+        while offset < s.len() {
+            let range = offset..((offset + CHUNK_SIZE).min(s.len()));
+            rope.concat(Rope {
+                root: Box::new(Node::Leaf(Box::from(&s[range]))),
+            });
+            offset += CHUNK_SIZE;
         }
+        rope.rebalance();
+
+        #[cfg(debug_assertions)]
+        rope.validate_newlines();
+
+        rope
     }
 }
 
@@ -418,34 +601,40 @@ mod tests {
         let j = Node::Leaf(Box::from("na"));
         let k = Node::Leaf(Box::from("me i"));
         let g = Node::Value {
-            val: 2,
+            left_len: 2,
+            left_newlines: 0,
             l: Some(Box::new(j)),
             r: Some(Box::new(k)),
         };
         let h = Node::Value {
-            val: 1,
+            left_len: 1,
+            left_newlines: 0,
             l: Some(Box::new(m)),
             r: Some(Box::new(n)),
         };
         let e = Node::Leaf(Box::from("Hello "));
         let f = Node::Leaf(Box::from("my "));
         let c = Node::Value {
-            val: 6,
+            left_len: 6,
+            left_newlines: 0,
             l: Some(Box::new(e)),
             r: Some(Box::new(f)),
         };
         let d = Node::Value {
-            val: 6,
+            left_len: 6,
+            left_newlines: 0,
             l: Some(Box::new(g)),
             r: Some(Box::new(h)),
         };
         let b = Node::Value {
-            val: 9,
+            left_len: 9,
+            left_newlines: 0,
             l: Some(Box::new(c)),
             r: Some(Box::new(d)),
         };
         let a = Node::Value {
-            val: 22,
+            left_len: 22,
+            left_newlines: 0,
             l: Some(Box::new(b)),
             r: None,
         };
@@ -476,6 +665,7 @@ mod tests {
                 }
             }
         }
+        r.validate_newlines();
     }
 
     #[test]
@@ -604,5 +794,115 @@ mod tests {
             .collect();
 
         assert_correctness(&mut r, &expected);
+    }
+
+    #[test]
+    fn weights_correctness() {
+        let r = example_rope();
+        assert_eq!(r.root.weight(), 22);
+        assert_eq!(r.root.full_weight(), 22);
+
+        if let Some(left) = r.root.left() {
+            assert_eq!(left.weight(), 9);
+            assert_eq!(left.full_weight(), 22);
+
+            if let Some(left_left) = left.left() {
+                assert_eq!(left_left.weight(), 6);
+                assert_eq!(left_left.full_weight(), 9);
+            }
+
+            if let Some(left_right) = left.right() {
+                assert_eq!(left_right.weight(), 6);
+                assert_eq!(left_right.full_weight(), 13);
+            }
+        }
+    }
+
+    #[test]
+    fn line_counting() {
+        let r = Rope::from("Hello\nworld\nthis\nis\na\ntest".to_string());
+
+        // Total lines should equal newline count + 1
+        assert_eq!(r.total_lines(), 5);
+
+        // Verify line info
+        assert_eq!(r.line_of_index(0), 0); // 'H' in first line
+        assert_eq!(r.line_of_index(5), 0); // '\n' at end of first line
+        assert_eq!(r.line_of_index(6), 1); // 'w' in second line
+        assert_eq!(r.line_of_index(11), 1); // '\n' at end of second line
+        assert_eq!(r.line_of_index(12), 2); // 't' in third line
+
+        // Verify index of line
+        assert_eq!(r.index_of_line(0), 0); // Start of first line
+        assert_eq!(r.index_of_line(1), 6); // Start of second line
+        assert_eq!(r.index_of_line(2), 12); // Start of third line
+
+        // Test with empty lines
+        let r = Rope::from("\n\n\n".to_string());
+        assert_eq!(r.total_lines(), 3);
+        assert_eq!(r.line_of_index(0), 0);
+        assert_eq!(r.line_of_index(1), 1);
+        assert_eq!(r.line_of_index(2), 2);
+        assert_eq!(r.index_of_line(0), 0);
+        assert_eq!(r.index_of_line(1), 1);
+        assert_eq!(r.index_of_line(2), 2);
+    }
+
+    #[test]
+    fn line_counting_complex() {
+        let text = "First line\nSecond line\n\nFourth line\n";
+        let r = Rope::from(text.to_string());
+
+        assert_eq!(r.total_lines(), 4);
+
+        // Verify line_of_index for various positions
+        assert_eq!(r.line_of_index(0), 0); // 'F' in first line
+        assert_eq!(r.line_of_index(10), 0); // '\n' at end of first line
+        assert_eq!(r.line_of_index(11), 1); // 'S' in second line
+        assert_eq!(r.line_of_index(22), 1); // '\n' at end of second line
+        assert_eq!(r.line_of_index(23), 2); // '\n' (empty third line)
+        assert_eq!(r.line_of_index(24), 3); // 'F' in fourth line
+        assert_eq!(r.line_of_index(34), 3); // '\n' at end of fourth line
+    }
+
+    #[test]
+    fn weights_after_operations() {
+        let mut r = Rope::new();
+        assert_eq!(r.weight(), 0);
+        assert_eq!(r.len(), 0);
+
+        r.insert(0, "hello");
+        assert_eq!(r.weight(), 5);
+        assert_eq!(r.len(), 5);
+
+        r.insert(5, " world");
+
+        let (left, right) = r.split(5);
+        assert_eq!(left.weight(), 5);
+        assert_eq!(left.len(), 5);
+        assert_eq!(right.weight(), 6);
+        assert_eq!(right.len(), 6);
+    }
+
+    #[test]
+    fn line_counting_after_operations() {
+        let mut r = Rope::from("line1\nline2".to_string());
+        assert_eq!(r.total_lines(), 1);
+
+        r.insert(11, "\nline3");
+        assert_eq!(r.total_lines(), 2);
+
+        r.insert(0, "line0\n");
+        assert_eq!(r.total_lines(), 3);
+
+        let (mut left, right) = r.split(6);
+        assert_eq!(left.total_lines(), 1);
+        assert_eq!(right.total_lines(), 2);
+
+        left.concat(right);
+        assert_eq!(left.total_lines(), 3);
+
+        left.delete(5..6); // Delete first newline
+        assert_eq!(left.total_lines(), 2);
     }
 }

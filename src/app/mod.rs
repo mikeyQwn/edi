@@ -154,7 +154,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("handle_event: no buffers to write to");
+                    edi::debug!("no buffers to write to");
                 }
             }
             render_window.render()?;
@@ -167,7 +167,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("handle_event: no buffers to delete from");
+                    edi::debug!("no buffers to delete from");
                 }
             }
             render_window.render()?;

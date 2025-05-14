@@ -5,6 +5,8 @@ use std::{
     ops::Range,
 };
 
+use crate::debug;
+
 use super::Node;
 
 /// An iterator that does inorder `Rope` traversal starting from given `Node` and returns `Node`s met
@@ -71,12 +73,6 @@ impl<'a> Chars<'a> {
             InorderIter::new(r).flat_map(str::chars);
         Self(out)
     }
-
-    /// Converts interator over chars to iterator over lines
-    #[must_use]
-    pub fn lines(self) -> Lines<'a> {
-        Lines::from_raw(self.enumerate().peekable())
-    }
 }
 
 impl Iterator for Chars<'_> {
@@ -111,11 +107,12 @@ impl Iterator for Substring<'_> {
 ///
 /// Can be modified to not parse the contents of the string into `contents` field of `LineInfo`
 /// returned
-#[derive(Debug)]
 pub struct Lines<'a> {
     iter: Peekable<Enumerate<Chars<'a>>>,
+    parent: &'a Node,
     parse_contents: bool,
-    seen_count: usize,
+    newlines_seen: usize,
+    chars_skipped: usize,
 }
 
 /// Represents information about a string line
@@ -137,14 +134,16 @@ impl<'a> Lines<'a> {
     pub(super) fn new(n: &'a Node) -> Self {
         let iter = Chars::new(n).enumerate().peekable();
 
-        Self::from_raw(iter)
+        Self::from_raw(iter, n)
     }
 
-    const fn from_raw(iter: Peekable<Enumerate<Chars<'a>>>) -> Self {
+    const fn from_raw(iter: Peekable<Enumerate<Chars<'a>>>, parent: &'a Node) -> Self {
         Self {
             iter,
+            parent,
             parse_contents: true,
-            seen_count: 0,
+            newlines_seen: 0,
+            chars_skipped: 0,
         }
     }
 
@@ -160,7 +159,8 @@ impl Iterator for Lines<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let &(character_offset, _) = self.iter.peek()?;
-        let line_number = self.seen_count;
+        let character_offset = self.chars_skipped + character_offset;
+        let line_number = self.newlines_seen;
         let (contents, length) = if self.parse_contents {
             self.iter
                 .by_ref()
@@ -179,7 +179,7 @@ impl Iterator for Lines<'_> {
             (String::new(), len)
         };
 
-        self.seen_count += 1;
+        self.newlines_seen += 1;
 
         Some(LineInfo {
             line_number,
@@ -190,14 +190,27 @@ impl Iterator for Lines<'_> {
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        let parse_setting = self.parse_contents;
-        self.parse_contents = false;
+        if n == 0 {
+            return self.next();
+        }
+        debug!("lines_to_skip: {}", self.newlines_seen + n);
+        let (new_head, skipped_chars, skipped_lines) =
+            self.parent.skip_to_line(self.newlines_seen + n);
 
-        for _ in 0..n {
-            let _ = self.next()?;
+        self.chars_skipped = skipped_chars;
+        let mut lines_left = (self.newlines_seen + n) - skipped_lines;
+        debug!("skipped_lines: {skipped_lines}, lines_left: {lines_left}");
+        self.iter = Chars::new(new_head).enumerate().peekable();
+        while lines_left != 0 {
+            let (_, c) = self.iter.peek()?;
+            if *c == '\n' {
+                lines_left -= 1;
+            }
+            let _ = self.iter.next();
         }
 
-        self.parse_contents = parse_setting;
+        self.newlines_seen += n;
+        debug!("next_character: {:?}", self.iter.peek());
         self.next()
     }
 }
@@ -217,9 +230,9 @@ mod tests {
             "\na\n",
             "\naba\n",
             "\n",
+            "\n\nline 3\n\nline 5\n",
         ];
         for input in inputs {
-            println!("{:?}", input);
             let r = Rope::from(String::from(input));
 
             assert_eq!(
@@ -235,5 +248,49 @@ mod tests {
                 input.lines().map(|_| String::new()).collect::<Vec<_>>()
             );
         }
+    }
+
+    #[test]
+    fn lines_nth_and_next() {
+        let input = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6";
+        let rope = Rope::from(String::from(input));
+        let mut lines = rope.lines();
+
+        assert_eq!(lines.nth(2).unwrap().contents, "line 3");
+        assert_eq!(lines.next().unwrap().contents, "line 4"); // Should continue after nth
+
+        assert_eq!(lines.nth(0).unwrap().contents, "line 5");
+        assert_eq!(lines.next().unwrap().contents, "line 6");
+
+        assert!(lines.nth(10).is_none());
+        assert!(lines.next().is_none()); // Should stay at end
+
+        let mut lines = rope.lines();
+        assert_eq!(lines.next().unwrap().contents, "line 1");
+        assert_eq!(lines.nth(1).unwrap().contents, "line 3"); // Skip line 2
+        assert_eq!(lines.next().unwrap().contents, "line 4");
+        assert_eq!(lines.nth(0).unwrap().contents, "line 5"); // Equivalent to next()
+        assert_eq!(lines.next().unwrap().contents, "line 6");
+
+        let input = "\n\nline 3\n\nline 5\n";
+        let rope = Rope::from(String::from(input));
+        let mut lines = rope.lines();
+
+        assert_eq!(lines.nth(2).unwrap().contents, "line 3");
+        assert_eq!(lines.next().unwrap().contents, ""); // Empty line 4
+        assert_eq!(lines.nth(0).unwrap().contents, "line 5");
+        assert!(lines.next().is_none());
+    }
+
+    #[test]
+    fn lines_nth_and_next_without_contents() {
+        let input = "line 1\nline 2\nline 3";
+        let rope = Rope::from(String::from(input));
+        let mut lines = rope.lines();
+        let lines = lines.parse_contents(false);
+
+        assert_eq!(lines.nth(1).unwrap().line_number, 1);
+        assert_eq!(lines.next().unwrap().line_number, 2);
+        assert!(lines.next().is_none());
     }
 }

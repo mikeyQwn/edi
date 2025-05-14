@@ -10,9 +10,9 @@ mod app;
 mod cli;
 
 fn main() {
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     edi::log::set_debug(true);
-    edi::log::set_debug(false);
+    // edi::log::set_debug(false);
 
     if edi::log::init().is_err() {
         eprintln!("unable to initialize logging");
