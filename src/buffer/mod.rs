@@ -140,6 +140,10 @@ impl Buffer {
             LinePosition::Start => character_offset,
             LinePosition::End => character_offset + length,
             LinePosition::CharacterStart => character_offset + search::character_start(&contents),
+            LinePosition::CurrentWordEnd => {
+                character_offset
+                    + search::current_word_end(&contents, self.cursor_offset - character_offset)
+            }
         }
     }
 

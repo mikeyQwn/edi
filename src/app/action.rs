@@ -103,7 +103,7 @@ impl<A: Eq, B: Eq> Eq for dyn KeyPair<A, B> + '_ {}
 
 #[derive(Debug)]
 pub struct InputMapper {
-    mappings: HashMap<(Mode, Input), Action>,
+    mappings: HashMap<(Mode, Input), Box<[Action]>>,
 }
 
 impl Default for InputMapper {
@@ -167,9 +167,49 @@ impl InputMapper {
             Input::Keypress('^'),
             Action::move_once(MoveAction::InLine(LinePosition::CharacterStart)),
         );
+
+        map(
+            Input::Keypress('e'),
+            Action::move_once(MoveAction::InLine(LinePosition::CurrentWordEnd)),
+        );
+
         map(
             Input::Keypress('G'),
             Action::move_once(MoveAction::Global(GlobalPosition::End)),
+        );
+
+        map(
+            Input::Keypress('I'),
+            Action::move_once(MoveAction::Global(GlobalPosition::End)),
+        );
+
+        // TODO: Add 'gg' mapping
+        let mut multimap = |input, actions| {
+            self.add_multi_mapping(Mode::Normal, input, actions);
+        };
+
+        multimap(
+            Input::Keypress('I'),
+            Box::from([
+                Action::move_once(MoveAction::InLine(LinePosition::CharacterStart)),
+                Action::SwitchMode(Mode::Insert),
+            ]),
+        );
+
+        multimap(
+            Input::Keypress('A'),
+            Box::from([
+                Action::move_once(MoveAction::InLine(LinePosition::End)),
+                Action::SwitchMode(Mode::Insert),
+            ]),
+        );
+
+        multimap(
+            Input::Keypress('a'),
+            Box::from([
+                Action::move_once(MoveAction::Regular(Direction::Right)),
+                Action::SwitchMode(Mode::Insert),
+            ]),
         );
     }
 
@@ -218,10 +258,14 @@ impl InputMapper {
     }
 
     pub fn add_mapping(&mut self, mode: Mode, input: Input, action: Action) {
-        self.mappings.insert((mode, input), action);
+        self.mappings.insert((mode, input), Box::from([action]));
     }
 
-    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Action> {
+    pub fn add_multi_mapping(&mut self, mode: Mode, input: Input, actions: Box<[Action]>) {
+        self.mappings.insert((mode, input), actions);
+    }
+
+    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Box<[Action]>> {
         if let Some(event) = self
             .mappings
             .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
@@ -230,7 +274,9 @@ impl InputMapper {
         }
 
         match (mode, input) {
-            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => Some(Action::InsertChar(*c)),
+            (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => {
+                Some(Box::from([Action::InsertChar(*c)]))
+            }
             _ => None,
         }
     }

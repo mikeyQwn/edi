@@ -2,6 +2,7 @@
 pub enum LinePosition {
     Start,
     CharacterStart,
+    CurrentWordEnd,
     End,
 }
 

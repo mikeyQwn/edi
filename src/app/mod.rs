@@ -95,7 +95,7 @@ fn handle_inputs(
 ) -> anyhow::Result<()> {
     let _span = span!("handle_inputs");
     edi::debug!("running");
-    loop {
+    'outer: loop {
         let message = input_stream.recv()?;
         let input = match message {
             input::Message::Input(event) => event,
@@ -105,17 +105,19 @@ fn handle_inputs(
             }
         };
 
-        let Some(event) = state.mapper.map_input(&input, state.mode) else {
+        let Some(actions) = state.mapper.map_input(&input, state.mode) else {
             edi::debug!("no event for input {:?}", input);
             continue;
         };
 
-        edi::debug!("received event {:?}", event);
+        edi::debug!("received actions {:?}", actions);
 
-        match handle_event(event, state, render_window) {
-            Ok(true) => break,
-            Err(err) => return Err(err)?,
-            _ => {}
+        for action in actions {
+            match handle_action(action, state, render_window) {
+                Ok(true) => break 'outer,
+                Err(err) => return Err(err)?,
+                _ => {}
+            }
         }
     }
 
@@ -123,7 +125,7 @@ fn handle_inputs(
 }
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
-fn handle_event(
+fn handle_action(
     event: Action,
     state: &mut State,
     render_window: &mut Window,
@@ -177,7 +179,7 @@ fn handle_event(
             redraw(state, render_window)?;
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
-                return handle_event(Action::Quit, state, render_window);
+                return handle_action(Action::Quit, state, render_window);
             }
             if cmd == ":wq" {
                 let Some((b, meta)) = state.buffers.pop_front() else {
@@ -223,7 +225,7 @@ fn handle_event(
                     edi::debug!("app::handle_event failed to rename file {e}");
                 };
 
-                return handle_event(Action::Quit, state, render_window);
+                return handle_action(Action::Quit, state, render_window);
             }
         }
 
