@@ -204,7 +204,68 @@ impl Iterator for Lines<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::rope::Rope;
+
+    use crate::rope::{Chars, Rope};
+
+    #[test]
+    fn chars_empty() {
+        let r = Rope::from("");
+        let mut it = Chars::new(&r.root);
+        assert_eq!(it.next(), None);
+        assert_eq!(it.nth(0), None);
+    }
+
+    #[test]
+    fn chars_forward() {
+        let r = Rope::from("hello world");
+        let mut it = Chars::new(&r.root);
+        assert_eq!(it.next(), Some('h'));
+        assert_eq!(it.next(), Some('e'));
+        assert_eq!(it.next(), Some('l'));
+        assert_eq!(it.next(), Some('l'));
+        assert_eq!(it.next(), Some('o'));
+        assert_eq!(it.next(), Some(' '));
+        assert_eq!(it.next(), Some('w'));
+        assert_eq!(it.next(), Some('o'));
+        assert_eq!(it.next(), Some('r'));
+        assert_eq!(it.next(), Some('l'));
+        assert_eq!(it.next(), Some('d'));
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn chars_nth() {
+        let r = Rope::from("hello world");
+        let mut it = Chars::new(&r.root);
+        assert_eq!(it.nth(4), Some('o'));
+        assert_eq!(it.next(), Some(' '));
+        assert_eq!(it.next(), Some('w'));
+        assert_eq!(it.nth(3), Some('d'));
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn chars_skip_nth() {
+        let r = Rope::from("hello");
+        let mut it = Chars::new(&r.root);
+        it.by_ref().skip(1).next();
+        assert_eq!(it.next(), Some('l'));
+        assert_eq!(it.next(), Some('l'));
+        assert_eq!(it.nth(0), Some('o'));
+        assert_eq!(it.nth(0), None);
+    }
+
+    #[test]
+    fn chars_unicode() {
+        let r = Rope::from("こんにちは世界");
+        let mut it = Chars::new(&r.root);
+        assert_eq!(it.next(), Some('こ'));
+        assert_eq!(it.next(), Some('ん'));
+        assert_eq!(it.nth(1), Some('ち'));
+        assert_eq!(it.next(), Some('は'));
+        assert_eq!(it.next(), Some('世'));
+        assert_eq!(it.next(), Some('界'));
+    }
 
     #[test]
     fn lines() {
