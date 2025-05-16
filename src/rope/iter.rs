@@ -1,9 +1,11 @@
 //! `Rope` iterators
 
 use std::{
-    iter::{Enumerate, FlatMap, Peekable, Skip, Take},
+    iter::{Enumerate, Peekable, Skip, Take},
     ops::Range,
 };
+
+use crate::debug;
 
 use super::Node;
 
@@ -58,26 +60,120 @@ impl<'a> Iterator for InorderIter<'a> {
     }
 }
 
+#[derive(Debug)]
+struct CharsNode<'a> {
+    tree_node: &'a Node,
+    offset_from_start: usize,
+    newlines_from_start: usize,
+}
+
+impl<'a> CharsNode<'a> {
+    pub fn new(tree_node: &'a Node, offset_from_start: usize, newlines_from_start: usize) -> Self {
+        Self {
+            tree_node,
+            offset_from_start,
+            newlines_from_start,
+        }
+    }
+}
+
 /// An iterator over string characters that the `Node` represents
 ///
 /// This iterator traverses `Rope`'s `Node` tree in-order and returns characters met, effectively
 /// "streaming" the `Rope` contents
 #[derive(Debug)]
-pub struct Chars<'a>(FlatMap<InorderIter<'a>, std::str::Chars<'a>, fn(&str) -> std::str::Chars>);
+pub struct Chars<'a> {
+    stack: Vec<CharsNode<'a>>,
+    current_node_offset_b: usize,
+    global_character_offset: usize,
+}
 
 impl<'a> Chars<'a> {
-    pub(super) fn new(r: &'a Node) -> Self {
-        let out: FlatMap<InorderIter, std::str::Chars, fn(&str) -> std::str::Chars> =
-            InorderIter::new(r).flat_map(str::chars);
-        Self(out)
+    pub(super) fn new(node: &'a Node) -> Self {
+        let mut it = Self {
+            stack: vec![],
+            current_node_offset_b: 0,
+            global_character_offset: 0,
+        };
+        it.push_left(Some(CharsNode::new(node, 0, 0)));
+        it
+    }
+
+    fn push_left(&mut self, mut it: Option<CharsNode<'a>>) {
+        while let Some(value) = it {
+            let node_weight = value.tree_node.weight();
+            let newlines_from_start = value.tree_node.newlines();
+            it = value
+                .tree_node
+                .left()
+                .map(|node| CharsNode::new(node, node_weight, newlines_from_start));
+            self.stack.push(value);
+        }
     }
 }
 
 impl Iterator for Chars<'_> {
     type Item = char;
 
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if n == 0 {
+            return self.next();
+        }
+
+        let target = self.global_character_offset + n;
+        let mut skipped_node = false;
+        while let Some(node) = self.stack.last() {
+            if node.offset_from_start + node.tree_node.weight() >= target {
+                break;
+            }
+
+            self.stack.pop();
+            skipped_node = true;
+        }
+
+        if skipped_node {
+            self.global_character_offset = self.stack.last()?.tree_node.weight();
+        }
+
+        while target - self.global_character_offset > 0 {
+            let _ = self.next()?;
+        }
+
+        self.next()
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let node = self.stack.last()?;
+
+        match node.tree_node {
+            Node::Leaf(leaf) => {
+                let s = &leaf[self.current_node_offset_b..];
+                let Some(char) = s.chars().next() else {
+                    self.current_node_offset_b = 0;
+                    self.stack.pop();
+                    return self.next();
+                };
+                self.current_node_offset_b += char.len_utf8();
+                self.global_character_offset += 1;
+                Some(char)
+            }
+            Node::Value {
+                left_len,
+                left_newlines,
+                r,
+                ..
+            } => {
+                self.current_node_offset_b = 0;
+                let offs = node.offset_from_start + left_len;
+                let newlines = node.newlines_from_start + left_newlines;
+                self.stack.pop();
+                self.push_left(
+                    r.as_ref()
+                        .map(|tree_node| CharsNode::new(tree_node, offs, newlines)),
+                );
+                self.next()
+            }
+        }
     }
 }
 
@@ -105,6 +201,7 @@ impl Iterator for Substring<'_> {
 ///
 /// Can be modified to not parse the contents of the string into `contents` field of `LineInfo`
 /// returned
+#[derive(Debug)]
 pub struct Lines<'a> {
     iter: Peekable<Enumerate<Chars<'a>>>,
     parent: &'a Node,
