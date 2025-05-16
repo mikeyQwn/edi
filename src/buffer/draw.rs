@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn simple() {
-        let mut buf = Buffer::new(String::from("Hello!\nWorld!"));
+        let mut buf = Buffer::new("Hello!\nWorld!");
         buf.cursor_offset = 1;
 
         let mut surface = TestSurface::new(Vec2::new(10, 5));
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn wrap() {
         let long_line = "This is a very long line that should wrap around";
-        let mut buf = Buffer::new(String::from(long_line));
+        let mut buf = Buffer::new(long_line);
         buf.cursor_offset = 11;
 
         let mut surface = TestSurface::new(Vec2::new(10, 5));
@@ -379,7 +379,7 @@ mod tests {
         assert_eq!(surface.cursor_pos, None);
 
         let exact_width = "Exactly10c";
-        let buf = Buffer::new(String::from(exact_width));
+        let buf = Buffer::new(exact_width);
         let mut surface = TestSurface::new(Vec2::new(10, 2));
 
         buf.flush(&mut surface, &Default::default());
@@ -390,7 +390,7 @@ mod tests {
         assert_eq!(surface.cursor_pos, Some(Vec2::new(0, 0)));
 
         let with_empty = "First\nVery very long line that wraps\nLast";
-        let buf = Buffer::new(String::from(with_empty));
+        let buf = Buffer::new(with_empty);
         let mut surface = TestSurface::new(Vec2::new(10, 6));
 
         buf.flush(&mut surface, &Default::default());
@@ -408,7 +408,7 @@ mod tests {
     #[test]
     fn line_offset() {
         let text = "First line\nSecond line\nThird line\nFourth line";
-        let buf = Buffer::new(String::from(text));
+        let buf = Buffer::new(text);
         let mut surface = TestSurface::new(Vec2::new(20, 3));
 
         buf.flush(&mut surface, &Default::default());

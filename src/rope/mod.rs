@@ -125,7 +125,7 @@ impl Node {
         } = from
         {
             debug!("(skipped_lines) {left_newlines}");
-            if *left_newlines >= target - skipped_lines {
+            if *left_newlines > target - skipped_lines {
                 break;
             }
 
@@ -139,6 +139,60 @@ impl Node {
         }
 
         (from, skipped_chars, skipped_lines)
+    }
+
+    /// Returns an ASCII tree representation of the node and its children
+    pub fn to_ascii_tree(&self) -> String {
+        let mut buffer = String::new();
+        self.build_ascii_tree(&mut buffer, "", "");
+        buffer
+    }
+
+    fn build_ascii_tree(&self, buffer: &mut String, prefix: &str, child_prefix: &str) {
+        match self {
+            Node::Leaf(s) => {
+                let content = if s.len() > 20 {
+                    format!("{}... ({} chars)", &s[..20], s.len())
+                } else {
+                    format!("{:?} ({} chars)", s, s.len())
+                };
+                buffer.push_str(&format!("{prefix}Leaf: {content}\n"));
+            }
+            Node::Value {
+                left_len,
+                left_newlines,
+                l,
+                r,
+            } => {
+                buffer.push_str(&format!(
+                    "{prefix}Value: left_len={left_len}, left_newlines={left_newlines}\n",
+                ));
+
+                if let Some(left) = l {
+                    if r.is_some() {
+                        left.build_ascii_tree(
+                            buffer,
+                            &format!("{child_prefix}├── "),
+                            &format!("{child_prefix}│   "),
+                        );
+                    } else {
+                        left.build_ascii_tree(
+                            buffer,
+                            &format!("{child_prefix}└── "),
+                            &format!("{child_prefix}    "),
+                        );
+                    }
+                }
+
+                if let Some(right) = r {
+                    right.build_ascii_tree(
+                        buffer,
+                        &format!("{child_prefix}└── "),
+                        &format!("{child_prefix}    "),
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -159,6 +213,17 @@ impl Rope {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns an ASCII tree representation of the rope's node structure
+    #[must_use]
+    pub fn to_ascii_tree(&self) -> String {
+        format!(
+            "Rope [{} chars, {} lines]\n{}",
+            self.len(),
+            self.total_lines(),
+            self.root.to_ascii_tree()
+        )
     }
 
     /// Returns the depth of `Ropes`'s `Node` tree
@@ -438,18 +503,18 @@ impl Rope {
         }
 
         if idx == self.len() {
-            self.concat(Rope::from(s.to_owned()));
+            self.concat(Rope::from(s));
             return;
         }
 
         let (mut left, right) = self.split(idx);
-        left.concat(Rope::from(s.to_owned()));
+        left.concat(Rope::from(s));
         left.concat(right);
         *self = left;
     }
 
     fn prepend(&mut self, s: &str) {
-        let mut new = Rope::from(s.to_owned());
+        let mut new = Rope::from(s);
         new.concat(std::mem::take(self));
         *self = new;
     }
@@ -562,19 +627,24 @@ impl Rope {
     }
 }
 
-impl From<String> for Rope {
-    fn from(s: String) -> Self {
-        const CHUNK_SIZE: usize = 16;
+impl From<&str> for Rope {
+    fn from(s: &str) -> Self {
+        const CHUNK_SIZE: usize = 1024 * 4;
         let mut rope = Rope::default();
         let mut offset = 0;
         while offset < s.len() {
-            let range = offset..((offset + CHUNK_SIZE).min(s.len()));
+            let mut end = (offset + CHUNK_SIZE).min(s.len());
+            while !s.is_char_boundary(end) {
+                end += 1;
+                // TODO: handle this case
+                assert!(offset < s.len(), "invalid utf-8 encoded file");
+            }
+
             rope.concat(Rope {
-                root: Box::new(Node::Leaf(Box::from(&s[range]))),
+                root: Box::new(Node::Leaf(Box::from(&s[offset..end]))),
             });
-            offset += CHUNK_SIZE;
+            offset = end;
         }
-        rope.rebalance();
 
         #[cfg(debug_assertions)]
         rope.validate_newlines();
@@ -697,8 +767,8 @@ mod tests {
     #[test]
     fn concat() {
         let mut r = example_rope();
-        let second = Rope::from(" and I like to eat pizza".to_owned());
-        let expected = "Hello my name is Simon and I like to eat pizza".to_owned();
+        let second = Rope::from(" and I like to eat pizza");
+        let expected = "Hello my name is Simon and I like to eat pizza";
 
         r.concat(second);
         assert_correctness(&mut r, &expected);
@@ -733,7 +803,7 @@ mod tests {
         for (input, expected) in cases {
             let mut r = Rope::new();
             for s in input {
-                r.concat(Rope::from(s.to_owned()));
+                r.concat(Rope::from(s));
             }
 
             assert_correctness(&mut r, &expected);
@@ -764,7 +834,7 @@ mod tests {
         left.concat(right);
         assert_correctness(&mut left, &expected);
 
-        let mut r = Rope::from(String::new());
+        let mut r = Rope::from("");
         r.insert(0, ":");
         assert_correctness(&mut r, ":");
         assert_eq!(r.len(), 1);
@@ -820,7 +890,7 @@ mod tests {
 
     #[test]
     fn line_counting() {
-        let r = Rope::from("Hello\nworld\nthis\nis\na\ntest".to_string());
+        let r = Rope::from("Hello\nworld\nthis\nis\na\ntest");
 
         // Total lines should equal newline count + 1
         assert_eq!(r.total_lines(), 5);
@@ -838,7 +908,7 @@ mod tests {
         assert_eq!(r.index_of_line(2), 12); // Start of third line
 
         // Test with empty lines
-        let r = Rope::from("\n\n\n".to_string());
+        let r = Rope::from("\n\n\n");
         assert_eq!(r.total_lines(), 3);
         assert_eq!(r.line_of_index(0), 0);
         assert_eq!(r.line_of_index(1), 1);
@@ -851,7 +921,7 @@ mod tests {
     #[test]
     fn line_counting_complex() {
         let text = "First line\nSecond line\n\nFourth line\n";
-        let r = Rope::from(text.to_string());
+        let r = Rope::from(text);
 
         assert_eq!(r.total_lines(), 4);
 
@@ -886,7 +956,7 @@ mod tests {
 
     #[test]
     fn line_counting_after_operations() {
-        let mut r = Rope::from("line1\nline2".to_string());
+        let mut r = Rope::from("line1\nline2");
         assert_eq!(r.total_lines(), 1);
 
         r.insert(11, "\nline3");

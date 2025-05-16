@@ -5,8 +5,6 @@ use std::{
     ops::Range,
 };
 
-use crate::debug;
-
 use super::Node;
 
 /// An iterator that does inorder `Rope` traversal starting from given `Node` and returns `Node`s met
@@ -193,24 +191,13 @@ impl Iterator for Lines<'_> {
         if n == 0 {
             return self.next();
         }
-        debug!("lines_to_skip: {}", self.newlines_seen + n);
-        let (new_head, skipped_chars, skipped_lines) =
-            self.parent.skip_to_line(self.newlines_seen + n);
+        let parse_setting = self.parse_contents;
 
-        self.chars_skipped = skipped_chars;
-        let mut lines_left = (self.newlines_seen + n) - skipped_lines;
-        debug!("skipped_lines: {skipped_lines}, lines_left: {lines_left}");
-        self.iter = Chars::new(new_head).enumerate().peekable();
-        while lines_left != 0 {
-            let (_, c) = self.iter.peek()?;
-            if *c == '\n' {
-                lines_left -= 1;
-            }
-            let _ = self.iter.next();
+        for _ in 0..n {
+            let _ = self.next();
         }
 
-        self.newlines_seen += n;
-        debug!("next_character: {:?}", self.iter.peek());
+        self.parse_contents = parse_setting;
         self.next()
     }
 }
@@ -233,7 +220,7 @@ mod tests {
             "\n\nline 3\n\nline 5\n",
         ];
         for input in inputs {
-            let r = Rope::from(String::from(input));
+            let r = Rope::from(input);
 
             assert_eq!(
                 r.lines().map(|i| i.contents).collect::<Vec<_>>(),
@@ -253,7 +240,7 @@ mod tests {
     #[test]
     fn lines_nth_and_next() {
         let input = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6";
-        let rope = Rope::from(String::from(input));
+        let rope = Rope::from(input);
         let mut lines = rope.lines();
 
         assert_eq!(lines.nth(2).unwrap().contents, "line 3");
@@ -273,7 +260,7 @@ mod tests {
         assert_eq!(lines.next().unwrap().contents, "line 6");
 
         let input = "\n\nline 3\n\nline 5\n";
-        let rope = Rope::from(String::from(input));
+        let rope = Rope::from(input);
         let mut lines = rope.lines();
 
         assert_eq!(lines.nth(2).unwrap().contents, "line 3");
@@ -285,7 +272,7 @@ mod tests {
     #[test]
     fn lines_nth_and_next_without_contents() {
         let input = "line 1\nline 2\nline 3";
-        let rope = Rope::from(String::from(input));
+        let rope = Rope::from(input);
         let mut lines = rope.lines();
         let lines = lines.parse_contents(false);
 

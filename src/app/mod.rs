@@ -64,7 +64,7 @@ impl State {
         let filepath = filepath.as_ref();
         let contents = std::fs::read_to_string(filepath)?;
 
-        let buffer = Buffer::new(contents);
+        let buffer = Buffer::new(&contents);
         let filetype = Filetype::from_ext(
             filepath
                 .extension()
@@ -136,7 +136,7 @@ fn handle_action(
             state.mode = mode;
             if state.mode == Mode::Terminal {
                 let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
-                let mut buf = Buffer::new(String::from(":"));
+                let mut buf = Buffer::new(":");
                 buf.cursor_offset = 1;
                 state.buffers.push_front((
                     buf,

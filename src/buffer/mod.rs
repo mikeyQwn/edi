@@ -25,7 +25,7 @@ pub struct Buffer {
 
 impl Buffer {
     #[must_use]
-    pub fn new(inner: String) -> Self {
+    pub fn new(inner: &str) -> Self {
         Self {
             inner: Rope::from(inner),
 
@@ -185,12 +185,12 @@ impl Buffer {
 mod tests {
     use rand::Rng;
 
-    use crate::vec2::Vec2;
+    use crate::{log::set_debug, vec2::Vec2};
 
     use super::*;
 
     fn test_inputs(inner: &str, n: usize) {
-        let mut r = Buffer::new(inner.to_string());
+        let mut r = Buffer::new(inner);
         let mut lines: Vec<_> = inner.lines().map(|v| v.to_owned()).collect();
         let mut expected_pos = Vec2::new(0, 0);
         let mut rng = rand::thread_rng();
@@ -252,13 +252,19 @@ mod tests {
 
             cursor_offs += expected_pos.x;
 
-            assert_eq!(r.cursor_offset, cursor_offs);
+            assert_eq!(
+                r.cursor_offset, cursor_offs,
+                "after: {:?}, string: {inner:?}",
+                dir
+            );
         }
     }
 
     #[test]
     fn movement() {
         const TRIES: usize = 1024;
+        set_debug(true);
+        crate::log::init().unwrap();
 
         test_inputs("\n\n", TRIES);
         test_inputs("\nHe", TRIES);
@@ -274,7 +280,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let mut b = Buffer::new(String::new());
+        let mut b = Buffer::new("");
         b.write('c');
         b.write('c');
     }
