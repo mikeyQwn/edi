@@ -2,14 +2,16 @@
 
 pub mod iter;
 
-use std::ops::{Range, RangeBounds};
+use std::{
+    fmt::Debug,
+    ops::{Range, RangeBounds},
+};
 
 use iter::{Chars, LineInfo, Lines, Substring};
 
 use crate::{debug, span};
 
 // A node in the rope binary tree.
-#[derive(Debug)]
 enum Node {
     // A leaf node contains an immutable string.
     // Any operation that modifies the contained string should create new leaf nodes.
@@ -25,6 +27,12 @@ enum Node {
         // The right child of the node
         r: Option<Box<Node>>,
     },
+}
+
+impl Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_ascii_tree())
+    }
 }
 
 impl Node {
@@ -89,74 +97,35 @@ impl Node {
 
     #[must_use]
     fn index_of_line(&self, line: usize) -> usize {
-        let (node, skipped_chars, skipped_lines) = self.skip_to_line(line);
-        let lines_left = line - skipped_lines;
-
-        if lines_left == 0 {
-            return skipped_chars;
-        }
-
-        let mut pos = skipped_chars;
-        let mut newlines_seen = 0;
-
-        for c in Chars::new(node) {
-            if c == '\n' {
-                newlines_seen += 1;
-                if newlines_seen == lines_left {
-                    return pos + 1;
-                }
-            }
-            pos += 1;
-        }
-
-        pos
-    }
-
-    fn skip_to_line(&self, target: usize) -> (&Node, usize, usize) {
-        let mut from = self;
-        let mut skipped_chars = 0;
-        let mut skipped_lines = 0;
-
-        while let Node::Value {
-            left_len,
-            r,
-            left_newlines,
-            ..
-        } = from
-        {
-            debug!("(skipped_lines) {left_newlines}");
-            if *left_newlines > target - skipped_lines {
-                break;
-            }
-
-            let Some(r) = r else {
-                break;
-            };
-
-            from = r;
-            skipped_chars += left_len;
-            skipped_lines += left_newlines;
-        }
-
-        (from, skipped_chars, skipped_lines)
+        Lines::new(self)
+            .parse_contents(false)
+            .nth(line)
+            .map_or_else(|| self.full_weight(), |info| info.character_offset)
     }
 
     /// Returns an ASCII tree representation of the node and its children
     pub fn to_ascii_tree(&self) -> String {
         let mut buffer = String::new();
-        self.build_ascii_tree(&mut buffer, "", "");
+        self.build_ascii_tree(&mut buffer, "", "", false);
         buffer
     }
 
-    fn build_ascii_tree(&self, buffer: &mut String, prefix: &str, child_prefix: &str) {
+    fn build_ascii_tree(&self, buffer: &mut String, prefix: &str, child_prefix: &str, is_r: bool) {
         match self {
             Node::Leaf(s) => {
                 let content = if s.len() > 20 {
-                    format!("{}... ({} chars)", &s[..20], s.len())
+                    format!(
+                        "{}... ({} chars)",
+                        &s.chars().take(20).collect::<String>(),
+                        s.len()
+                    )
                 } else {
                     format!("{:?} ({} chars)", s, s.len())
                 };
-                buffer.push_str(&format!("{prefix}Leaf: {content}\n"));
+                buffer.push_str(&format!(
+                    "{prefix}Leaf ({}): {content}\n",
+                    if is_r { "r" } else { "l" },
+                ));
             }
             Node::Value {
                 left_len,
@@ -165,7 +134,8 @@ impl Node {
                 r,
             } => {
                 buffer.push_str(&format!(
-                    "{prefix}Value: left_len={left_len}, left_newlines={left_newlines}\n",
+                    "{prefix}Value ({}): left_len={left_len}, left_newlines={left_newlines}\n",
+                    if is_r { "r" } else { "l" },
                 ));
 
                 if let Some(left) = l {
@@ -174,12 +144,14 @@ impl Node {
                             buffer,
                             &format!("{child_prefix}├── "),
                             &format!("{child_prefix}│   "),
+                            false,
                         );
                     } else {
                         left.build_ascii_tree(
                             buffer,
                             &format!("{child_prefix}└── "),
                             &format!("{child_prefix}    "),
+                            false,
                         );
                     }
                 }
@@ -189,6 +161,7 @@ impl Node {
                         buffer,
                         &format!("{child_prefix}└── "),
                         &format!("{child_prefix}    "),
+                        true,
                     );
                 }
             }
@@ -268,10 +241,13 @@ impl Rope {
     /// the number of newlines in their left subtrees.
     /// Panics if any inconsistency is found.
     pub fn validate_newlines(&self) {
-        let _span = span!("validate_newlines");
-        debug!("started");
-        Self::validate_newlines_inner(&self.root);
-        debug!("finished");
+        #[cfg(debug_assertions)]
+        {
+            let _span = span!("validate_newlines");
+            debug!("started");
+            Rope::validate_newlines_inner(&self.root);
+            debug!("finished");
+        };
     }
 
     fn validate_newlines_inner(node: &Node) -> usize {
@@ -557,13 +533,8 @@ impl Rope {
     /// optimized to skip `Node`s that don't include the range
     #[must_use]
     pub fn substr(&self, range: impl RangeBounds<usize>) -> Substring<'_> {
-        let mut range = self.normalize_range(range);
-
-        let (node, skipped, _) = Self::skip_to(&self.root, range.start);
-        range.start -= skipped;
-        range.end -= skipped;
-
-        Substring::new(Chars::new(node), range)
+        let range = self.normalize_range(range);
+        Substring::new(Chars::new(&self.root), range)
     }
 
     #[must_use]
@@ -629,7 +600,7 @@ impl Rope {
 
 impl From<&str> for Rope {
     fn from(s: &str) -> Self {
-        const CHUNK_SIZE: usize = 1024 * 4;
+        const CHUNK_SIZE: usize = 1024 * 1024;
         let mut rope = Rope::default();
         let mut offset = 0;
         while offset < s.len() {
@@ -730,11 +701,14 @@ mod tests {
                 for end in start..expected.len() {
                     assert_eq!(
                         expected[start..end],
-                        r.substr(start..end).collect::<String>()
+                        r.substr(start..end).collect::<String>(),
+                        "substring: {}, start: {start}, end: {end}",
+                        r.chars().collect::<String>(),
                     )
                 }
             }
         }
+        assert_eq!(r.lines().count(), expected.lines().count());
         r.validate_newlines();
     }
 
@@ -892,22 +866,18 @@ mod tests {
     fn line_counting() {
         let r = Rope::from("Hello\nworld\nthis\nis\na\ntest");
 
-        // Total lines should equal newline count + 1
         assert_eq!(r.total_lines(), 5);
 
-        // Verify line info
         assert_eq!(r.line_of_index(0), 0); // 'H' in first line
         assert_eq!(r.line_of_index(5), 0); // '\n' at end of first line
         assert_eq!(r.line_of_index(6), 1); // 'w' in second line
         assert_eq!(r.line_of_index(11), 1); // '\n' at end of second line
         assert_eq!(r.line_of_index(12), 2); // 't' in third line
 
-        // Verify index of line
         assert_eq!(r.index_of_line(0), 0); // Start of first line
         assert_eq!(r.index_of_line(1), 6); // Start of second line
         assert_eq!(r.index_of_line(2), 12); // Start of third line
 
-        // Test with empty lines
         let r = Rope::from("\n\n\n");
         assert_eq!(r.total_lines(), 3);
         assert_eq!(r.line_of_index(0), 0);
@@ -916,6 +886,10 @@ mod tests {
         assert_eq!(r.index_of_line(0), 0);
         assert_eq!(r.index_of_line(1), 1);
         assert_eq!(r.index_of_line(2), 2);
+
+        let mut r = Rope::from("\nHe");
+        r.insert(0, "c");
+        assert_eq!(r.total_lines(), 1);
     }
 
     #[test]
@@ -925,7 +899,6 @@ mod tests {
 
         assert_eq!(r.total_lines(), 4);
 
-        // Verify line_of_index for various positions
         assert_eq!(r.line_of_index(0), 0); // 'F' in first line
         assert_eq!(r.line_of_index(10), 0); // '\n' at end of first line
         assert_eq!(r.line_of_index(11), 1); // 'S' in second line

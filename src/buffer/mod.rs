@@ -85,12 +85,9 @@ impl Buffer {
 
                 let current_line = self.current_line();
 
-                let offs = self.cursor_offset
-                    - self
-                        .inner
-                        .line_info(current_line)
-                        .expect("current line should be in the rope")
-                        .character_offset;
+                let offs = self
+                    .cursor_offset
+                    .saturating_sub(self.current_line_info().character_offset);
 
                 self.set_cursor_line(current_line.saturating_sub(steps), offs);
             }
@@ -101,33 +98,45 @@ impl Buffer {
                 }
 
                 let current_line = self.current_line();
-                debug!("current_line is: {}", current_line);
+                debug!("curr_line: {}", current_line);
 
-                let offs = self.cursor_offset
-                    - self
-                        .inner
-                        .line_info(current_line)
-                        .expect("current line should be in the rope")
-                        .character_offset;
-                debug!("target_offs: {}", offs);
+                let offs = self
+                    .cursor_offset
+                    .saturating_sub(self.current_line_info().character_offset);
 
                 self.set_cursor_line(current_line + steps, offs);
             }
         }
     }
 
+    fn current_line_info(&self) -> LineInfo {
+        let current_line = self.current_line();
+        self.inner
+            .lines()
+            .nth(current_line)
+            .unwrap_or_else(|| LineInfo {
+                character_offset: self.inner.len(),
+                line_number: current_line,
+                length: 0,
+                contents: String::new(),
+            })
+    }
+
     fn set_cursor_line(&mut self, line: usize, offs: usize) {
+        let total_lines = self.inner.total_lines();
+        let actual_line = line.min(total_lines);
+        debug!(
+            "setting cursor to line: {line} (actual {}),  offs: {offs}, total_lines: {}",
+            actual_line,
+            self.inner.total_lines()
+        );
         let Some(line_info) = self
             .inner
-            .line_info(line)
-            .or_else(|| self.inner.lines().parse_contents(false).last())
+            .line_info(actual_line)
+            .or_else(|| self.inner.line_info(actual_line.saturating_sub(1)))
         else {
-            self.cursor_offset = 0;
             return;
         };
-        debug!("line_info: {:?}", line_info);
-        debug!("offs: {:?}", offs);
-        debug!("line: {:?}", line);
 
         self.cursor_offset = line_info.character_offset + line_info.length.min(offs);
     }
@@ -183,7 +192,7 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
 
     use crate::{log::set_debug, vec2::Vec2};
 
@@ -193,9 +202,11 @@ mod tests {
         let mut r = Buffer::new(inner);
         let mut lines: Vec<_> = inner.lines().map(|v| v.to_owned()).collect();
         let mut expected_pos = Vec2::new(0, 0);
-        let mut rng = rand::thread_rng();
+        let mut rng = SmallRng::from_seed([1; 32]);
 
         for _ in 0..n {
+            let original_pos = expected_pos;
+            let original_rope_pos = r.cursor_offset;
             let dir = rng.gen_range(0..4);
             let dir = match dir {
                 0 => Direction::Up,
@@ -232,8 +243,10 @@ mod tests {
                 }
             }
 
+            let mut moved = false;
             if rng.gen_range(0..16) < 1 {
                 r.write('c');
+                moved = true;
                 let s = format!(
                     "{}{}{}",
                     &lines[expected_pos.y][..expected_pos.x],
@@ -254,8 +267,9 @@ mod tests {
 
             assert_eq!(
                 r.cursor_offset, cursor_offs,
-                "after: {:?}, string: {inner:?}",
-                dir
+                "after: {dir:?}, string: {string:?}, moved: {moved}, expected_pos: {expected_pos:?}, lines: {lines:?}, original pos: {original_pos:?}, original buffer pos: {original_rope_pos}, tree:{tree}",
+                string = r.inner.chars().collect::<String>(),
+                tree = r.inner.to_ascii_tree(),
             );
         }
     }
@@ -266,6 +280,7 @@ mod tests {
         set_debug(true);
         crate::log::init().unwrap();
 
+        test_inputs("c\n\n", TRIES);
         test_inputs("\n\n", TRIES);
         test_inputs("\nHe", TRIES);
         test_inputs("Lo\nHe", TRIES);

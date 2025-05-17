@@ -1,64 +1,13 @@
 //! `Rope` iterators
 
 use std::{
-    iter::{Enumerate, Peekable, Skip, Take},
+    iter::{Skip, Take},
     ops::Range,
 };
 
 use crate::debug;
 
 use super::Node;
-
-/// An iterator that does inorder `Rope` traversal starting from given `Node` and returns `Node`s met
-#[derive(Default, Debug)]
-pub(super) struct InorderIter<'a> {
-    stack: Vec<&'a Node>,
-}
-
-impl<'a> InorderIter<'a> {
-    pub(super) fn new(r: &'a Node) -> Self {
-        let it: Option<&Node> = Some(r);
-        let mut out = Self::default();
-        out.push_left(it);
-
-        out
-    }
-
-    fn push_left(&mut self, mut it: Option<&'a Node>) {
-        while let Some(value) = it {
-            self.stack.push(value);
-            it = value.left();
-        }
-    }
-}
-
-impl<'a> Iterator for InorderIter<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let string = match self.stack.pop() {
-            Some(Node::Leaf(string)) => string,
-            Some(v) => {
-                self.push_left(v.right());
-                return self.next();
-            }
-            None => return None,
-        };
-
-        if self.stack.is_empty() {
-            return Some(string);
-        }
-
-        // Take the right child of the current node and push all its left children onto the stack
-        let Some(Node::Value { r: Some(r), .. }) = self.stack.pop() else {
-            return Some(string);
-        };
-
-        self.push_left(Some(r));
-
-        Some(string)
-    }
-}
 
 #[derive(Debug)]
 struct CharsNode<'a> {
@@ -86,6 +35,7 @@ pub struct Chars<'a> {
     stack: Vec<CharsNode<'a>>,
     current_node_offset_b: usize,
     global_character_offset: usize,
+    global_line_offset: usize,
 }
 
 impl<'a> Chars<'a> {
@@ -94,6 +44,7 @@ impl<'a> Chars<'a> {
             stack: vec![],
             current_node_offset_b: 0,
             global_character_offset: 0,
+            global_line_offset: 0,
         };
         it.push_left(Some(CharsNode::new(node, 0, 0)));
         it
@@ -101,14 +52,69 @@ impl<'a> Chars<'a> {
 
     fn push_left(&mut self, mut it: Option<CharsNode<'a>>) {
         while let Some(value) = it {
-            let node_weight = value.tree_node.weight();
-            let newlines_from_start = value.tree_node.newlines();
+            let offset_from_start = value.offset_from_start;
+            let newlines_from_start = value.newlines_from_start;
             it = value
                 .tree_node
                 .left()
-                .map(|node| CharsNode::new(node, node_weight, newlines_from_start));
+                .map(|node| CharsNode::new(node, offset_from_start, newlines_from_start));
             self.stack.push(value);
         }
+    }
+
+    fn skip_lines(&mut self, n: usize) {
+        if n == 0 {
+            return;
+        }
+
+        let target = self.global_line_offset + n;
+
+        let start = std::time::Instant::now();
+        let mut skip_cnt = 0;
+        let mut skipped_node = false;
+        while let Some(node) = self.stack.last() {
+            if node.newlines_from_start + node.tree_node.full_newlines() >= target {
+                break;
+            }
+            skip_cnt += 1;
+
+            let value = self.stack.pop().and_then(|v| {
+                Some(CharsNode::new(
+                    v.tree_node.right()?,
+                    v.offset_from_start + v.tree_node.weight(),
+                    v.newlines_from_start + v.tree_node.newlines(),
+                ))
+            });
+            self.push_left(value);
+            skipped_node = true;
+        }
+        debug!("skip_cnt: {}", skip_cnt);
+        debug!("start_elapsed: {}ms", start.elapsed().as_millis());
+
+        if skipped_node {
+            let Some(node) = self.stack.last() else {
+                return;
+            };
+            self.global_character_offset = node.offset_from_start;
+            self.global_line_offset = node.newlines_from_start;
+            self.current_node_offset_b = 0;
+        }
+
+        while target - self.global_line_offset > 0 {
+            if self.next().is_none() {
+                return;
+            };
+        }
+    }
+
+    #[must_use]
+    const fn characters_consumed(&self) -> usize {
+        self.global_character_offset
+    }
+
+    #[must_use]
+    const fn newlines_consumed(&self) -> usize {
+        self.global_line_offset
     }
 }
 
@@ -121,22 +127,33 @@ impl Iterator for Chars<'_> {
         }
 
         let target = self.global_character_offset + n;
+
         let mut skipped_node = false;
         while let Some(node) = self.stack.last() {
-            if node.offset_from_start + node.tree_node.weight() >= target {
+            if node.offset_from_start + node.tree_node.full_weight() >= target {
                 break;
             }
 
-            self.stack.pop();
+            let value = self.stack.pop().and_then(|v| {
+                Some(CharsNode::new(
+                    v.tree_node.right()?,
+                    v.offset_from_start + v.tree_node.weight(),
+                    v.newlines_from_start + v.tree_node.newlines(),
+                ))
+            });
+            self.push_left(value);
             skipped_node = true;
         }
 
         if skipped_node {
-            self.global_character_offset = self.stack.last()?.tree_node.weight();
+            let node = self.stack.last()?;
+            self.global_character_offset = node.offset_from_start;
+            self.global_line_offset = node.newlines_from_start;
+            self.current_node_offset_b = 0;
         }
 
         while target - self.global_character_offset > 0 {
-            let _ = self.next()?;
+            self.next();
         }
 
         self.next()
@@ -155,6 +172,9 @@ impl Iterator for Chars<'_> {
                 };
                 self.current_node_offset_b += char.len_utf8();
                 self.global_character_offset += 1;
+                if char == '\n' {
+                    self.global_line_offset += 1;
+                }
                 Some(char)
             }
             Node::Value {
@@ -165,7 +185,9 @@ impl Iterator for Chars<'_> {
             } => {
                 self.current_node_offset_b = 0;
                 let offs = node.offset_from_start + left_len;
+                self.global_character_offset = offs;
                 let newlines = node.newlines_from_start + left_newlines;
+                self.global_line_offset = newlines;
                 self.stack.pop();
                 self.push_left(
                     r.as_ref()
@@ -203,11 +225,8 @@ impl Iterator for Substring<'_> {
 /// returned
 #[derive(Debug)]
 pub struct Lines<'a> {
-    iter: Peekable<Enumerate<Chars<'a>>>,
-    parent: &'a Node,
+    iter: Chars<'a>,
     parse_contents: bool,
-    newlines_seen: usize,
-    chars_skipped: usize,
 }
 
 /// Represents information about a string line
@@ -227,18 +246,15 @@ pub struct LineInfo {
 impl<'a> Lines<'a> {
     #[must_use]
     pub(super) fn new(n: &'a Node) -> Self {
-        let iter = Chars::new(n).enumerate().peekable();
+        let iter = Chars::new(n);
 
-        Self::from_raw(iter, n)
+        Self::from_raw(iter)
     }
 
-    const fn from_raw(iter: Peekable<Enumerate<Chars<'a>>>, parent: &'a Node) -> Self {
+    const fn from_raw(iter: Chars<'a>) -> Self {
         Self {
             iter,
-            parent,
             parse_contents: true,
-            newlines_seen: 0,
-            chars_skipped: 0,
         }
     }
 
@@ -253,28 +269,27 @@ impl Iterator for Lines<'_> {
     type Item = LineInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let &(character_offset, _) = self.iter.peek()?;
-        let character_offset = self.chars_skipped + character_offset;
-        let line_number = self.newlines_seen;
-        let (contents, length) = if self.parse_contents {
-            self.iter
-                .by_ref()
-                .take_while(|&(_, char)| char != '\n')
-                .map(|(_, char)| char)
-                .fold((String::new(), 0), |(mut string, len), curr| {
-                    string.push(curr);
-                    (string, len + 1)
-                })
-        } else {
-            let len = self
-                .iter
-                .by_ref()
-                .take_while(|&(_, char)| char != '\n')
-                .count();
-            (String::new(), len)
-        };
+        let line_number = self.iter.newlines_consumed();
+        let character_offset = self.iter.characters_consumed();
 
-        self.newlines_seen += 1;
+        let mut met_nl = false;
+        let (mut contents, mut length) = (String::new(), 0);
+        for c in self.iter.by_ref() {
+            length += 1;
+            if c == '\n' {
+                length -= 1;
+                met_nl = true;
+                break;
+            }
+
+            if self.parse_contents {
+                contents.push(c);
+            }
+        }
+
+        if length == 0 && !met_nl {
+            return None;
+        }
 
         Some(LineInfo {
             line_number,
@@ -288,12 +303,9 @@ impl Iterator for Lines<'_> {
         if n == 0 {
             return self.next();
         }
+
         let parse_setting = self.parse_contents;
-
-        for _ in 0..n {
-            let _ = self.next();
-        }
-
+        self.iter.skip_lines(n);
         self.parse_contents = parse_setting;
         self.next()
     }
@@ -302,7 +314,53 @@ impl Iterator for Lines<'_> {
 #[cfg(test)]
 mod tests {
 
-    use crate::rope::{Chars, Rope};
+    use crate::rope::{Chars, Node, Rope};
+
+    fn example_rope() -> Rope {
+        let m = Node::Leaf(Box::from("s"));
+        let n = Node::Leaf(Box::from(" Simon"));
+        let j = Node::Leaf(Box::from("na"));
+        let k = Node::Leaf(Box::from("me i"));
+        let g = Node::Value {
+            left_len: 2,
+            left_newlines: 0,
+            l: Some(Box::new(j)),
+            r: Some(Box::new(k)),
+        };
+        let h = Node::Value {
+            left_len: 1,
+            left_newlines: 0,
+            l: Some(Box::new(m)),
+            r: Some(Box::new(n)),
+        };
+        let e = Node::Leaf(Box::from("Hello "));
+        let f = Node::Leaf(Box::from("my "));
+        let c = Node::Value {
+            left_len: 6,
+            left_newlines: 0,
+            l: Some(Box::new(e)),
+            r: Some(Box::new(f)),
+        };
+        let d = Node::Value {
+            left_len: 6,
+            left_newlines: 0,
+            l: Some(Box::new(g)),
+            r: Some(Box::new(h)),
+        };
+        let b = Node::Value {
+            left_len: 9,
+            left_newlines: 0,
+            l: Some(Box::new(c)),
+            r: Some(Box::new(d)),
+        };
+        let a = Node::Value {
+            left_len: 22,
+            left_newlines: 0,
+            l: Some(Box::new(b)),
+            r: None,
+        };
+        Rope { root: Box::new(a) }
+    }
 
     #[test]
     fn chars_empty() {
@@ -425,6 +483,21 @@ mod tests {
         assert_eq!(lines.next().unwrap().contents, ""); // Empty line 4
         assert_eq!(lines.nth(0).unwrap().contents, "line 5");
         assert!(lines.next().is_none());
+
+        let mut rope = Rope::from("\n");
+        rope.insert(0, &"c");
+        rope.insert(2, &"c");
+        let mut lines = rope.lines();
+        assert_eq!(lines.nth(1).unwrap().length, 1);
+
+        let mut rope = Rope::from("\nHe");
+        rope.insert(0, &"c");
+        assert_eq!(rope.total_lines(), 1);
+        let mut lines = rope.lines();
+        assert_eq!(lines.nth(1).unwrap().length, 2);
+
+        let rope = Rope::from("c\nHe");
+        assert_eq!(rope.total_lines(), 1);
     }
 
     #[test]
@@ -437,5 +510,12 @@ mod tests {
         assert_eq!(lines.nth(1).unwrap().line_number, 1);
         assert_eq!(lines.next().unwrap().line_number, 2);
         assert!(lines.next().is_none());
+    }
+
+    #[test]
+    fn chars_skip() {
+        let rope = example_rope();
+        let mut chars = rope.chars().skip(7);
+        assert_eq!(chars.next(), Some('y'));
     }
 }

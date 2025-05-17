@@ -83,6 +83,7 @@ impl<'a> FlushState<'a> {
 impl Buffer {
     pub fn flush<S: Surface>(&self, surface: &mut S, opts: &FlushOptions) {
         let _span = span!("buffer::flush");
+        let start = std::time::Instant::now();
 
         let line_number_offset = if opts.line_numbers {
             let total_lines = self.inner.total_lines();
@@ -99,7 +100,7 @@ impl Buffer {
 
         self.flush_lines(surface, opts, &mut flush_state);
 
-        debug!("finished");
+        debug!("finished in {}ms", start.elapsed().as_millis());
     }
 
     fn flush_lines<S: Surface>(
