@@ -9,8 +9,6 @@ use std::{
 
 use iter::{Chars, LineInfo, Lines, Substring};
 
-use crate::{debug, span};
-
 // A node in the rope binary tree.
 enum Node {
     // A leaf node contains an immutable string.
@@ -224,8 +222,6 @@ impl Rope {
             return;
         }
 
-        debug!("{} {}", self.root.newlines(), other.root.newlines());
-
         let new_root = Node::Value {
             left_len: self.len(),
             left_newlines: self.total_lines(),
@@ -243,10 +239,7 @@ impl Rope {
     pub fn validate_newlines(&self) {
         #[cfg(debug_assertions)]
         {
-            let _span = span!("validate_newlines");
-            debug!("started");
             Rope::validate_newlines_inner(&self.root);
-            debug!("finished");
         };
     }
 
@@ -363,10 +356,8 @@ impl Rope {
 
     fn rebalance(&mut self) {
         if self.is_balanced() {
-            debug!("the tree is already balanced");
             return;
         }
-        debug!("the tree is not balanced");
 
         let mut leaves = self.get_leaves();
         let len = leaves.len();

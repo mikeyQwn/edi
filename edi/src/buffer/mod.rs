@@ -2,12 +2,13 @@ pub mod draw;
 
 use crate::{
     debug,
-    rope::{iter::LineInfo, Rope},
     string::{
         position::{GlobalPosition, LinePosition},
         search,
     },
 };
+
+use edi_rope::{iter::LineInfo, Rope};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {

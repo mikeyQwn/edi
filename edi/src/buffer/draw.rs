@@ -1,10 +1,11 @@
 //! Draw-related buffer functionality
 
+use edi_rope::iter::LineInfo;
+
 use crate::{
     debug,
     draw::{BoundExt, Cell, Color, Surface},
     rect::Rect,
-    rope::iter::LineInfo,
     span,
     string::highlight::{Highlight, Type},
     vec2::Vec2,

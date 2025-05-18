@@ -1,9 +1,8 @@
 //! Highlighting utilities
 
-use crate::{
-    fs::{Filetype, C_FILETYPE, RUST_FILETYPE},
-    rope::Rope,
-};
+use crate::fs::{Filetype, C_FILETYPE, RUST_FILETYPE};
+
+use edi_rope::Rope;
 
 /// A type of the highlight
 ///

@@ -1,5 +1,6 @@
 //! Edi the text editor
 
+use edi_rope as _;
 use nix as _;
 #[cfg(test)]
 use rand as _;

@@ -5,8 +5,6 @@ use std::{
     ops::Range,
 };
 
-use crate::debug;
-
 use super::Node;
 
 #[derive(Debug)]
@@ -69,14 +67,11 @@ impl<'a> Chars<'a> {
 
         let target = self.global_line_offset + n;
 
-        let start = std::time::Instant::now();
-        let mut skip_cnt = 0;
         let mut skipped_node = false;
         while let Some(node) = self.stack.last() {
             if node.newlines_from_start + node.tree_node.full_newlines() >= target {
                 break;
             }
-            skip_cnt += 1;
 
             let value = self.stack.pop().and_then(|v| {
                 Some(CharsNode::new(
@@ -88,8 +83,6 @@ impl<'a> Chars<'a> {
             self.push_left(value);
             skipped_node = true;
         }
-        debug!("skip_cnt: {}", skip_cnt);
-        debug!("start_elapsed: {}ms", start.elapsed().as_millis());
 
         if skipped_node {
             let Some(node) = self.stack.last() else {
@@ -314,7 +307,7 @@ impl Iterator for Lines<'_> {
 #[cfg(test)]
 mod tests {
 
-    use crate::rope::{Chars, Node, Rope};
+    use crate::{Chars, Node, Rope};
 
     fn example_rope() -> Rope {
         let m = Node::Leaf(Box::from("s"));
