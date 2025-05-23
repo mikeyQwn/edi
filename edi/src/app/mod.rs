@@ -133,6 +133,10 @@ fn handle_action(
     let _span = span!("handle_event");
     match event {
         Action::SwitchMode(mode) => {
+            if state.mode == Mode::Terminal {
+                let _ = state.buffers.pop_front();
+                redraw(state, render_window)?;
+            }
             state.mode = mode;
             if state.mode == Mode::Terminal {
                 let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));

@@ -1,5 +1,7 @@
 //! Draw-related buffer functionality
 
+use std::fmt::DebugTuple;
+
 use edi_rope::iter::LineInfo;
 
 use crate::{
@@ -87,7 +89,7 @@ impl Buffer {
         let start = std::time::Instant::now();
 
         let line_number_offset = if opts.line_numbers {
-            let total_lines = self.inner.total_lines();
+            let total_lines = self.inner.total_lines().max(1);
             total_lines.to_string().len() + 1
         } else {
             0
@@ -112,6 +114,7 @@ impl Buffer {
     ) {
         let available_height = surface.dimensions().y;
         let _span = span!("flush_lines");
+
         self.inner
             .lines()
             .skip(opts.line_offset)
@@ -119,6 +122,25 @@ impl Buffer {
             .for_each(|line_info| {
                 self.flush_line(surface, opts, &line_info, state);
             });
+
+        // Special case: even though there is nothing, draw a line
+        if self.inner.is_empty() {
+            debug!(
+                "this is hit somehow, {:?}",
+                self.inner.chars().collect::<String>()
+            );
+            self.flush_line(
+                surface,
+                opts,
+                &LineInfo {
+                    line_number: self.inner.total_lines(),
+                    contents: String::new(),
+                    character_offset: self.inner.len(),
+                    length: 0,
+                },
+                state,
+            );
+        }
     }
 
     fn flush_line<S: Surface>(
@@ -434,5 +456,27 @@ mod tests {
         assert_eq!(contents[0], "                    ");
         assert_eq!(contents[1], "                    ");
         assert_eq!(contents[2], "                    ");
+    }
+
+    #[test]
+    fn empty() {
+        let text = "";
+        let buf = Buffer::new(text);
+        let mut surface = TestSurface::new(Vec2::new(5, 2));
+        let opts = FlushOptions::default().with_line_numbers(true);
+        buf.flush(&mut surface, &opts);
+        let contents = surface.get_contents();
+        assert_eq!(contents[0], "0    ");
+        assert_eq!(contents[1], "     ");
+        assert_eq!(surface.cursor_pos, Some(Vec2::new(2, 0)));
+        // TODO: fix a bug where when you start editing an empty file, every newline does not
+        // create a line while drawing
+        let text = "\n\n";
+        let buf = Buffer::new(text);
+        surface.clear();
+        buf.flush(&mut surface, &opts);
+        let contents = surface.get_contents();
+        assert_eq!(contents[0], "0    ");
+        assert_eq!(contents[1], "1    ");
     }
 }

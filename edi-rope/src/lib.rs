@@ -859,15 +859,15 @@ mod tests {
 
         assert_eq!(r.total_lines(), 5);
 
-        assert_eq!(r.line_of_index(0), 0); // 'H' in first line
-        assert_eq!(r.line_of_index(5), 0); // '\n' at end of first line
-        assert_eq!(r.line_of_index(6), 1); // 'w' in second line
-        assert_eq!(r.line_of_index(11), 1); // '\n' at end of second line
-        assert_eq!(r.line_of_index(12), 2); // 't' in third line
+        assert_eq!(r.line_of_index(0), 0);
+        assert_eq!(r.line_of_index(5), 0);
+        assert_eq!(r.line_of_index(6), 1);
+        assert_eq!(r.line_of_index(11), 1);
+        assert_eq!(r.line_of_index(12), 2);
 
-        assert_eq!(r.index_of_line(0), 0); // Start of first line
-        assert_eq!(r.index_of_line(1), 6); // Start of second line
-        assert_eq!(r.index_of_line(2), 12); // Start of third line
+        assert_eq!(r.index_of_line(0), 0);
+        assert_eq!(r.index_of_line(1), 6);
+        assert_eq!(r.index_of_line(2), 12);
 
         let r = Rope::from("\n\n\n");
         assert_eq!(r.total_lines(), 3);
@@ -936,7 +936,7 @@ mod tests {
         left.concat(right);
         assert_eq!(left.total_lines(), 3);
 
-        left.delete(5..6); // Delete first newline
+        left.delete(5..6);
         assert_eq!(left.total_lines(), 2);
     }
 }

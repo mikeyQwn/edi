@@ -35,12 +35,17 @@ impl Buffer {
     }
 
     pub fn write(&mut self, c: char) {
+        let is_empty = self.inner.is_empty();
         self.inner
             .insert(self.cursor_offset, c.to_string().as_ref());
 
         if c == '\n' {
             self.cursor_offset += 1;
             return;
+        }
+
+        if is_empty {
+            self.inner.insert(self.cursor_offset, "\n");
         }
 
         self.cursor_offset += 1;
