@@ -1,7 +1,5 @@
 //! Draw-related buffer functionality
 
-use std::fmt::DebugTuple;
-
 use edi_rope::iter::LineInfo;
 
 use crate::{

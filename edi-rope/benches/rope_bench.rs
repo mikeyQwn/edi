@@ -4,6 +4,13 @@ use edi_rope::Rope;
 const LOREM_SMALL: &str = include_str!("small_ipsum.txt");
 const LOREM_MEDIUM: &str = include_str!("medium_ipsum.txt");
 const LOREM_BIG: &str = include_str!("big_ipsum.txt");
+const POSITIONS: &[(&str, f64)] = &[
+    ("start", 0.0),
+    ("25%", 0.25),
+    ("50%", 0.5),
+    ("75%", 0.75),
+    ("100%", 1.0),
+];
 
 enum RopeSize {
     Empty,
@@ -39,6 +46,15 @@ impl RopeSize {
             RopeSize::Big => "big",
         }
     }
+
+    fn contents(&self) -> &'static str {
+        match self {
+            RopeSize::Empty => "",
+            RopeSize::Small => LOREM_SMALL,
+            RopeSize::Medium => LOREM_MEDIUM,
+            RopeSize::Big => LOREM_BIG,
+        }
+    }
 }
 
 const ALL_SIZES: [RopeSize; 4] = [
@@ -61,14 +77,6 @@ fn bench_rope_create(c: &mut Criterion) {
 fn bench_rope_insert(c: &mut Criterion) {
     let group = &mut c.benchmark_group("insert");
 
-    let positions = [
-        ("start", 0.0),
-        ("25%", 0.25),
-        ("50%", 0.5),
-        ("75%", 0.75),
-        ("100%", 1.0),
-    ];
-
     group.bench_function(format!("at_start_empty"), |b| {
         b.iter_batched(
             RopeSize::Small.create_fn(),
@@ -79,7 +87,7 @@ fn bench_rope_insert(c: &mut Criterion) {
         );
     });
 
-    for (position_name, position_factor) in positions {
+    for (position_name, position_factor) in POSITIONS {
         for size in NON_EMPTY_SIZES {
             let size_name = size.name();
             let insert_index = (position_factor * size.content_len() as f64) as usize;
@@ -96,5 +104,40 @@ fn bench_rope_insert(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_rope_create, bench_rope_insert);
+fn bench_lines_skip(c: &mut Criterion) {
+    let group = &mut c.benchmark_group("lines_skip");
+
+    group.bench_function(format!("at_start_empty"), |b| {
+        b.iter_batched(
+            RopeSize::Small.create_fn(),
+            |rope: Rope| {
+                rope.lines().nth(0);
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    for (position_name, position_factor) in POSITIONS {
+        for size in NON_EMPTY_SIZES {
+            let size_name = size.name();
+            let skip_index = (position_factor * size.contents().lines().count() as f64) as usize;
+            group.bench_function(format!("at_{position_name}_{size_name}"), |b| {
+                b.iter_batched(
+                    size.create_fn(),
+                    |rope: Rope| {
+                        rope.lines().nth(skip_index);
+                    },
+                    criterion::BatchSize::SmallInput,
+                );
+            });
+        }
+    }
+}
+
+criterion_group!(
+    benches,
+    bench_rope_create,
+    bench_rope_insert,
+    bench_lines_skip
+);
 criterion_main!(benches);

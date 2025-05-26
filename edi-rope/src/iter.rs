@@ -69,18 +69,23 @@ impl<'a> Chars<'a> {
 
         let mut skipped_node = false;
         while let Some(node) = self.stack.last() {
-            if node.newlines_from_start + node.tree_node.full_newlines() >= target {
+            let full_newlines = node.tree_node.full_newlines();
+            if node.newlines_from_start + full_newlines >= target {
                 break;
             }
 
-            let value = self.stack.pop().and_then(|v| {
-                Some(CharsNode::new(
-                    v.tree_node.right()?,
-                    v.offset_from_start + v.tree_node.weight(),
-                    v.newlines_from_start + v.tree_node.newlines(),
-                ))
-            });
-            self.push_left(value);
+            if node.newlines_from_start + node.tree_node.newlines() >= target {
+                let value = self.stack.pop().and_then(|v| {
+                    Some(CharsNode::new(
+                        v.tree_node.right()?,
+                        v.offset_from_start + v.tree_node.weight(),
+                        v.newlines_from_start + v.tree_node.newlines(),
+                    ))
+                });
+                self.push_left(value);
+            } else {
+                self.stack.pop();
+            }
             skipped_node = true;
         }
 
@@ -123,18 +128,23 @@ impl Iterator for Chars<'_> {
 
         let mut skipped_node = false;
         while let Some(node) = self.stack.last() {
-            if node.offset_from_start + node.tree_node.full_weight() >= target {
+            let full_weight = node.tree_node.full_weight();
+            if node.offset_from_start + full_weight >= target {
                 break;
             }
 
-            let value = self.stack.pop().and_then(|v| {
-                Some(CharsNode::new(
-                    v.tree_node.right()?,
-                    v.offset_from_start + v.tree_node.weight(),
-                    v.newlines_from_start + v.tree_node.newlines(),
-                ))
-            });
-            self.push_left(value);
+            if node.offset_from_start + node.tree_node.weight() >= target {
+                let value = self.stack.pop().and_then(|v| {
+                    Some(CharsNode::new(
+                        v.tree_node.right()?,
+                        v.offset_from_start + v.tree_node.weight(),
+                        v.newlines_from_start + v.tree_node.newlines(),
+                    ))
+                });
+                self.push_left(value);
+            } else {
+                self.stack.pop();
+            }
             skipped_node = true;
         }
 
