@@ -3,4 +3,5 @@ members = [
 	"edi",
 	"edi-rope",
 ]
+default-members=["edi"]
 resolver = "2"
