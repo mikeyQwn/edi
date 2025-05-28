@@ -166,8 +166,8 @@ impl Iterator for Chars<'_> {
         let node = self.stack.last()?;
 
         match node.tree_node {
-            Node::Leaf(leaf) => {
-                let s = &leaf[self.current_node_offset_b..];
+            Node::Leaf { value, .. } => {
+                let s = &value[self.current_node_offset_b..];
                 let Some(char) = s.chars().next() else {
                     self.current_node_offset_b = 0;
                     self.stack.pop();
@@ -320,10 +320,10 @@ mod tests {
     use crate::{Chars, Node, Rope};
 
     fn example_rope() -> Rope {
-        let m = Node::Leaf(Box::from("s"));
-        let n = Node::Leaf(Box::from(" Simon"));
-        let j = Node::Leaf(Box::from("na"));
-        let k = Node::Leaf(Box::from("me i"));
+        let m = Node::new_leaf("s");
+        let n = Node::new_leaf(" Simon");
+        let j = Node::new_leaf("na");
+        let k = Node::new_leaf("me i");
         let g = Node::Value {
             left_len: 2,
             left_newlines: 0,
@@ -336,8 +336,8 @@ mod tests {
             l: Some(Box::new(m)),
             r: Some(Box::new(n)),
         };
-        let e = Node::Leaf(Box::from("Hello "));
-        let f = Node::Leaf(Box::from("my "));
+        let e = Node::new_leaf("Hello ");
+        let f = Node::new_leaf("my ");
         let c = Node::Value {
             left_len: 6,
             left_newlines: 0,

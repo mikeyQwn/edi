@@ -1,6 +1,7 @@
 //! A data structure suited for frequent write operations
 
 pub mod iter;
+pub mod node;
 
 use std::{
     fmt::Debug,
@@ -8,170 +9,7 @@ use std::{
 };
 
 use iter::{Chars, LineInfo, Lines, Substring};
-
-// A node in the rope binary tree.
-enum Node {
-    // A leaf node contains an immutable string.
-    // Any operation that modifies the contained string should create new leaf nodes.
-    Leaf(Box<str>),
-    // A value node contains a cumulative length of the left subtree leaf nodes' lengths.
-    Value {
-        // Cumulative length of the left subtree leaf nodes' lengths a.k.a. `weight`
-        left_len: usize,
-        // Cumulative length of the left subtree leaf nodes' newline counts
-        left_newlines: usize,
-        // The left child of the node
-        l: Option<Box<Node>>,
-        // The right child of the node
-        r: Option<Box<Node>>,
-    },
-}
-
-impl Debug for Node {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_ascii_tree())
-    }
-}
-
-impl Node {
-    // Returns the weight of the node
-    pub fn weight(&self) -> usize {
-        match self {
-            Node::Leaf(s) => s.chars().count(),
-            Node::Value { left_len: val, .. } => *val,
-        }
-    }
-
-    // Returns number of newlines of the node and all it's children combined
-    pub fn newlines(&self) -> usize {
-        match self {
-            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
-            Node::Value { left_newlines, .. } => *left_newlines,
-        }
-    }
-
-    // Returns the weight of the node and all its children
-    // The full weight of the root node is the total number of characters in the rope.
-    pub fn full_weight(&self) -> usize {
-        match self {
-            Node::Leaf(s) => s.chars().count(),
-            Node::Value {
-                left_len: val, r, ..
-            } => {
-                let r_weight = r.as_deref().map_or(0, Self::full_weight);
-                val + r_weight
-            }
-        }
-    }
-
-    // Returns number of newlines of the node and all it's children combined
-    pub fn full_newlines(&self) -> usize {
-        match self {
-            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
-            Node::Value {
-                left_newlines, r, ..
-            } => {
-                let right_newlines = r.as_deref().map_or(0, Self::full_newlines);
-                right_newlines + left_newlines
-            }
-        }
-    }
-
-    // Returns a reference to the right child node, if any
-    pub fn right(&self) -> Option<&Node> {
-        match self {
-            Node::Leaf(_) => None,
-            Node::Value { r, .. } => r.as_deref(),
-        }
-    }
-
-    // Returns a reference to the left child node, if any
-    pub fn left(&self) -> Option<&Node> {
-        match self {
-            Node::Leaf(_) => None,
-            Node::Value { l, .. } => l.as_deref(),
-        }
-    }
-
-    #[must_use]
-    fn index_of_line(&self, line: usize) -> usize {
-        Lines::new(self)
-            .parse_contents(false)
-            .nth(line)
-            .map_or_else(|| self.full_weight(), |info| info.character_offset)
-    }
-
-    /// Returns an ASCII tree representation of the node and its children
-    pub fn to_ascii_tree(&self) -> String {
-        let mut buffer = String::new();
-        self.build_ascii_tree(&mut buffer, "", "", false);
-        buffer
-    }
-
-    fn build_ascii_tree(&self, buffer: &mut String, prefix: &str, child_prefix: &str, is_r: bool) {
-        match self {
-            Node::Leaf(s) => {
-                let content = if s.len() > 20 {
-                    format!(
-                        "{}... ({} chars)",
-                        &s.chars().take(20).collect::<String>(),
-                        s.len()
-                    )
-                } else {
-                    format!("{:?} ({} chars)", s, s.len())
-                };
-                buffer.push_str(&format!(
-                    "{prefix}Leaf ({}): {content}\n",
-                    if is_r { "r" } else { "l" },
-                ));
-            }
-            Node::Value {
-                left_len,
-                left_newlines,
-                l,
-                r,
-            } => {
-                buffer.push_str(&format!(
-                    "{prefix}Value ({}): left_len={left_len}, left_newlines={left_newlines}\n",
-                    if is_r { "r" } else { "l" },
-                ));
-
-                if let Some(left) = l {
-                    if r.is_some() {
-                        left.build_ascii_tree(
-                            buffer,
-                            &format!("{child_prefix}├── "),
-                            &format!("{child_prefix}│   "),
-                            false,
-                        );
-                    } else {
-                        left.build_ascii_tree(
-                            buffer,
-                            &format!("{child_prefix}└── "),
-                            &format!("{child_prefix}    "),
-                            false,
-                        );
-                    }
-                }
-
-                if let Some(right) = r {
-                    right.build_ascii_tree(
-                        buffer,
-                        &format!("{child_prefix}└── "),
-                        &format!("{child_prefix}    "),
-                        true,
-                    );
-                }
-            }
-        }
-    }
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Node::Leaf(Box::default())
-    }
-}
+use node::Node;
 
 /// Rope data structure. It is optimized for frequent modification
 #[derive(Debug)]
@@ -205,7 +43,7 @@ impl Rope {
 
     fn depth_inner(node: &Node) -> usize {
         match node {
-            Node::Leaf(_) => 1,
+            Node::Leaf { .. } => 1,
             Node::Value { l, r, .. } => {
                 let l_depth = l.as_ref().map_or(0, |le| Self::depth_inner(le));
                 let r_depth = r.as_ref().map_or(0, |ri| Self::depth_inner(ri));
@@ -243,9 +81,10 @@ impl Rope {
         };
     }
 
+    #[allow(unused)]
     fn validate_newlines_inner(node: &Node) -> usize {
         match node {
-            Node::Leaf(s) => s.chars().filter(|&c| c == '\n').count(),
+            Node::Leaf { newlines, .. } => *newlines,
             Node::Value {
                 left_len: _,
                 left_newlines,
@@ -328,13 +167,16 @@ impl Rope {
             return std::mem::take(&mut leaves[range.start]);
         }
         if len == 2 {
-            let Node::Leaf(l) = &leaves[range.start] else {
+            let Node::Leaf {
+                char_len, newlines, ..
+            } = &leaves[range.start]
+            else {
                 unreachable!("all nodes passed to merge_range should be of type leaf");
             };
 
             return Node::Value {
-                left_len: l.chars().count(),
-                left_newlines: l.chars().filter(|c| *c == '\n').count(),
+                left_len: *char_len,
+                left_newlines: *newlines,
                 l: Some(Box::new(std::mem::take(&mut leaves[range.start]))),
                 r: Some(Box::new(std::mem::take(&mut leaves[range.start + 1]))),
             };
@@ -374,7 +216,7 @@ impl Rope {
 
     fn get_leaves_inner(node: Node, leaves: &mut Vec<Node>) {
         match node {
-            Node::Leaf(_) => leaves.push(node),
+            Node::Leaf { .. } => leaves.push(node),
             Node::Value { l, r, .. } => {
                 if let Some(l) = l {
                     Self::get_leaves_inner(*l, leaves);
@@ -394,7 +236,7 @@ impl Rope {
 
     fn get_inner(node: &Node, n: usize) -> Option<char> {
         match node {
-            Node::Leaf(s) => s.chars().nth(n),
+            Node::Leaf { value, .. } => value.chars().nth(n),
             Node::Value {
                 left_len: val,
                 l,
@@ -425,9 +267,9 @@ impl Rope {
 
     fn split_inner(node: Node, idx: usize) -> (Box<Node>, Box<Node>) {
         match node {
-            Node::Leaf(s) => {
-                let left = Box::new(Node::Leaf(s[..idx].into()));
-                let right = Box::new(Node::Leaf(s[idx..].into()));
+            Node::Leaf { value, .. } => {
+                let left = Box::new(Node::new_leaf(value[..idx].into()));
+                let right = Box::new(Node::new_leaf(value[idx..].into()));
                 (left, right)
             }
             Node::Value {
@@ -603,7 +445,7 @@ impl From<&str> for Rope {
             }
 
             rope.concat(Rope {
-                root: Box::new(Node::Leaf(Box::from(&s[offset..end]))),
+                root: Box::new(Node::new_leaf(&s[offset..end])),
             });
             offset = end;
         }
@@ -628,10 +470,10 @@ mod tests {
     use super::*;
 
     fn example_rope() -> Rope {
-        let m = Node::Leaf(Box::from("s"));
-        let n = Node::Leaf(Box::from(" Simon"));
-        let j = Node::Leaf(Box::from("na"));
-        let k = Node::Leaf(Box::from("me i"));
+        let m = Node::new_leaf("s");
+        let n = Node::new_leaf(" Simon");
+        let j = Node::new_leaf("na");
+        let k = Node::new_leaf("me i");
         let g = Node::Value {
             left_len: 2,
             left_newlines: 0,
@@ -644,8 +486,8 @@ mod tests {
             l: Some(Box::new(m)),
             r: Some(Box::new(n)),
         };
-        let e = Node::Leaf(Box::from("Hello "));
-        let f = Node::Leaf(Box::from("my "));
+        let e = Node::new_leaf("Hello ");
+        let f = Node::new_leaf("my ");
         let c = Node::Value {
             left_len: 6,
             left_newlines: 0,
