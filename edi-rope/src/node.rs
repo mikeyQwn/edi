@@ -1,28 +1,30 @@
+//! Node of the rope's inner tree
+
 use std::fmt::Debug;
 
 use crate::iter::Lines;
 
-// A node in the rope binary tree.
+/// A node in the rope binary tree.
 pub(crate) enum Node {
-    // A leaf node contains an immutable string.
-    // Any operation that modifies the contained string should create new leaf nodes.
+    /// A leaf node contains an immutable string.
+    /// Any operation that modifies the contained string should create new leaf nodes.
     Leaf {
-        // A part of the string that the rope represents
+        /// A part of the string that the rope represents
         value: Box<str>,
-        // Length of the `value` field in utf-8 characters
+        /// Length of the `value` field in utf-8 characters
         char_len: usize,
-        // Total number of newlines in the string
+        /// Total number of newlines in the string
         newlines: usize,
     },
-    // A value node contains a cumulative length of the left subtree leaf nodes' lengths.
+    /// A value node contains a cumulative length of the left subtree leaf nodes' lengths.
     Value {
-        // Cumulative length of the left subtree leaf nodes' lengths a.k.a. `weight`
+        /// Cumulative length of the left subtree leaf nodes' lengths a.k.a. `weight`
         left_len: usize,
-        // Cumulative length of the left subtree leaf nodes' newline counts
+        /// Cumulative length of the left subtree leaf nodes' newline counts
         left_newlines: usize,
-        // The left child of the node
+        /// The left child of the node
         l: Option<Box<Node>>,
-        // The right child of the node
+        /// The right child of the node
         r: Option<Box<Node>>,
     },
 }
@@ -45,7 +47,7 @@ impl Node {
         }
     }
 
-    // Returns the weight of the node
+    /// Returns the weight of the node
     pub fn weight(&self) -> usize {
         match self {
             Node::Leaf { char_len, .. } => *char_len,
@@ -53,7 +55,7 @@ impl Node {
         }
     }
 
-    // Returns number of newlines of the node and all it's children combined
+    /// Returns number of newlines of the node and all it's children combined
     pub fn newlines(&self) -> usize {
         match self {
             Node::Leaf { newlines, .. } => *newlines,
@@ -61,8 +63,8 @@ impl Node {
         }
     }
 
-    // Returns the weight of the node and all its children
-    // The full weight of the root node is the total number of characters in the rope.
+    /// Returns the weight of the node and all its children
+    /// The full weight of the root node is the total number of characters in the rope.
     pub fn full_weight(&self) -> usize {
         match self {
             Node::Leaf { char_len, .. } => *char_len,
@@ -75,7 +77,7 @@ impl Node {
         }
     }
 
-    // Returns number of newlines of the node and all it's children combined
+    /// Returns number of newlines of the node and all it's children combined
     pub fn full_newlines(&self) -> usize {
         match self {
             Node::Leaf { newlines, .. } => *newlines,
@@ -88,7 +90,7 @@ impl Node {
         }
     }
 
-    // Returns a reference to the right child node, if any
+    /// Returns a reference to the right child node, if any
     pub fn right(&self) -> Option<&Node> {
         match self {
             Node::Leaf { .. } => None,
@@ -96,7 +98,7 @@ impl Node {
         }
     }
 
-    // Returns a reference to the left child node, if any
+    /// Returns a reference to the left child node, if any
     pub fn left(&self) -> Option<&Node> {
         match self {
             Node::Leaf { .. } => None,
@@ -112,7 +114,7 @@ impl Node {
             .map_or_else(|| self.full_weight(), |info| info.character_offset)
     }
 
-    /// Returns an ASCII tree representation of the node and its children
+    //// Returns an ASCII tree representation of the node and its children
     pub(crate) fn to_ascii_tree(&self) -> String {
         let mut buffer = String::new();
         self.build_ascii_tree(&mut buffer, "", "", false);

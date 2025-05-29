@@ -1,5 +1,7 @@
 //! A data structure suited for frequent write operations
 
+#![deny(missing_docs)]
+
 pub mod iter;
 pub mod node;
 
@@ -370,8 +372,10 @@ impl Rope {
         Substring::new(Chars::new(&self.root), range)
     }
 
+    /// Returns number of the line containing given index
     #[must_use]
     pub fn line_of_index(&self, index: usize) -> usize {
+        // TODO: optimize
         let (node, skipped, lines_skipped) = Self::skip_to(&self.root, index);
         let to_parse = index - skipped;
 
@@ -382,6 +386,7 @@ impl Rope {
                 .count()
     }
 
+    /// Returns the line start index
     #[must_use]
     pub fn index_of_line(&self, line: usize) -> usize {
         self.root.index_of_line(line)
