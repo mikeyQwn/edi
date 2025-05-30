@@ -41,7 +41,7 @@ To run edi, simply type
 edi [filename]
 ```
 
-## Roadmap
+## Roadmap (Updated every month)
 
 Features:
 
@@ -51,7 +51,7 @@ Features:
 - [ ] Input buffering
 - [ ] Search/replace
 - [ ] Config file
-- [ ] Yank and paste, buffers
+- [ ] Yank and paste, registers
 - [ ] Multiple buffers, open multiple files
 - [ ] Treesitter integration
 - [ ] LSP integration
@@ -60,5 +60,13 @@ Features:
 Tech debt:
 
 - [ ] Optimize the rope data structure
+    - [x] Cache leaf lenghts
+    - [ ] Balance the tree (AVL/Red-black) (?)
+    - [ ] Optimize inserts
 - [ ] Handle terminal resizing properly
-- [ ] Ci tests, add test badge to the README
+- [ ] Tests in CI, add test badge to the README
+
+## Known issues
+
+- Running edi without a file does nothing
+- Sometimes the end of the file goes out of bounds for files with wide lines

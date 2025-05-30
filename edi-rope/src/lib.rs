@@ -375,7 +375,6 @@ impl Rope {
     /// Returns number of the line containing given index
     #[must_use]
     pub fn line_of_index(&self, index: usize) -> usize {
-        // TODO: optimize
         let (node, skipped, lines_skipped) = Self::skip_to(&self.root, index);
         let to_parse = index - skipped;
 
