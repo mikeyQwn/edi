@@ -4,6 +4,7 @@
 //#![deny(missing_docs)]
 
 pub mod buffer;
+pub mod cbuffer;
 pub mod draw;
 pub mod fs;
 pub mod log;
