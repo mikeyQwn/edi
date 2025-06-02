@@ -1,4 +1,5 @@
 pub mod draw;
+pub mod write;
 
 use crate::{
     debug,
@@ -31,30 +32,6 @@ impl Buffer {
             inner: Rope::from(inner),
 
             ..Default::default()
-        }
-    }
-
-    pub fn write(&mut self, c: char) {
-        let is_empty = self.inner.is_empty();
-        self.inner
-            .insert(self.cursor_offset, c.to_string().as_ref());
-
-        if c == '\n' {
-            self.cursor_offset += 1;
-            return;
-        }
-
-        if is_empty {
-            self.inner.insert(self.cursor_offset, "\n");
-        }
-
-        self.cursor_offset += 1;
-    }
-
-    pub fn delete(&mut self) {
-        if self.cursor_offset > 0 {
-            self.cursor_offset -= 1;
-            self.inner.delete(self.cursor_offset..=self.cursor_offset);
         }
     }
 
