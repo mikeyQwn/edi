@@ -8,6 +8,8 @@ use std::{
 
 use thiserror::Error;
 
+use crate::debug;
+
 /// An error that occurs during reading from stdio/sending the input signals through channels
 #[derive(Error, Debug)]
 pub enum InputError {
@@ -65,6 +67,7 @@ impl Input {
         match bytes {
             [4] => Input::Control('d'),
             [10] => Input::Enter,
+            [18] => Input::Control('r'),
             [21] => Input::Control('u'),
             [27] => Input::Escape,
             [127] => Input::Backspace,

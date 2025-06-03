@@ -34,6 +34,8 @@ pub enum Action {
     DeleteChar,
     Quit,
     Submit,
+    Undo,
+    Redo,
     Move { action: MoveAction, repeat: usize },
 }
 
@@ -177,6 +179,9 @@ impl InputMapper {
             Input::Keypress('G'),
             Action::move_once(MoveAction::Global(GlobalPosition::End)),
         );
+
+        map(Input::Keypress('u'), Action::Undo);
+        map(Input::Control('r'), Action::Redo);
 
         // TODO: Add 'gg' mapping
         let mut multimap = |input, actions| {

@@ -245,6 +245,33 @@ fn handle_action(
             }
             render_window.render()?;
         }
+        Action::Undo => {
+            match state.buffers.front_mut() {
+                Some((buffer, meta)) => {
+                    edi::debug!("undoing last action");
+                    buffer.undo();
+                    meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    edi::debug!("handle_event: no buffers to undo in");
+                }
+            }
+            render_window.render()?;
+        }
+        Action::Redo => {
+            match state.buffers.front_mut() {
+                Some((buffer, meta)) => {
+                    buffer.redo();
+                    meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+                    redraw(state, render_window)?;
+                }
+                None => {
+                    edi::debug!("handle_event: no buffers to undo in");
+                }
+            }
+            render_window.render()?;
+        }
     }
 
     Ok(false)
