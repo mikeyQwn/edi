@@ -152,7 +152,11 @@ fn handle_action(
         Action::InsertChar(c) => {
             match state.buffers.front_mut() {
                 Some((b, m)) => {
+                    let is_empty = b.inner.is_empty();
                     b.write(c);
+                    if is_empty {
+                        b.write('\n');
+                    }
                     m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
 
                     redraw(state, render_window)?;
