@@ -1,8 +1,6 @@
-use crate::{
-    rect::Rect,
-    terminal::{escaping::ANSIColor, window},
-    vec2::Vec2,
-};
+use edi_term::{escaping::ANSIColor, window};
+
+use crate::{rect::Rect, vec2::Vec2};
 
 #[allow(unused)]
 #[allow(missing_docs)]
@@ -180,7 +178,7 @@ where
 
 impl Surface for window::Window {
     fn set(&mut self, position: Vec2<usize>, cell: Cell) {
-        window::Window::put_cell(self, position, window::Cell::from(cell));
+        window::Window::put_cell(self, position.as_coords(), window::Cell::from(cell));
     }
 
     fn clear(&mut self) {
@@ -188,11 +186,11 @@ impl Surface for window::Window {
     }
 
     fn dimensions(&self) -> Vec2<usize> {
-        window::Window::size(self)
+        Vec2::from_dims(window::Window::size(self))
     }
 
     fn move_cursor(&mut self, point: Vec2<usize>) {
-        window::Window::set_cursor(self, point);
+        window::Window::set_cursor(self, point.as_coords());
     }
 }
 

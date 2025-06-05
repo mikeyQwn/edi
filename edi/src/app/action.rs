@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use edi::buffer;
 use edi::string::position::{GlobalPosition, LinePosition};
-use edi::terminal::input::Input;
+use edi_term::input::Input;
 
 use super::Mode;
 

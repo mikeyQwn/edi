@@ -8,8 +8,6 @@ use std::{
 
 use thiserror::Error;
 
-use crate::debug;
-
 /// An error that occurs during reading from stdio/sending the input signals through channels
 #[derive(Error, Debug)]
 pub enum InputError {
@@ -132,33 +130,35 @@ impl Stream {
         let (t_events, r_events) = std::sync::mpsc::channel();
         let (t_kill, r_kill) = std::sync::mpsc::channel();
 
-        std::thread::spawn(move || loop {
-            let mut buffer = [0_u8; 4];
-            let n = match reader.read(&mut buffer) {
-                Ok(n) => n,
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::TimedOut {
+        std::thread::spawn(move || {
+            loop {
+                let mut buffer = [0_u8; 4];
+                let n = match reader.read(&mut buffer) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::TimedOut {
+                            continue;
+                        }
+
+                        // If the receiver is gone, we should probably kill the read loop
+                        // and exit
+                        if t_events.send(Message::Error(InputError::from(e))).is_err() {
+                            break;
+                        };
                         continue;
                     }
+                };
 
-                    // If the receiver is gone, we should probably kill the read loop
-                    // and exit
-                    if t_events.send(Message::Error(InputError::from(e))).is_err() {
-                        break;
-                    };
-                    continue;
+                if r_kill.try_recv().is_ok() {
+                    break;
                 }
-            };
 
-            if r_kill.try_recv().is_ok() {
-                break;
-            }
+                let input = Input::from_bytes(&buffer[..n]);
 
-            let input = Input::from_bytes(&buffer[..n]);
-
-            // Same here. There is no point in reading if no one's receiving
-            if t_events.send(Message::Input(input)).is_err() {
-                break;
+                // Same here. There is no point in reading if no one's receiving
+                if t_events.send(Message::Input(input)).is_err() {
+                    break;
+                }
             }
         });
 

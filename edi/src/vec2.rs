@@ -1,5 +1,7 @@
 //! A two-element vector
 
+use edi_term::coord::{Coordinates, Dimensions};
+
 /// A two-element vector, usually is used to represent 2d coordinates
 ///
 /// Operations on the `Vec2` are performed for both elements respectively
@@ -18,13 +20,24 @@ impl<T> Vec2<T> {
         Self { x, y }
     }
 
-    /// Instantiates a vector of two elements
     #[must_use]
     pub fn map<U, F>(self, mut f: F) -> Vec2<U>
     where
         F: FnMut(T) -> U,
     {
         Vec2::new(f(self.x), f(self.y))
+    }
+
+    #[must_use]
+    pub fn from_dims(Dimensions { width, height }: Dimensions<T>) -> Self {
+        Self::new(width, height)
+    }
+}
+
+impl Vec2<usize> {
+    #[must_use]
+    pub const fn as_coords(&self) -> Coordinates {
+        Coordinates::new(self.x, self.y)
     }
 }
 

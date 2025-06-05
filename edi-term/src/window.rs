@@ -1,10 +1,10 @@
 //! An api for handling the raw mode terminal
 
-use std::io::{stdout, Result, Stdout, Write};
+use std::io::{Result, Stdout, Write, stdout};
 
 use crate::{
-    terminal::escaping::{ANSIColor, EscapeBuilder},
-    vec2::Vec2,
+    coord::{Coordinates, Dimensions},
+    escaping::{ANSIColor, EscapeBuilder},
 };
 
 /// A terminal cell representation
@@ -46,7 +46,7 @@ where
     width: usize,
     height: usize,
 
-    cursor_pos: Vec2<usize>,
+    cursor_pos: Coordinates,
 
     buffer: Vec<Cell>,
     back_buffer: Vec<Cell>,
@@ -64,7 +64,7 @@ where
             width: Default::default(),
             height: Default::default(),
 
-            cursor_pos: Vec2::default(),
+            cursor_pos: Coordinates::default(),
 
             buffer: Vec::default(),
             back_buffer: Vec::default(),
@@ -92,20 +92,20 @@ impl<W> Window<W>
 where
     W: Write,
 {
-    /// Sets the width of the window to x and the height to y
+    /// Sets the width of the window to `width` and the height to `height`
     /// This should be called after display resizes to draw properly
     /// All drawn characters are lost
-    pub fn set_size(&mut self, Vec2 { x, y }: Vec2<usize>) {
-        self.width = x;
-        self.height = y;
+    pub fn set_size(&mut self, Dimensions { width, height }: Dimensions<usize>) {
+        self.width = width;
+        self.height = height;
 
-        self.buffer = vec![Cell::default(); x * y];
+        self.buffer = vec![Cell::default(); width * height];
         self.back_buffer = self.buffer.clone();
     }
 
     /// Returns width and height of the window
-    pub const fn size(&self) -> Vec2<usize> {
-        Vec2::new(self.width, self.height)
+    pub const fn size(&self) -> Dimensions<usize> {
+        Dimensions::new(self.width, self.height)
     }
 
     /// Draws everyting in the writer and flushes
@@ -125,7 +125,7 @@ where
     }
 
     /// Sets the cursor position to the `new_pos`
-    pub fn set_cursor(&mut self, new_pos: Vec2<usize>) {
+    pub fn set_cursor(&mut self, new_pos: Coordinates) {
         self.cursor_pos = new_pos;
     }
 
@@ -143,14 +143,14 @@ where
         let changes = EscapeBuilder::new()
             .clear_screen()
             .concat(self.as_escapes())
-            .move_to(Vec2::default())
+            .move_to(Coordinates::default())
             .build();
 
         self.write_flush(changes.as_bytes())
     }
 
     /// Puts a `Cell` in the position `pos`. Does not draw
-    pub fn put_cell(&mut self, pos: Vec2<usize>, cell: Cell) -> bool {
+    pub fn put_cell(&mut self, pos: Coordinates, cell: Cell) -> bool {
         if pos.x >= self.width || pos.y >= self.height {
             return false;
         }
@@ -182,7 +182,7 @@ where
                 }
 
                 if prev_pos != Some((x.saturating_sub(1), y)) {
-                    escape = escape.move_to(Vec2::new(x, y));
+                    escape = escape.move_to(Coordinates::new(x, y));
                 }
 
                 if prev_color != Some(cell.fg_color) {

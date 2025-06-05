@@ -9,7 +9,6 @@ pub mod fs;
 pub mod log;
 pub mod rect;
 pub mod string;
-pub mod terminal;
 pub mod trace;
 pub mod vec2;
 

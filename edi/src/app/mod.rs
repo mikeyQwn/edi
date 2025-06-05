@@ -2,6 +2,12 @@ mod action;
 mod meta;
 
 use action::{Action, InputMapper, MoveAction};
+use edi_term::{
+    coord::Coordinates,
+    escaping::ANSIEscape,
+    input::{self, Stream},
+    window::Window,
+};
 use meta::BufferMeta;
 
 use std::{
@@ -17,12 +23,6 @@ use edi::{
     rect::Rect,
     span,
     string::highlight::get_highlights,
-    terminal::{
-        self,
-        escaping::ANSIEscape,
-        input::{self, Stream},
-        window::Window,
-    },
     vec2::Vec2,
 };
 
@@ -139,7 +139,9 @@ fn handle_action(
             }
             state.mode = mode;
             if state.mode == Mode::Terminal {
-                let size = terminal::get_size().unwrap_or(Vec2::new(10, 1));
+                let size = edi_term::get_size()
+                    .map(Vec2::from_dims)
+                    .unwrap_or(Vec2::new(10, 1));
                 let mut buf = Buffer::new(":");
                 buf.cursor_offset = 1;
                 state.buffers.push_front((
@@ -312,21 +314,21 @@ fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal
 pub fn run(args: EdiCli) -> anyhow::Result<()> {
-    terminal::within_raw_mode(|| {
+    edi_term::within_raw_mode(|| {
         let mut render_window = Window::new();
         let mut app_state = State::new();
         let input_stream = Stream::from_stdin();
 
         let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
-        let size = terminal::get_size()?.map(|v| v as usize);
+        let size = edi_term::get_size()?.map(|v| v as usize);
 
         if let Some(filepath) = args.edit_file {
-            app_state.open_file(filepath, size)?;
+            app_state.open_file(filepath, Vec2::from_dims(size))?;
         }
 
         render_window.set_size(size);
-        render_window.set_cursor(Vec2::new(0, 0));
+        render_window.set_cursor(Coordinates::new(0, 0));
         render_window.rerender()?;
 
         redraw(&mut app_state, &mut render_window)?;

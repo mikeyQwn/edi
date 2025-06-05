@@ -1,14 +1,15 @@
 //! Terminal state management
 
+#[deny(missing_docs)]
+pub mod coord;
 pub mod escaping;
 pub mod input;
 pub mod window;
 
+use coord::Dimensions;
 use nix::{errno::Errno, ioctl_read_bad, libc::TIOCGWINSZ, sys::termios};
 
 use std::os::fd::{AsRawFd, RawFd};
-
-use crate::vec2::Vec2;
 
 /// Returns the current state of the terminal
 /// May be used to restore the state after manipulating it with the `restore_state` function
@@ -47,7 +48,7 @@ ioctl_read_bad!(get_win_size, TIOCGWINSZ, nix::pty::Winsize);
 /// # Errors
 ///
 /// Returns an `io::Error` if underlying c function fails
-pub fn get_size() -> Result<Vec2<u16>, Errno> {
+pub fn get_size() -> Result<Dimensions<u16>, Errno> {
     let mut winsize = nix::pty::Winsize {
         ws_row: 0,
         ws_col: 0,
@@ -55,11 +56,12 @@ pub fn get_size() -> Result<Vec2<u16>, Errno> {
         ws_ypixel: 0,
     };
 
+    // SAFETY: winsize struct is valid and mutable
     unsafe {
         let _ = get_win_size(get_stdin_fd(), &mut winsize)?;
     }
 
-    Ok(Vec2::new(winsize.ws_col, winsize.ws_row))
+    Ok(Dimensions::new(winsize.ws_col, winsize.ws_row))
 }
 
 /// Executes a function within raw mode, ensuring that state is restored after function returns

@@ -187,10 +187,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "edi-rope",
- "nix 0.30.1",
+ "edi-term",
  "rand",
- "thiserror",
- "timeout-readwrite",
 ]
 
 [[package]]
@@ -198,6 +196,15 @@ name = "edi-rope"
 version = "0.1.0"
 dependencies = [
  "criterion",
+]
+
+[[package]]
+name = "edi-term"
+version = "0.1.0"
+dependencies = [
+ "nix 0.30.1",
+ "thiserror",
+ "timeout-readwrite",
 ]
 
 [[package]]
