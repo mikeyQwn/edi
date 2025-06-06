@@ -4,12 +4,21 @@ Edi is a lightweight, text editor inspired by Vim, written in Rust. It's current
 
 ![edi](./screenshots/edi.png)
 
+## Table of Contents
+
+- [Features](#features)
+- [Keymaps](#keymaps)
+- [Installation](#installation)
+- [Roadmap](#roadmap-updated-every-month)
+- [Known Issues](#known-issues)
+
 ## Features
 
 - normal, insert and terminal mode support
 - basic movement keymaps
 - file saving
 - basic keyword highlighting
+- undo/redo
 
 ## Keymaps
 
@@ -20,6 +29,7 @@ Some of the supported keymaps are:
 - 0,$,^ - move cursor to line start/end/first non-whitespace char
 - e - move cursor to the end of the word
 - Ctrl+u,Ctrl+d - move the cursor half of the screen up/down
+- u,Ctrl+r - undo/redo
 - i - enter insert mode
 - esc - return to normal mode
 - :wq - save file and quit
@@ -37,14 +47,19 @@ cargo install --path ./edi
 
 To run edi, simply type
 
+> [!NOTE]
+> Running edi without FILENAME does absolutely nothing
+
 ```sh
-edi [filename]
+edi [FILENAME]
 ```
 
 ## Roadmap (Updated every month)
 
 Features:
 
+- [x] Undo/redo
+- [ ] Merge sequences of write/delete in one undo/redo
 - [ ] Persistent undo/redo
 - [ ] Visual mode, text selection
 - [ ] Empty buffer mode
