@@ -71,11 +71,6 @@ impl Buffer {
         let mut buf = [0u8; 4];
         let encoded = c.encode_utf8(&mut buf);
         self.inner.insert(self.cursor_offset, encoded);
-
-        if c == '\n' {
-            self.cursor_offset += 1;
-        }
-
         self.cursor_offset += 1;
 
         undo_change

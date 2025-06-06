@@ -88,7 +88,7 @@ impl Buffer {
 
         let line_number_offset = if opts.line_numbers {
             let total_lines = self.inner.total_lines().max(1);
-            total_lines.to_string().len() + 1
+            (total_lines.to_string().len() + 1).max(5)
         } else {
             0
         };

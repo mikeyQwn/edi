@@ -85,3 +85,4 @@ Tech debt:
 
 - Running edi without a file does nothing
 - Sometimes the end of the file goes out of bounds for files with wide lines
+- Terminal mode may kill the current buffer somehow

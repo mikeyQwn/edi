@@ -156,8 +156,10 @@ fn handle_action(
                 Some((b, m)) => {
                     let is_empty = b.inner.is_empty();
                     b.write(c);
+                    // Hack to always add a newline at the end of the file
                     if is_empty {
                         b.write('\n');
+                        b.cursor_offset -= 1;
                     }
                     m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
 
