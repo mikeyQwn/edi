@@ -19,7 +19,7 @@ use std::{
 
 use edi::{
     draw::{Surface, WindowBind},
-    fs::Filetype,
+    fs::filetype::Filetype,
     rect::Rect,
     span,
     string::highlight::get_highlights,

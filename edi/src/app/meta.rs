@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use edi::{
     buffer::{draw::FlushOptions, Buffer},
-    fs::Filetype,
+    fs::filetype::Filetype,
     vec2::Vec2,
 };
 

@@ -1,8 +1,8 @@
 //! Highlighting utilities
 
-use crate::fs::{Filetype, C_FILETYPE, RUST_FILETYPE};
-
 use edi_rope::Rope;
+
+use crate::fs::filetype::{self, Filetype};
 
 /// A type of the highlight
 ///
@@ -95,11 +95,11 @@ pub fn get_highlights(content: &Rope, filetype: &Filetype) -> Vec<Highlight> {
 }
 
 fn filetype_to_keywords<'b, 'c>(ft: &Filetype) -> &'b [(&'c str, Type)] {
-    if *ft.0 == *C_FILETYPE {
+    if ft.eq(&filetype::C) {
         return &C_KEYWORDS;
     }
 
-    if *ft.0 == *RUST_FILETYPE {
+    if ft.eq(&filetype::RUST) {
         return &RUST_KEYWORDS;
     }
 
