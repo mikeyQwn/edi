@@ -5,6 +5,9 @@ use std::hash::{Hash, Hasher};
 use edi::buffer;
 use edi::string::position::{GlobalPosition, LinePosition};
 use edi_term::input::Input;
+use smallvec::{smallvec, SmallVec};
+
+const BUFFER_SIZE: usize = 4;
 
 use super::Mode;
 
@@ -105,7 +108,7 @@ impl<A: Eq, B: Eq> Eq for dyn KeyPair<A, B> + '_ {}
 
 #[derive(Debug)]
 pub struct InputMapper {
-    mappings: HashMap<(Mode, Input), Box<[Action]>>,
+    mappings: HashMap<(Mode, Input), SmallVec<[Action; BUFFER_SIZE]>>,
 }
 
 impl Default for InputMapper {
@@ -190,26 +193,26 @@ impl InputMapper {
 
         multimap(
             Input::Keypress('I'),
-            Box::from([
+            smallvec![
                 Action::move_once(MoveAction::InLine(LinePosition::CharacterStart)),
                 Action::SwitchMode(Mode::Insert),
-            ]),
+            ],
         );
 
         multimap(
             Input::Keypress('A'),
-            Box::from([
+            smallvec![
                 Action::move_once(MoveAction::InLine(LinePosition::End)),
                 Action::SwitchMode(Mode::Insert),
-            ]),
+            ],
         );
 
         multimap(
             Input::Keypress('a'),
-            Box::from([
+            smallvec![
                 Action::move_once(MoveAction::Regular(Direction::Right)),
                 Action::SwitchMode(Mode::Insert),
-            ]),
+            ],
         );
     }
 
@@ -258,26 +261,31 @@ impl InputMapper {
     }
 
     pub fn add_mapping(&mut self, mode: Mode, input: Input, action: Action) {
-        self.mappings.insert((mode, input), Box::from([action]));
+        self.mappings.insert((mode, input), smallvec![action]);
     }
 
-    pub fn add_multi_mapping(&mut self, mode: Mode, input: Input, actions: Box<[Action]>) {
+    pub fn add_multi_mapping(
+        &mut self,
+        mode: Mode,
+        input: Input,
+        actions: SmallVec<[Action; BUFFER_SIZE]>,
+    ) {
         self.mappings.insert((mode, input), actions);
     }
 
-    pub fn map_input(&self, input: &Input, mode: Mode) -> Option<Box<[Action]>> {
+    pub fn map_input(&self, input: &Input, mode: Mode) -> SmallVec<[Action; BUFFER_SIZE]> {
         if let Some(event) = self
             .mappings
             .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
         {
-            return Some(event).cloned();
+            return SmallVec::clone(&event);
         }
 
         match (mode, input) {
             (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => {
-                Some(Box::from([Action::InsertChar(*c)]))
+                smallvec![Action::InsertChar(*c)]
             }
-            _ => None,
+            _ => smallvec![],
         }
     }
 }

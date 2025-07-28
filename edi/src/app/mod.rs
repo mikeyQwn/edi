@@ -105,10 +105,7 @@ fn handle_inputs(
             }
         };
 
-        let Some(actions) = state.mapper.map_input(&input, state.mode) else {
-            edi::debug!("no event for input {:?}", input);
-            continue;
-        };
+        let actions = state.mapper.map_input(&input, state.mode);
 
         edi::debug!("received actions {:?}", actions);
 
