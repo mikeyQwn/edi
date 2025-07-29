@@ -9,7 +9,6 @@ pub mod fs;
 pub mod log;
 pub mod rect;
 pub mod string;
-pub mod trace;
-pub mod vec2;
 
 use anyhow as _;
+use smallvec as _;

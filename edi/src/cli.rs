@@ -9,7 +9,7 @@ impl EdiCli {
     pub fn parse(mut args: impl Iterator<Item = String>) -> Self {
         let _program_path = args
             .next()
-            .unwrap_or_else(|| edi::fatal!("args[0] is not found"));
+            .unwrap_or_else(|| edi_lib::fatal!("args[0] is not found"));
 
         let path = args.next().map(PathBuf::from);
 
@@ -20,7 +20,7 @@ impl EdiCli {
             != Some(false);
 
         if !is_file {
-            edi::fatal!("specified file is not found");
+            edi_lib::fatal!("specified file is not found");
         }
 
         Self { edit_file: path }

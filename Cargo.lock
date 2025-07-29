@@ -186,10 +186,18 @@ name = "edi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "edi-lib",
  "edi-rope",
  "edi-term",
  "rand",
  "smallvec",
+]
+
+[[package]]
+name = "edi-lib"
+version = "0.1.0"
+dependencies = [
+ "edi-term",
 ]
 
 [[package]]

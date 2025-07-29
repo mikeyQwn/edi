@@ -1,14 +1,12 @@
 pub mod draw;
 pub mod write;
 
-use crate::{
-    debug,
-    string::{
-        position::{GlobalPosition, LinePosition},
-        search,
-    },
+use crate::string::{
+    position::{GlobalPosition, LinePosition},
+    search,
 };
 
+use edi_lib::debug;
 use edi_rope::{iter::LineInfo, Rope};
 use write::ChangeHistory;
 
@@ -177,9 +175,10 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
+    use edi_lib::vec2::Vec2;
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use crate::{log::set_debug, vec2::Vec2};
+    use crate::log::set_debug;
 
     use super::*;
 

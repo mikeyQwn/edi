@@ -1,14 +1,12 @@
 //! Draw-related buffer functionality
 
+use edi_lib::{debug, span, vec2::Vec2};
 use edi_rope::iter::LineInfo;
 
 use crate::{
-    debug,
     draw::{BoundExt, Cell, Color, Surface},
     rect::Rect,
-    span,
     string::highlight::{Highlight, Type},
-    vec2::Vec2,
 };
 
 use super::Buffer;
@@ -301,10 +299,11 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
+    use edi_lib::vec2::Vec2;
+
     use crate::{
         buffer::{draw::FlushOptions, Buffer},
         draw::Surface,
-        vec2::Vec2,
     };
 
     struct TestSurface {

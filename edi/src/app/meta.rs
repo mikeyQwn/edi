@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use edi::{
     buffer::{draw::FlushOptions, Buffer},
     fs::filetype::Filetype,
-    vec2::Vec2,
 };
+use edi_lib::vec2::Vec2;
 
 #[derive(Default, Debug)]
 pub struct BufferMeta {

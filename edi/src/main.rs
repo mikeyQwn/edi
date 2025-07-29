@@ -21,6 +21,6 @@ fn main() {
     let err = app::run(args);
 
     if let Err(e) = err {
-        edi::debug!("fatal error: {:?}", e);
+        edi_lib::debug!("fatal error: {:?}", e);
     }
 }

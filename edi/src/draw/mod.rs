@@ -1,6 +1,7 @@
+use edi_lib::vec2::Vec2;
 use edi_term::{escaping::ANSIColor, window};
 
-use crate::{rect::Rect, vec2::Vec2};
+use crate::rect::Rect;
 
 #[allow(unused)]
 #[allow(missing_docs)]

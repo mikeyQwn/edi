@@ -1,3 +1,5 @@
+//! Utilities for cheaply recording debug information
+
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -5,9 +7,7 @@ use std::{
     sync::OnceLock,
 };
 
-// TODO:
-// Add spans
-// Add metadata/callsite recording
+// TODO: Add metadata/callsite recording
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
@@ -64,6 +64,28 @@ pub struct Event<'a, 'b> {
     pub level: Level,
     pub spans: &'b [Span],
     pub message: Cow<'a, str>,
+}
+
+impl<'a, 'b> Event<'a, 'b> {
+    const SPAN_SEP: &'static str = "::";
+
+    pub fn spans_to_string(&self) -> String {
+        let s_len = self.spans.iter().map(|span| span.name.len()).sum::<usize>()
+            + self.spans.len().saturating_sub(1) * Self::SPAN_SEP.len();
+
+        let mut s = String::with_capacity(s_len);
+        self.format_spans(&mut s);
+        s
+    }
+
+    pub fn format_spans(&self, fmt: &mut String) {
+        for (i, span) in self.spans.iter().enumerate() {
+            fmt.push_str(span.name);
+            if i.saturating_add(1) != self.spans.len() {
+                fmt.push_str("::");
+            }
+        }
+    }
 }
 
 pub trait Subscriber {

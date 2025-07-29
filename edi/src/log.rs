@@ -5,46 +5,35 @@ use std::time::SystemTime;
 const DEBUG_FILE: &str = "log";
 static DEBUG_ENABLED: OnceLock<bool> = OnceLock::new();
 
-use crate::trace::{Event, Level, Subscriber};
+use edi_lib::trace::{Event, Level, Subscriber};
 
 pub fn set_debug(value: bool) -> bool {
     DEBUG_ENABLED.set(value).is_ok()
 }
 
 fn __debug_internal(event: &Event) {
-    if !matches!(DEBUG_ENABLED.get(), Some(true)) {
+    if DEBUG_ENABLED.get() != Some(&true) {
         return;
     }
 
-    let f = std::fs::OpenOptions::new()
+    let Ok(mut f) = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
-        .open(DEBUG_FILE);
+        .open(DEBUG_FILE)
+    else {
+        return;
+    };
 
-    let span_len = event.spans.len();
-
-    if let Ok(mut f) = f {
-        let _ = writeln!(
-            f,
-            "[-] {} [{}] {}",
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("system clock should not run backwards")
-                .as_secs(),
-            event
-                .spans
-                .iter()
-                .enumerate()
-                .fold(String::new(), |mut acc, (i, span)| {
-                    acc.push_str(span.name);
-                    if i != span_len.saturating_sub(1) {
-                        acc.push_str("::");
-                    }
-                    acc
-                }),
-            event.message
-        );
-    }
+    let _ = writeln!(
+        f,
+        "[-] {} [{}] {}",
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("system clock should not run backwards")
+            .as_secs(),
+        event.spans_to_string(),
+        event.message,
+    );
 }
 
 fn __fatal_internal(msg: &str) {
@@ -73,5 +62,5 @@ impl Subscriber for LogSubscriber {
 ///
 pub fn init() -> Result<(), ()> {
     let sub = LogSubscriber;
-    crate::trace::set_subscriber(sub)
+    edi_lib::trace::set_subscriber(sub)
 }

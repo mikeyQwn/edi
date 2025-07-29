@@ -1,4 +1,4 @@
-use crate::vec2::Vec2;
+use edi_lib::vec2::Vec2;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {

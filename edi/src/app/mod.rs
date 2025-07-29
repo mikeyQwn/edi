@@ -2,6 +2,7 @@ mod action;
 mod meta;
 
 use action::{Action, InputMapper, MoveAction};
+use edi_lib::vec2::Vec2;
 use edi_term::{
     coord::Coordinates,
     escaping::ANSIEscape,
@@ -21,9 +22,7 @@ use edi::{
     draw::{Surface, WindowBind},
     fs::filetype::Filetype,
     rect::Rect,
-    span,
     string::highlight::get_highlights,
-    vec2::Vec2,
 };
 
 use edi::buffer::Buffer;
@@ -93,21 +92,21 @@ fn handle_inputs(
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<()> {
-    let _span = span!("handle_inputs");
-    edi::debug!("running");
+    let _span = edi_lib::span!("handle_inputs");
+    edi_lib::debug!("running");
     'outer: loop {
         let message = input_stream.recv()?;
         let input = match message {
             input::Message::Input(event) => event,
             input::Message::Error(e) => {
-                edi::debug!("received an error {:?}", e);
+                edi_lib::debug!("received an error {:?}", e);
                 continue;
             }
         };
 
         let actions = state.mapper.map_input(&input, state.mode);
 
-        edi::debug!("received actions {:?}", actions);
+        edi_lib::debug!("received actions {:?}", actions);
 
         for action in actions {
             match handle_action(action, state, render_window) {
@@ -127,7 +126,7 @@ fn handle_action(
     state: &mut State,
     render_window: &mut Window,
 ) -> anyhow::Result<bool> {
-    let _span = span!("handle_event");
+    let _span = edi_lib::span!("handle_event");
     match event {
         Action::SwitchMode(mode) => {
             if state.mode == Mode::Terminal {
@@ -163,7 +162,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("no buffers to write to");
+                    edi_lib::debug!("no buffers to write to");
                 }
             }
             render_window.render()?;
@@ -176,7 +175,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("no buffers to delete from");
+                    edi_lib::debug!("no buffers to delete from");
                 }
             }
             render_window.render()?;
@@ -192,7 +191,7 @@ fn handle_action(
             }
             if cmd == ":wq" {
                 let Some((b, meta)) = state.buffers.pop_front() else {
-                    edi::fatal!("no buffer to write")
+                    edi_lib::fatal!("no buffer to write")
                 };
 
                 let swap_name = meta
@@ -212,7 +211,7 @@ fn handle_action(
                 {
                     Ok(f) => f,
                     Err(e) => {
-                        edi::debug!("unable to create output file {e} {swap_name:?}");
+                        edi_lib::debug!("unable to create output file {e} {swap_name:?}");
                         return Ok(true);
                     }
                 };
@@ -225,13 +224,13 @@ fn handle_action(
                     else {
                         return;
                     };
-                    edi::fatal!("unable to write line contents: {:?}", err);
+                    edi_lib::fatal!("unable to write line contents: {:?}", err);
                 });
 
                 if let Err(e) =
                     std::fs::rename(swap_name, meta.filepath.unwrap_or(PathBuf::from("out.txt")))
                 {
-                    edi::debug!("app::handle_event failed to rename file {e}");
+                    edi_lib::debug!("app::handle_event failed to rename file {e}");
                 };
 
                 return handle_action(Action::Quit, state, render_window);
@@ -245,7 +244,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("handle_event: no buffers to move cursor in");
+                    edi_lib::debug!("handle_event: no buffers to move cursor in");
                 }
             }
             render_window.render()?;
@@ -253,13 +252,13 @@ fn handle_action(
         Action::Undo => {
             match state.buffers.front_mut() {
                 Some((buffer, meta)) => {
-                    edi::debug!("undoing last action");
+                    edi_lib::debug!("undoing last action");
                     buffer.undo();
                     meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("handle_event: no buffers to undo in");
+                    edi_lib::debug!("handle_event: no buffers to undo in");
                 }
             }
             render_window.render()?;
@@ -272,7 +271,7 @@ fn handle_action(
                     redraw(state, render_window)?;
                 }
                 None => {
-                    edi::debug!("handle_event: no buffers to undo in");
+                    edi_lib::debug!("handle_event: no buffers to undo in");
                 }
             }
             render_window.render()?;
@@ -298,8 +297,8 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
 }
 
 fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
-    let _guard = span!("redraw");
-    edi::debug!("drawing {} buffers", state.buffers.len());
+    let _guard = edi_lib::span!("redraw");
+    edi_lib::debug!("drawing {} buffers", state.buffers.len());
 
     draw_window.clear();
     state.buffers.iter_mut().rev().for_each(|(b, m)| {
