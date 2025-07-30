@@ -6,7 +6,6 @@
 pub mod buffer;
 pub mod draw;
 pub mod fs;
-pub mod log;
 pub mod rect;
 pub mod string;
 
