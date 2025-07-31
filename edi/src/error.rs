@@ -21,10 +21,23 @@ pub struct AppError {
     pub hint: Option<Box<str>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum AppErrorKind {
     Io,
+    TerminalIo,
     Unexpected,
+    InvalidArgument,
+}
+
+impl AppErrorKind {
+    pub fn error_message(self) -> &'static str {
+        match self {
+            AppErrorKind::Io => "unable to perform i/o operation",
+            AppErrorKind::TerminalIo => "unable to perform i/o operation on the terminal",
+            AppErrorKind::Unexpected => "unexpected error occurred",
+            AppErrorKind::InvalidArgument => "invalid argument supplied",
+        }
+    }
 }
 
 impl AppError {
@@ -36,6 +49,11 @@ impl AppError {
             cause: None,
             hint: None,
         }
+    }
+
+    #[must_use]
+    pub fn from_kind(kind: AppErrorKind) -> Self {
+        Self::new(kind.error_message(), kind)
     }
 
     #[must_use]

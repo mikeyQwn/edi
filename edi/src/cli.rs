@@ -1,28 +1,37 @@
 use std::path::PathBuf;
 
+use crate::error::{AppError, AppErrorKind, Result};
+
 #[derive(Debug)]
 pub struct EdiCli {
     pub edit_file: Option<PathBuf>,
 }
 
 impl EdiCli {
-    pub fn parse(mut args: impl Iterator<Item = String>) -> Self {
-        let _program_path = args
-            .next()
-            .unwrap_or_else(|| edi_lib::fatal!("args[0] is not found"));
+    pub fn parse(mut args: impl Iterator<Item = String>) -> Result<Self> {
+        let program_path = args.next().ok_or_else(|| {
+            AppError::new(
+                "unable to read the application name, 0 arguments provided",
+                AppErrorKind::Unexpected,
+            )
+        })?;
 
-        let path = args.next().map(PathBuf::from);
+        let path_str = args.next();
+        let path = path_str.clone().map(PathBuf::from);
 
-        let is_file = path
-            .as_ref()
-            .and_then(|p| p.metadata().ok())
-            .map(|metadata| metadata.is_file())
-            != Some(false);
+        let is_file = path.as_ref().map(|p| p.is_dir()) != Some(false);
 
         if !is_file {
-            edi_lib::fatal!("specified file is not found");
+            return Err(AppError::new(
+                format!(
+                    "`{}` does not exist or is a directory",
+                    path_str.unwrap_or_else(String::new)
+                ),
+                AppErrorKind::InvalidArgument,
+            )
+            .with_hint(format!("run `{program_path} <file_to_edit>`")));
         }
 
-        Self { edit_file: path }
+        Ok(Self { edit_file: path })
     }
 }

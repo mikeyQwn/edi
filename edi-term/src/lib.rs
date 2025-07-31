@@ -16,7 +16,8 @@ use std::os::fd::{AsRawFd, RawFd};
 /// May be used to restore the state after manipulating it with the `restore_state` function
 ///
 /// # Errors
-/// Returns an `io::Error` if underlying c function fails
+///
+/// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn get_current_state() -> Result<termios::Termios, Errno> {
     termios::tcgetattr(std::io::stdin())
 }
@@ -27,7 +28,8 @@ pub fn get_current_state() -> Result<termios::Termios, Errno> {
 /// may persist after the program exits
 ///
 /// # Errors
-/// Returns an `io::Error` if underlying c functions fails
+///
+/// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn into_raw() -> Result<(), Errno> {
     let mut termios = termios::tcgetattr(std::io::stdin())?;
     termios.local_flags &= !(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
@@ -37,7 +39,8 @@ pub fn into_raw() -> Result<(), Errno> {
 /// Restores the terminal state to the given state
 ///
 /// # Errors
-/// Returns an `io::Error` if underlying c function fails
+///
+/// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn restore_state(state: &termios::Termios) -> Result<(), Errno> {
     termios::tcsetattr(std::io::stdin(), termios::SetArg::TCSAFLUSH, state)
 }
@@ -48,7 +51,7 @@ ioctl_read_bad!(get_win_size, TIOCGWINSZ, nix::pty::Winsize);
 ///
 /// # Errors
 ///
-/// Returns an `io::Error` if underlying c function fails
+/// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn get_size() -> Result<Dimensions<u16>, Errno> {
     let mut winsize = nix::pty::Winsize {
         ws_row: 0,
@@ -69,7 +72,7 @@ pub fn get_size() -> Result<Dimensions<u16>, Errno> {
 ///
 /// # Errors
 ///
-/// Returns an error if unable to enter raw mode / restore the state
+/// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T, Errno> {
     let initial_state = get_current_state()?;
     into_raw()?;

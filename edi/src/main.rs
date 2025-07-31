@@ -52,7 +52,7 @@ fn run() -> Result<()> {
         setup_logging()?;
     }
 
-    let args = cli::EdiCli::parse(std::env::args());
+    let args = cli::EdiCli::parse(std::env::args())?;
     app::run(args)
         .map_err(|err| AppError::new(format!("fatal error: {err:?}"), AppErrorKind::Unexpected))?;
 
