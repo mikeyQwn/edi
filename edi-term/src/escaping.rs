@@ -67,6 +67,20 @@ pub enum ANSIEscape<'a> {
     SetColor(ANSIColor),
     /// Sets the backgrounod color to the ANSI color
     SetBgColor(ANSIColor),
+    /// Makes the following text bold
+    StartBold,
+    /// Makes the following text NOT bold
+    EndBold,
+    /// Makes the following text italic
+    StartItalic,
+    /// Makes the following text NOT italic
+    EndItalic,
+    /// Makes the following text underlined
+    StartUnderline,
+    /// Makes the following text NOT underlined
+    EndUnderline,
+    /// Resets the styles for all the following text
+    EndAll,
     /// Enters the alternate screen state
     EnterAlternateScreen,
     /// Exits the alternate screen state
@@ -82,6 +96,13 @@ impl<'a> ANSIEscape<'a> {
             Self::Write(text) => text,
             Self::SetColor(color) => Cow::Borrowed(color.value()),
             Self::SetBgColor(color) => Cow::Borrowed(color.value_bg()),
+            Self::StartBold => Cow::Borrowed("\x1b[1m"),
+            Self::EndBold => Cow::Borrowed("\x1b[22m"),
+            Self::StartItalic => Cow::Borrowed("\x1b[3m"),
+            Self::EndItalic => Cow::Borrowed("\x1b[23m"),
+            Self::StartUnderline => Cow::Borrowed("\x1b[4m"),
+            Self::EndUnderline => Cow::Borrowed("\x1b[24m"),
+            Self::EndAll => Cow::Borrowed("\x1b[0m"),
             Self::EnterAlternateScreen => Cow::Borrowed("\x1b[?1049h"),
             Self::ExitAlternateScreen => Cow::Borrowed("\x1b[?1049l"),
         }
@@ -116,11 +137,23 @@ impl<'a> EscapeBuilder<'a> {
         self
     }
 
-    /// Writes a string at a given position
+    /// Writes a string at the end of escape sequence
     #[must_use]
     pub fn write(mut self, text: Cow<'a, str>) -> Self {
         self.inner.push(ANSIEscape::Write(text));
         self
+    }
+
+    /// Writes a &str at the end of escape sequence
+    #[must_use]
+    pub fn write_str(self, text: &'a str) -> Self {
+        self.write(Cow::Borrowed(text))
+    }
+
+    /// Writes a &str at the end of escape sequence
+    #[must_use]
+    pub fn write_string(self, text: String) -> Self {
+        self.write(Cow::Owned(text))
     }
 
     /// Sets the foreground color to the ANSI color
@@ -130,10 +163,73 @@ impl<'a> EscapeBuilder<'a> {
         self
     }
 
+    /// Resets the foreground color to the default
+    #[must_use]
+    pub fn end_color(mut self) -> Self {
+        self.inner.push(ANSIEscape::SetColor(ANSIColor::Default));
+        self
+    }
+
     /// Sets the background color to the ANSI color
     #[must_use]
     pub fn set_bg_color(mut self, color: ANSIColor) -> Self {
         self.inner.push(ANSIEscape::SetBgColor(color));
+        self
+    }
+
+    /// Resets the background color to the default
+    #[must_use]
+    pub fn end_bg_color(mut self) -> Self {
+        self.inner.push(ANSIEscape::SetBgColor(ANSIColor::Default));
+        self
+    }
+
+    /// Makes the following text bold
+    #[must_use]
+    pub fn bold(mut self) -> Self {
+        self.inner.push(ANSIEscape::StartBold);
+        self
+    }
+
+    /// Makes the following text NOT bold
+    #[must_use]
+    pub fn end_bold(mut self) -> Self {
+        self.inner.push(ANSIEscape::EndBold);
+        self
+    }
+
+    /// Makes the following text italic
+    #[must_use]
+    pub fn italic(mut self) -> Self {
+        self.inner.push(ANSIEscape::StartItalic);
+        self
+    }
+
+    /// Makes the following text NOT italic
+    #[must_use]
+    pub fn end_italic(mut self) -> Self {
+        self.inner.push(ANSIEscape::EndItalic);
+        self
+    }
+
+    /// Makes the following text underlined
+    #[must_use]
+    pub fn underline(mut self) -> Self {
+        self.inner.push(ANSIEscape::StartUnderline);
+        self
+    }
+
+    /// Makes the following text NOT underlined
+    #[must_use]
+    pub fn end_underline(mut self) -> Self {
+        self.inner.push(ANSIEscape::EndUnderline);
+        self
+    }
+
+    /// Resets the styles for the following text
+    #[must_use]
+    pub fn reset(mut self) -> Self {
+        self.inner.push(ANSIEscape::EndAll);
         self
     }
 
