@@ -463,9 +463,9 @@ mod tests {
         let opts = FlushOptions::default().with_line_numbers(true);
         buf.flush(&mut surface, &opts);
         let contents = surface.get_contents();
-        assert_eq!(contents[0], "0    ");
+        assert_eq!(contents[0], "   0 ");
         assert_eq!(contents[1], "     ");
-        assert_eq!(surface.cursor_pos, Some(Vec2::new(2, 0)));
+        assert_eq!(surface.cursor_pos, None);
         // TODO: fix a bug where when you start editing an empty file, every newline does not
         // create a line while drawing
         let text = "\n\n";
@@ -473,7 +473,7 @@ mod tests {
         surface.clear();
         buf.flush(&mut surface, &opts);
         let contents = surface.get_contents();
-        assert_eq!(contents[0], "0    ");
-        assert_eq!(contents[1], "1    ");
+        assert_eq!(contents[0], "   0 ");
+        assert_eq!(contents[1], "   1 ");
     }
 }

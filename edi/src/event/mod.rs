@@ -131,7 +131,7 @@ impl EventManager {
 }
 
 #[derive(Debug, Clone)]
-struct Event {
+pub struct Event {
     ty: Type,
     payload: Option<Payload>,
 }
@@ -154,12 +154,12 @@ impl Event {
 }
 
 #[derive(Debug, Clone)]
-enum Payload {
+pub enum Payload {
     Input(Input),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Type {
+pub enum Type {
     Input,
     Quit,
 }

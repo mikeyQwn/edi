@@ -16,7 +16,7 @@ mod event;
 
 const DEBUG_FILE: &str = "log";
 
-fn setup_logging() -> Result<()> {
+pub fn setup_logging() -> Result<()> {
     let sub = FileLogSubscriber::new(DEBUG_FILE).map_err(|err| {
         AppError::new(
             format!("unable to initialize logging, file `{DEBUG_FILE}` could not be created"),

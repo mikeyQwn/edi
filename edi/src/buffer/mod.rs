@@ -178,8 +178,6 @@ mod tests {
     use edi_lib::vec2::Vec2;
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use crate::log::set_debug;
-
     use super::*;
 
     fn test_inputs(inner: &str, n: usize) {
@@ -261,8 +259,6 @@ mod tests {
     #[test]
     fn movement() {
         const TRIES: usize = 1024;
-        set_debug(true);
-        crate::log::init().unwrap();
 
         test_inputs("c\n\n", TRIES);
         test_inputs("\n\n", TRIES);
