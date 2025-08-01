@@ -19,7 +19,7 @@ impl EdiCli {
         let path_str = args.next();
         let path = path_str.clone().map(PathBuf::from);
 
-        let is_file = path.as_ref().map(|p| p.is_dir()) != Some(false);
+        let is_file = path.as_ref().map(|p| p.is_file()) != Some(false);
 
         if !is_file {
             return Err(AppError::new(

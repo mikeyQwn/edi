@@ -12,16 +12,7 @@ use rand as _;
 mod app;
 mod cli;
 mod error;
-
-#[cfg(not(debug_assertions))]
-fn is_debug() -> bool {
-    false
-}
-
-#[cfg(debug_assertions)]
-fn is_debug() -> bool {
-    true
-}
+mod event;
 
 const DEBUG_FILE: &str = "log";
 
@@ -48,9 +39,8 @@ fn setup_logging() -> Result<()> {
 }
 
 fn run() -> Result<()> {
-    if is_debug() {
-        setup_logging()?;
-    }
+    #[cfg(debug_assertions)]
+    setup_logging()?;
 
     let args = cli::EdiCli::parse(std::env::args())?;
     app::run(args)
@@ -64,5 +54,6 @@ fn main() -> ExitCode {
         eprintln!("{e}");
         return ExitCode::FAILURE;
     }
+
     ExitCode::SUCCESS
 }

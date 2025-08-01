@@ -27,20 +27,23 @@ use edi::{
 
 use edi::buffer::Buffer;
 
-use crate::cli::EdiCli;
+use crate::{
+    cli::EdiCli,
+    event::{handlers, sources, EventManager},
+};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-enum Mode {
+pub enum Mode {
     Normal,
     Insert,
     Terminal,
 }
 
 #[derive(Debug)]
-struct State {
-    mode: Mode,
-    mapper: InputMapper,
-    buffers: VecDeque<(Buffer, BufferMeta)>,
+pub struct State {
+    pub mode: Mode,
+    pub mapper: InputMapper,
+    pub buffers: VecDeque<(Buffer, BufferMeta)>,
 }
 
 impl State {
@@ -121,7 +124,7 @@ fn handle_inputs(
 }
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
-fn handle_action(
+pub fn handle_action(
     event: Action,
     state: &mut State,
     render_window: &mut Window,
@@ -312,11 +315,12 @@ fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal
 pub fn run(args: EdiCli) -> anyhow::Result<()> {
+    let mut event_manager = EventManager::new();
+    event_manager.attach_source(sources::input_source);
+
     edi_term::within_raw_mode(|| {
         let mut render_window = Window::new();
         let mut app_state = State::new();
-        let input_stream = Stream::from_stdin();
-
         let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
         let size = edi_term::get_size()?.map(|v| v as usize);
@@ -331,7 +335,9 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         redraw(&mut app_state, &mut render_window)?;
 
-        handle_inputs(&input_stream, &mut app_state, &mut render_window)?;
+        let input_handler = handlers::InputHandler::new(app_state, render_window);
+        event_manager.attach_handler(input_handler);
+        let _ = event_manager.run();
 
         let _ = stdout().write(ANSIEscape::ExitAlternateScreen.to_str().as_bytes());
 
