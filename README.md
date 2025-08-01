@@ -1,6 +1,13 @@
 # Edi - A vim-like text editor in Rust
 
-Edi is a lightweight, text editor inspired by Vim, written in Rust. It's currently in very early development. The goal is to create a fast, minimal code editor that I myself would use. Syntax highlighting, formatting and lsp support should come out of the box.
+[![Build status][actions-badge]][actions]
+![License][license-badge]
+
+[actions-badge]: https://github.com/mikeyQwn/edi/actions/workflows/ci.yml/badge.svg
+[actions]: https://github.com/mikeyQwn/edi/actions?query=branch%3Amaster
+[license-badge]: https://img.shields.io/github/license/mikeyQwn/edi.svg
+
+Edi is a lightweight text editor inspired by Vim, written in Rust. It's currently in a very early stage development. The goal is to create a fast, minimal code editor that I myself would use. Syntax highlighting, formatting and lsp support should come out of the box.
 
 ![edi](./screenshots/edi.png)
 
