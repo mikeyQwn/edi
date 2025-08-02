@@ -50,23 +50,23 @@ where
     }
 }
 
-pub trait Handler {
-    fn handle(&mut self, event: &Event, sender: &Sender);
+pub trait Handler<State> {
+    fn handle(&mut self, state: &mut State, event: &Event, sender: &Sender);
     fn interested_in(&self, event: &Event) -> bool {
         let _ = event;
         true
     }
 }
 
-pub struct EventManager {
+pub struct EventManager<State> {
     tx: mpsc::Sender<Event>,
     rx: mpsc::Receiver<Event>,
 
     attached_sources: Vec<Box<dyn Source>>,
-    attached_handlers: Vec<Box<dyn Handler>>,
+    attached_handlers: Vec<Box<dyn Handler<State>>>,
 }
 
-impl EventManager {
+impl<State> EventManager<State> {
     #[must_use]
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
@@ -94,12 +94,12 @@ impl EventManager {
 
     pub fn attach_handler<Hnd>(&mut self, handler: Hnd)
     where
-        Hnd: Handler + 'static,
+        Hnd: Handler<State> + 'static,
     {
         self.attached_handlers.push(Box::new(handler));
     }
 
-    pub fn run(mut self) -> SourcesHandle {
+    pub fn run(mut self, mut state: State) -> SourcesHandle {
         let mut handle = SourcesHandle::new(self.attached_sources.len());
         let sources = std::mem::take(&mut self.attached_sources);
 
@@ -122,7 +122,7 @@ impl EventManager {
                     continue;
                 }
 
-                handler.handle(&event, &sender);
+                handler.handle(&mut state, &event, &sender);
             }
         }
 

@@ -59,6 +59,8 @@ pub enum Input {
     Unimplemented(Vec<u8>),
 }
 
+pub const ESCAPE: u8 = 27;
+
 impl Input {
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
@@ -67,14 +69,14 @@ impl Input {
             [10] => Input::Enter,
             [18] => Input::Control('r'),
             [21] => Input::Control('u'),
-            [27] => Input::Escape,
+            [ESCAPE] => Input::Escape,
             [127] => Input::Backspace,
             [c] if c.is_ascii() => Input::Keypress(*c as char),
 
-            [27, 91, 65] => Input::ArrowUp,
-            [27, 91, 66] => Input::ArrowDown,
-            [27, 91, 67] => Input::ArrowRight,
-            [27, 91, 68] => Input::ArrowLeft,
+            [ESCAPE, 91, 65] => Input::ArrowUp,
+            [ESCAPE, 91, 66] => Input::ArrowDown,
+            [ESCAPE, 91, 67] => Input::ArrowRight,
+            [ESCAPE, 91, 68] => Input::ArrowLeft,
 
             _ => Input::Unimplemented(bytes.into()),
         }

@@ -32,7 +32,22 @@ pub fn get_current_state() -> Result<termios::Termios, Errno> {
 /// Returns an error with corresponding `Errno` if underlying c function fails
 pub fn into_raw() -> Result<(), Errno> {
     let mut termios = termios::tcgetattr(std::io::stdin())?;
-    termios.local_flags &= !(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
+
+    termios
+        .local_flags
+        .remove(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
+    // termios.local_flags &= !(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
+
+    // termios
+    //     .input_flags
+    //     .remove(termios::InputFlags::IXON | termios::InputFlags::ICRNL);
+    //
+    termios.output_flags.remove(termios::OutputFlags::OPOST);
+    termios.control_flags.remove(termios::ControlFlags::CS8);
+
+    termios.control_chars[nix::libc::VMIN] = 1;
+    termios.control_chars[nix::libc::VTIME] = 0;
+
     termios::tcsetattr(std::io::stdin(), termios::SetArg::TCSAFLUSH, &termios)
 }
 

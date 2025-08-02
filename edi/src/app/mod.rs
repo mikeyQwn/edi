@@ -39,6 +39,11 @@ pub enum Mode {
     Terminal,
 }
 
+pub struct AppState {
+    pub state: State,
+    pub window: Window,
+}
+
 #[derive(Debug)]
 pub struct State {
     pub mode: Mode,
@@ -319,25 +324,25 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
     event_manager.attach_source(sources::input_source);
 
     edi_term::within_raw_mode(|| {
-        let mut render_window = Window::new();
-        let mut app_state = State::new();
+        let mut window = Window::new();
+        let mut state = State::new();
         let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
         let size = edi_term::get_size()?.map(|v| v as usize);
 
         if let Some(filepath) = args.edit_file {
-            app_state.open_file(filepath, Vec2::from_dims(size))?;
+            state.open_file(filepath, Vec2::from_dims(size))?;
         }
 
-        render_window.set_size(size);
-        render_window.set_cursor(Coordinates::new(0, 0));
-        render_window.rerender()?;
+        window.set_size(size);
+        window.set_cursor(Coordinates::new(0, 0));
+        window.rerender()?;
 
-        redraw(&mut app_state, &mut render_window)?;
+        redraw(&mut state, &mut window)?;
 
-        let input_handler = handlers::InputHandler::new(app_state, render_window);
+        let input_handler = handlers::InputHandler::new();
         event_manager.attach_handler(input_handler);
-        let _ = event_manager.run();
+        let _ = event_manager.run(AppState { state, window });
 
         let _ = stdout().write(ANSIEscape::ExitAlternateScreen.to_str().as_bytes());
 

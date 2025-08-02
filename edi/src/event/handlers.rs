@@ -1,30 +1,28 @@
-use edi_term::window::Window;
-
 use crate::{
-    app::{handle_action, State},
+    app::{handle_action, AppState},
     event::{Event, Handler, Payload, Type},
 };
 
-pub struct InputHandler {
-    state: State,
-    window: Window,
-}
+pub struct InputHandler {}
 
 impl InputHandler {
-    pub fn new(state: State, window: Window) -> Self {
-        Self { state, window }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
-impl Handler for InputHandler {
-    fn handle(&mut self, event: &super::Event, sender: &super::Sender) {
+impl Handler<AppState> for InputHandler {
+    fn handle(&mut self, app_state: &mut AppState, event: &super::Event, sender: &super::Sender) {
         let Some(Payload::Input(input)) = event.payload.as_ref() else {
             return;
         };
 
-        let actions = self.state.mapper.map_input(input, self.state.mode);
+        let actions = app_state
+            .state
+            .mapper
+            .map_input(input, app_state.state.mode);
         for action in actions {
-            match handle_action(action, &mut self.state, &mut self.window) {
+            match handle_action(action, &mut app_state.state, &mut app_state.window) {
                 Ok(true) => {
                     let _ = sender.send_event(Event::new(Type::Quit));
                 }
