@@ -1,6 +1,9 @@
 //! Common filetype operations and constants
 
-use std::sync::{Arc, LazyLock};
+use std::{
+    ffi::OsStr,
+    sync::{Arc, LazyLock},
+};
 
 pub static UNKNOWN: LazyLock<Filetype> = LazyLock::new(|| Filetype(Arc::from("unknown")));
 pub static C: LazyLock<Filetype> = LazyLock::new(|| Filetype(Arc::from("c")));
@@ -48,5 +51,18 @@ impl Filetype {
         };
 
         Some(Self::clone(inner))
+    }
+}
+
+impl<P> From<P> for Filetype
+where
+    P: AsRef<std::path::Path>,
+{
+    fn from(value: P) -> Self {
+        let p = value.as_ref();
+        match p.extension().and_then(OsStr::to_str) {
+            Some(ext) => Self::from_ext(ext),
+            None => UNKNOWN.clone(),
+        }
     }
 }

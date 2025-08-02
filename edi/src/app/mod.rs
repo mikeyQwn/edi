@@ -2,7 +2,7 @@ mod action;
 mod meta;
 
 use action::{Action, InputMapper, MoveAction};
-use edi_lib::vec2::Vec2;
+use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::{coord::Coordinates, escaping::ANSIEscape, window::Window};
 use meta::BufferMeta;
 
@@ -14,13 +14,11 @@ use std::{
 };
 
 use edi::{
+    buffer::Buffer,
     draw::{Surface, WindowBind},
-    fs::filetype::Filetype,
     rect::Rect,
     string::highlight::get_highlights,
 };
-
-use edi::buffer::Buffer;
 
 use crate::{
     cli::EdiCli,
@@ -67,12 +65,7 @@ impl State {
         let contents = std::fs::read_to_string(filepath)?;
 
         let buffer = Buffer::new(&contents);
-        let filetype = Filetype::from_ext(
-            filepath
-                .extension()
-                .and_then(|v| v.to_str())
-                .unwrap_or("unknown"),
-        );
+        let filetype = Filetype::from(filepath);
 
         let mut meta = BufferMeta::default()
             .with_filepath(Some(filepath.into()))
@@ -96,7 +89,8 @@ pub fn handle_action(
     state: &mut State,
     sender: &event::Sender,
 ) -> anyhow::Result<()> {
-    let _span = edi_lib::span!("handle_event");
+    let _span = edi_lib::span!("handle_action");
+
     match event {
         Action::SwitchMode(mode) => {
             if state.mode == Mode::Terminal {
