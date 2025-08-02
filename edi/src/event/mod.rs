@@ -20,6 +20,7 @@ impl SourcesHandle {
         self.senders.push(handle);
     }
 
+    #[allow(unused)]
     pub fn join(self) {
         for sender in self.senders {
             let _ = sender.join();
@@ -34,6 +35,18 @@ pub struct Sender {
 impl Sender {
     pub fn send_event(&self, event: Event) -> bool {
         self.tx.send(event).is_ok()
+    }
+
+    pub fn send_input(&self, input: Input) -> bool {
+        self.send_event(Event::input(input))
+    }
+
+    pub fn send_redraw(&self) -> bool {
+        self.send_event(Event::redraw())
+    }
+
+    pub fn send_quit(&self) -> bool {
+        self.send_event(Event::quit())
     }
 }
 
@@ -143,6 +156,21 @@ impl Event {
     }
 
     #[must_use]
+    pub fn input(input: Input) -> Self {
+        Self::new(Type::Input).with_payload(Payload::Input(input))
+    }
+
+    #[must_use]
+    pub fn redraw() -> Self {
+        Self::new(Type::Redraw)
+    }
+
+    #[must_use]
+    pub fn quit() -> Self {
+        Self::new(Type::Quit)
+    }
+
+    #[must_use]
     pub fn with_payload(mut self, payload: Payload) -> Self {
         self.payload = Some(payload);
         self
@@ -161,5 +189,6 @@ pub enum Payload {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
     Input,
+    Redraw,
     Quit,
 }

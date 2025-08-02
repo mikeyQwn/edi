@@ -35,7 +35,6 @@ pub enum Action {
     SwitchMode(Mode),
     InsertChar(char),
     DeleteChar,
-    Quit,
     Submit,
     Undo,
     Redo,
