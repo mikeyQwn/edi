@@ -77,7 +77,7 @@ pub fn get_size() -> Result<Dimensions<u16>, Errno> {
 
     // SAFETY: winsize struct is valid and mutable
     unsafe {
-        let _ = get_win_size(get_stdin_fd(), &mut winsize)?;
+        let _ = get_win_size(get_stdin_fd(), &raw mut winsize)?;
     }
 
     Ok(Dimensions::new(winsize.ws_col, winsize.ws_row))

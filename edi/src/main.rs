@@ -16,6 +16,9 @@ mod event;
 
 const DEBUG_FILE: &str = "log";
 
+/// # Errors
+///
+/// Returns `AppError` if debug file is not available or subscriber is already set
 pub fn setup_logging() -> Result<()> {
     let sub = FileLogSubscriber::new(DEBUG_FILE).map_err(|err| {
         AppError::new(
@@ -28,12 +31,12 @@ pub fn setup_logging() -> Result<()> {
         ))
     })?;
 
-    edi_lib::trace::set_subscriber(sub).map_err(|_| {
-        AppError::new(
+    if !edi_lib::trace::set_subscriber(sub) {
+        return Err(AppError::new(
             "unable to initialize logging, set_subscriber failed",
             AppErrorKind::Unexpected,
-        )
-    })?;
+        ));
+    }
 
     Ok(())
 }

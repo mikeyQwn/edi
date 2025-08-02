@@ -12,6 +12,10 @@ pub struct FileLogSubscriber {
 }
 
 impl FileLogSubscriber {
+    /// # Errors
+    ///
+    /// Returns `io::Error` error if `debug_file` could not be opened for writing
+    ///
     pub fn new(debug_file: impl AsRef<Path>) -> io::Result<Self> {
         let f = std::fs::OpenOptions::new()
             .append(true)
@@ -43,6 +47,8 @@ impl FileLogSubscriber {
     }
 
     fn fatal(&self, event: &Event) -> io::Result<()> {
+        let _ = self.debug(event);
+
         let msg = event.message.as_ref();
         writeln!(std::io::stderr(), "\x1b[0;31m[-]\x1b[0m {msg}")?;
         Ok(())

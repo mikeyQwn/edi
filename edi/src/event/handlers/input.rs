@@ -3,10 +3,10 @@ use crate::{
     event::{self, Event},
 };
 
-pub struct InputHandler {}
+pub struct InputHandler;
 
 impl InputHandler {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {}
     }
 }
@@ -24,11 +24,8 @@ impl event::Handler<AppState> for InputHandler {
             .mapper
             .map_input(input, app_state.state.mode);
         for action in actions {
-            match handle_action(action, &mut app_state.state, sender) {
-                Err(err) => {
-                    edi_lib::debug!("{err}")
-                }
-                _ => {}
+            if let Err(err) = handle_action(action, &mut app_state.state, sender) {
+                edi_lib::debug!("{err}");
             }
         }
     }

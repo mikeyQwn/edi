@@ -1,6 +1,6 @@
 //! Node of the rope's inner tree
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 
 use crate::iter::Lines;
 
@@ -48,7 +48,7 @@ impl Node {
     }
 
     /// Returns the weight of the node
-    pub fn weight(&self) -> usize {
+    pub const fn weight(&self) -> usize {
         match self {
             Node::Leaf { char_len, .. } => *char_len,
             Node::Value { left_len: val, .. } => *val,
@@ -56,7 +56,7 @@ impl Node {
     }
 
     /// Returns number of newlines of the node and all it's children combined
-    pub fn newlines(&self) -> usize {
+    pub const fn newlines(&self) -> usize {
         match self {
             Node::Leaf { newlines, .. } => *newlines,
             Node::Value { left_newlines, .. } => *left_newlines,
@@ -135,10 +135,11 @@ impl Node {
                 } else {
                     format!("{:?} ({} chars)", value, value.len())
                 };
-                buffer.push_str(&format!(
-                    "{prefix}Leaf ({}): {content}\n",
+                let _ = writeln!(
+                    buffer,
+                    "{prefix}Leaf ({}): {content}",
                     if is_r { "r" } else { "l" },
-                ));
+                );
             }
             Node::Value {
                 left_len,
@@ -146,10 +147,11 @@ impl Node {
                 l,
                 r,
             } => {
-                buffer.push_str(&format!(
-                    "{prefix}Value ({}): left_len={left_len}, left_newlines={left_newlines}\n",
+                let _ = writeln!(
+                    buffer,
+                    "{prefix}Value ({}): left_len={left_len}, left_newlines={left_newlines}",
                     if is_r { "r" } else { "l" },
-                ));
+                );
 
                 if let Some(left) = l {
                     if r.is_some() {

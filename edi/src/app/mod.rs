@@ -84,6 +84,11 @@ impl State {
 }
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
+#[allow(
+    clippy::too_many_lines,
+    clippy::unnecessary_wraps,
+    clippy::cognitive_complexity
+)]
 pub fn handle_action(
     event: Action,
     state: &mut State,
@@ -185,7 +190,7 @@ pub fn handle_action(
                 b.inner.lines().for_each(|line| {
                     let Err(err) = w
                         .write_all(line.contents.as_bytes())
-                        .and_then(|_| w.write_all(b"\n"))
+                        .and_then(|()| w.write_all(b"\n"))
                     else {
                         return;
                     };
@@ -196,7 +201,7 @@ pub fn handle_action(
                     std::fs::rename(swap_name, meta.filepath.unwrap_or(PathBuf::from("out.txt")))
                 {
                     edi_lib::debug!("app::handle_event failed to rename file {e}");
-                };
+                }
 
                 let _ = sender.send_quit();
             }

@@ -1,9 +1,11 @@
 use crate::escaping::{ANSIColor, EscapeBuilder};
 
+#[must_use]
 pub fn bold(s: &str) -> String {
     EscapeBuilder::new().bold().write_str(s).end_bold().build()
 }
 
+#[must_use]
 pub fn italic(s: &str) -> String {
     EscapeBuilder::new()
         .italic()
@@ -12,6 +14,7 @@ pub fn italic(s: &str) -> String {
         .build()
 }
 
+#[must_use]
 pub fn underline(s: &str) -> String {
     EscapeBuilder::new()
         .underline()
@@ -20,6 +23,7 @@ pub fn underline(s: &str) -> String {
         .build()
 }
 
+#[must_use]
 pub fn red(s: &str) -> String {
     EscapeBuilder::new()
         .set_color(ANSIColor::Red)

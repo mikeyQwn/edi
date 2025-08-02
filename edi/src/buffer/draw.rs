@@ -250,7 +250,7 @@ impl Buffer {
         if self.cursor_offset == line_character_offset + length {
             if let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) {
                 flush_state.bounds.main.move_cursor(char_pos, surface);
-            };
+            }
         }
     }
 

@@ -4,14 +4,14 @@ use edi_term::input::Input;
 
 use crate::event::Sender;
 
-pub fn input_source(sender: Sender) {
-    let mut buf = [0_u8; 8];
-    let mut stdin = std::io::stdin().lock();
-
+pub fn input_source(sender: &Sender) {
     let _span = edi_lib::span!("input");
 
+    let mut buf = [0_u8; 4];
+    let mut stdin = std::io::stdin().lock();
+
     'outer: loop {
-        let n = match stdin.read(&mut buf[..]) {
+        let n = match stdin.read(&mut buf) {
             Ok(n) => n,
             Err(err) => {
                 edi_lib::debug!("{err}");
@@ -28,16 +28,16 @@ pub fn input_source(sender: Sender) {
 
                 if !sender.send_input(input) {
                     break 'outer;
-                };
+                }
 
                 continue;
-            };
+            }
 
-            let input = Input::from_bytes(&chunk[..]);
+            let input = Input::from_bytes(chunk);
 
             if !sender.send_input(input) {
                 break 'outer;
-            };
+            }
         }
     }
 }

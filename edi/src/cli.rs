@@ -25,7 +25,7 @@ impl EdiCli {
             return Err(AppError::new(
                 format!(
                     "`{}` does not exist or is a directory",
-                    path_str.unwrap_or_else(String::new)
+                    path_str.unwrap_or_default()
                 ),
                 AppErrorKind::InvalidArgument,
             )

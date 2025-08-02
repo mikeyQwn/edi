@@ -3,10 +3,10 @@ use crate::{
     event::{self, Event},
 };
 
-pub struct DrawHandler {}
+pub struct DrawHandler;
 
 impl DrawHandler {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {}
     }
 }
@@ -17,7 +17,7 @@ impl event::Handler<AppState> for DrawHandler {
 
         if let Err(err) = redraw(&mut app_state.state, &mut app_state.window) {
             edi_lib::debug!("{err}");
-        };
+        }
     }
 
     fn interested_in(&self, event: &Event) -> bool {

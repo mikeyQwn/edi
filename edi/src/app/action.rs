@@ -277,7 +277,7 @@ impl InputMapper {
             .mappings
             .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
         {
-            return SmallVec::clone(&event);
+            return SmallVec::clone(event);
         }
 
         match (mode, input) {

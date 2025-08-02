@@ -66,9 +66,10 @@ pub struct Event<'a, 'b> {
     pub message: Cow<'a, str>,
 }
 
-impl<'a, 'b> Event<'a, 'b> {
+impl Event<'_, '_> {
     const SPAN_SEP: &'static str = "::";
 
+    #[must_use]
     pub fn spans_to_string(&self) -> String {
         let s_len = self.spans.iter().map(|span| span.name.len()).sum::<usize>()
             + self.spans.len().saturating_sub(1) * Self::SPAN_SEP.len();
@@ -107,17 +108,13 @@ impl Debug for GlobalSubscriber {
 
 pub static GLOBAL_SUBSCRIBER: OnceLock<GlobalSubscriber> = OnceLock::new();
 
-/// # Errors
-///
-/// Returns an error when a subscriber is already set
-///
-pub fn set_subscriber<S>(subscriber: S) -> Result<(), ()>
+pub fn set_subscriber<S>(subscriber: S) -> bool
 where
     S: Subscriber + Send + Sync + 'static,
 {
     GLOBAL_SUBSCRIBER
         .set(GlobalSubscriber(Box::new(subscriber)))
-        .map_err(|_| ())
+        .is_ok()
 }
 
 pub fn dispatch_event(event: Event) {

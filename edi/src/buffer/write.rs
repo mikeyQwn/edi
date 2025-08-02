@@ -49,7 +49,8 @@ impl Buffer {
     pub fn write(&mut self, c: char) {
         self.history.future.clear();
         let undo_change = self.apply_write(self.cursor_offset, c);
-        self.history.write_new(undo_change, Default::default());
+        self.history
+            .write_new(undo_change, HistoryDirection::default());
     }
 
     /// Deletes a single character at cursor position
@@ -57,7 +58,8 @@ impl Buffer {
         let Some(undo_change) = self.apply_delete(self.cursor_offset) else {
             return;
         };
-        self.history.write_new(undo_change, Default::default());
+        self.history
+            .write_new(undo_change, HistoryDirection::default());
     }
 
     /// Applies a single character write and emits a change that undoes it
@@ -68,7 +70,7 @@ impl Buffer {
         };
         self.cursor_offset = position;
 
-        let mut buf = [0u8; 4];
+        let mut buf = [0_u8; 4];
         let encoded = c.encode_utf8(&mut buf);
         self.inner.insert(self.cursor_offset, encoded);
         self.cursor_offset += 1;
@@ -116,7 +118,7 @@ impl Buffer {
                         return;
                     };
                     self.history.write_new(undo_change, direction);
-                })
+                });
             }
         }
     }

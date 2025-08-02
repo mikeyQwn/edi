@@ -146,7 +146,7 @@ impl Stream {
                         // and exit
                         if t_events.send(Message::Error(InputError::from(e))).is_err() {
                             break;
-                        };
+                        }
                         continue;
                     }
                 };

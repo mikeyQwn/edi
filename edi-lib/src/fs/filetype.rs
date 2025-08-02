@@ -60,9 +60,8 @@ where
 {
     fn from(value: P) -> Self {
         let p = value.as_ref();
-        match p.extension().and_then(OsStr::to_str) {
-            Some(ext) => Self::from_ext(ext),
-            None => UNKNOWN.clone(),
-        }
+        p.extension()
+            .and_then(OsStr::to_str)
+            .map_or_else(|| UNKNOWN.clone(), Self::from_ext)
     }
 }

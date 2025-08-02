@@ -15,7 +15,11 @@ struct CharsNode<'a> {
 }
 
 impl<'a> CharsNode<'a> {
-    pub fn new(tree_node: &'a Node, offset_from_start: usize, newlines_from_start: usize) -> Self {
+    pub const fn new(
+        tree_node: &'a Node,
+        offset_from_start: usize,
+        newlines_from_start: usize,
+    ) -> Self {
         Self {
             tree_node,
             offset_from_start,
@@ -101,7 +105,7 @@ impl<'a> Chars<'a> {
         while target - self.global_line_offset > 0 {
             if self.next().is_none() {
                 return;
-            };
+            }
         }
     }
 
@@ -262,7 +266,7 @@ impl<'a> Lines<'a> {
     }
 
     /// Modifies the iterator to not include the string representing the line in it's output
-    pub fn parse_contents(&mut self, parse_contents: bool) -> &mut Self {
+    pub const fn parse_contents(&mut self, parse_contents: bool) -> &mut Self {
         self.parse_contents = parse_contents;
         self
     }

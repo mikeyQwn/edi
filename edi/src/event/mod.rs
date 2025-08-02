@@ -56,10 +56,10 @@ pub trait Source: Send {
 
 impl<F> Source for F
 where
-    F: Fn(Sender) + Send,
+    F: for<'a> Fn(&'a Sender) + Send,
 {
     fn run(&mut self, sender: Sender) {
-        self(sender)
+        self(&sender);
     }
 }
 
@@ -130,7 +130,7 @@ impl<State> EventManager<State> {
                 break;
             }
 
-            for handler in self.attached_handlers.iter_mut() {
+            for handler in &mut self.attached_handlers {
                 if !handler.interested_in(&event) {
                     continue;
                 }
@@ -151,7 +151,7 @@ pub struct Event {
 
 impl Event {
     #[must_use]
-    pub fn new(ty: Type) -> Self {
+    pub const fn new(ty: Type) -> Self {
         Self { ty, payload: None }
     }
 
@@ -161,12 +161,12 @@ impl Event {
     }
 
     #[must_use]
-    pub fn redraw() -> Self {
+    pub const fn redraw() -> Self {
         Self::new(Type::Redraw)
     }
 
     #[must_use]
-    pub fn quit() -> Self {
+    pub const fn quit() -> Self {
         Self::new(Type::Quit)
     }
 

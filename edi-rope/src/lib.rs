@@ -102,8 +102,7 @@ impl Rope {
 
                 assert_eq!(
                     *left_newlines, left_newlines_actual,
-                    "left_newlines validation failed: stored={}, actual={}",
-                    left_newlines, left_newlines_actual
+                    "left_newlines validation failed: stored={left_newlines}, actual={left_newlines_actual}",
                 );
 
                 left_newlines_actual + right_newlines_actual

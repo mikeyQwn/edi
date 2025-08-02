@@ -7,6 +7,7 @@ pub struct DisplayOptions {
     show_cause: bool,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for DisplayOptions {
     fn default() -> Self {
         Self { show_cause: false }
@@ -30,7 +31,7 @@ pub enum AppErrorKind {
 }
 
 impl AppErrorKind {
-    pub fn error_message(self) -> &'static str {
+    pub const fn error_message(self) -> &'static str {
         match self {
             AppErrorKind::Io => "unable to perform i/o operation",
             AppErrorKind::TerminalIo => "unable to perform i/o operation on the terminal",
@@ -72,7 +73,7 @@ impl AppError {
     }
 
     #[must_use]
-    pub fn build_error(&self, opts: DisplayOptions) -> String {
+    pub fn build_error(&self, opts: &DisplayOptions) -> String {
         let mut s = EscapeBuilder::new()
             .bold()
             .write_str("[edi]: ")
@@ -106,7 +107,7 @@ impl AppError {
 
 impl Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.build_error(DisplayOptions::default()))
+        f.write_str(&self.build_error(&DisplayOptions::default()))
     }
 }
 

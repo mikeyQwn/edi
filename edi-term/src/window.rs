@@ -125,7 +125,7 @@ where
     }
 
     /// Sets the cursor position to the `new_pos`
-    pub fn set_cursor(&mut self, new_pos: Coordinates) {
+    pub const fn set_cursor(&mut self, new_pos: Coordinates) {
         self.cursor_pos = new_pos;
     }
 
