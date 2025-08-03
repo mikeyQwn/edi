@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::error::{AppError, AppErrorKind, Result};
+use crate::error::{AppError, Result};
 
 #[derive(Debug)]
 pub struct EdiCli {
@@ -10,10 +10,7 @@ pub struct EdiCli {
 impl EdiCli {
     pub fn parse(mut args: impl Iterator<Item = String>) -> Result<Self> {
         let program_path = args.next().ok_or_else(|| {
-            AppError::new(
-                "unable to read the application name, 0 arguments provided",
-                AppErrorKind::Unexpected,
-            )
+            AppError::unexpected("unable to read the application name, 0 arguments provided")
         })?;
 
         let path_str = args.next();
@@ -22,13 +19,10 @@ impl EdiCli {
         let is_file = path.as_ref().map(|p| p.is_file()) != Some(false);
 
         if !is_file {
-            return Err(AppError::new(
-                format!(
-                    "`{}` does not exist or is a directory",
-                    path_str.unwrap_or_default()
-                ),
-                AppErrorKind::InvalidArgument,
-            )
+            return Err(AppError::invalid_argument(format!(
+                "`{}` does not exist or is a directory",
+                path_str.unwrap_or_default()
+            ))
             .with_hint(format!("run `{program_path} <file_to_edit>`")));
         }
 

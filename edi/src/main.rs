@@ -3,7 +3,7 @@
 use std::process::ExitCode;
 
 use edi_lib::trace_subscriber::FileLogSubscriber;
-use error::{AppError, AppErrorKind, Result};
+use error::{AppError, Result};
 
 use edi_rope as _;
 #[cfg(test)]
@@ -21,10 +21,9 @@ const DEBUG_FILE: &str = "log";
 /// Returns `AppError` if debug file is not available or subscriber is already set
 pub fn setup_logging() -> Result<()> {
     let sub = FileLogSubscriber::new(DEBUG_FILE).map_err(|err| {
-        AppError::new(
-            format!("unable to initialize logging, file `{DEBUG_FILE}` could not be created"),
-            AppErrorKind::Io,
-        )
+        AppError::io(format!(
+            "unable to initialize logging, file `{DEBUG_FILE}` could not be created"
+        ))
         .with_cause(err)
         .with_hint(format!(
             "try adjusting the permissions for file {DEBUG_FILE}"
@@ -32,9 +31,8 @@ pub fn setup_logging() -> Result<()> {
     })?;
 
     if !edi_lib::trace::set_subscriber(sub) {
-        return Err(AppError::new(
+        return Err(AppError::unexpected(
             "unable to initialize logging, set_subscriber failed",
-            AppErrorKind::Unexpected,
         ));
     }
 
@@ -46,8 +44,7 @@ fn run() -> Result<()> {
     setup_logging()?;
 
     let args = cli::EdiCli::parse(std::env::args())?;
-    app::run(args)
-        .map_err(|err| AppError::new(format!("fatal error: {err:?}"), AppErrorKind::Unexpected))?;
+    app::run(args).map_err(|err| AppError::unexpected(format!("fatal error: {err:?}")))?;
 
     Ok(())
 }

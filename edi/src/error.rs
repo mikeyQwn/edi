@@ -53,6 +53,26 @@ impl AppError {
     }
 
     #[must_use]
+    pub fn io(message: impl Into<Box<str>>) -> Self {
+        Self::new(message, AppErrorKind::Io)
+    }
+
+    #[must_use]
+    pub fn terminal_io(message: impl Into<Box<str>>) -> Self {
+        Self::new(message, AppErrorKind::TerminalIo)
+    }
+
+    #[must_use]
+    pub fn unexpected(message: impl Into<Box<str>>) -> Self {
+        Self::new(message, AppErrorKind::Unexpected)
+    }
+
+    #[must_use]
+    pub fn invalid_argument(message: impl Into<Box<str>>) -> Self {
+        Self::new(message, AppErrorKind::InvalidArgument)
+    }
+
+    #[must_use]
     pub fn from_kind(kind: AppErrorKind) -> Self {
         Self::new(kind.error_message(), kind)
     }

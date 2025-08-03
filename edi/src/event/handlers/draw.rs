@@ -7,7 +7,7 @@ pub struct DrawHandler;
 
 impl DrawHandler {
     pub const fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
