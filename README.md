@@ -81,12 +81,12 @@ Features:
 
 Tech debt:
 
+- [x] Tests in CI, add test badge to the README
 - [ ] Optimize the rope data structure
     - [x] Cache leaf lenghts
     - [ ] Balance the tree (AVL/Red-black) (?)
     - [ ] Optimize inserts
 - [ ] Handle terminal resizing properly
-- [ ] Tests in CI, add test badge to the README
 
 ## Known issues
 
