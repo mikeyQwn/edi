@@ -2,15 +2,15 @@
 
 /// Screenspace coordinates
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Coordinates {
+pub struct Coord {
     /// The `x` coordinate
     pub x: usize,
     /// The `y` coordinate
     pub y: usize,
 }
 
-impl Coordinates {
-    /// Initializes `Coordinates` with given `x` and `y`
+impl Coord {
+    /// Initializes `Coord` with given `x` and `y`
     #[must_use]
     pub const fn new(x: usize, y: usize) -> Self {
         Self { x, y }

@@ -5,7 +5,6 @@
 
 pub mod buffer;
 pub mod draw;
-pub mod rect;
 pub mod string;
 
 use anyhow as _;

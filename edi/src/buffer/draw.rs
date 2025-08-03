@@ -1,11 +1,14 @@
 //! Draw-related buffer functionality
 
-use edi_lib::{debug, span, vec2::Vec2};
+use edi_lib::{debug, span};
 use edi_rope::iter::LineInfo;
+use edi_term::{
+    coord::{Coord, Dimensions},
+    frame::rect::Rect,
+};
 
 use crate::{
     draw::{BoundExt, Cell, Color, Surface},
-    rect::Rect,
     string::highlight::{Highlight, Type},
 };
 
@@ -90,8 +93,9 @@ impl Buffer {
         } else {
             0
         };
-        let Vec2 { x, y } = surface.dimensions();
-        let (line_numbers, main) = Rect::new_in_origin(x, y).split_horizontal(line_number_offset);
+        let Dimensions { width, height } = surface.dimensions();
+        let (line_numbers, main) =
+            Rect::new_in_origin(width, height).split_horizontal(line_number_offset);
         let bounds = DrawBounds { line_numbers, main };
 
         let mut flush_state = FlushState::new(&opts.highlights, bounds);
@@ -108,8 +112,9 @@ impl Buffer {
         opts: &FlushOptions,
         state: &mut FlushState,
     ) {
-        let available_height = surface.dimensions().y;
         let _span = span!("flush_lines");
+
+        let available_height = surface.dimensions().height;
 
         self.inner
             .lines()
@@ -146,7 +151,7 @@ impl Buffer {
         info: &LineInfo,
         flush_state: &mut FlushState,
     ) {
-        if flush_state.current_y >= surface.dimensions().y {
+        if flush_state.current_y >= surface.dimensions().height {
             return;
         }
 
@@ -180,7 +185,7 @@ impl Buffer {
             .enumerate()
             .for_each(|(i, c)| {
                 flush_state.bounds.line_numbers.set(
-                    Vec2::new(offs + i, flush_state.current_y),
+                    Coord::new(offs + i, flush_state.current_y),
                     Cell::new(c, Color::Cyan, Color::None),
                     surface,
                 );
@@ -229,7 +234,7 @@ impl Buffer {
             match character {
                 '\t' => {
                     for i in 0..4 {
-                        let new_pos = Vec2::new(char_pos.x + i, char_pos.y);
+                        let new_pos = Coord::new(char_pos.x + i, char_pos.y);
                         flush_state.bounds.main.set(
                             new_pos,
                             Cell::new(character, color, Color::None),
@@ -266,16 +271,18 @@ impl Buffer {
         x_offset: usize,
         opts: &FlushOptions,
         state: &FlushState,
-    ) -> Option<Vec2<usize>> {
-        let Vec2 { x: w, y: h } = surface.dimensions();
+    ) -> Option<Coord> {
+        let Dimensions { width, height } = surface.dimensions();
         let y_offset = state.current_y;
         let pos = if opts.wrap {
-            Vec2::new(x_offset % w, y_offset + x_offset / w)
+            Coord::new(x_offset % width, y_offset + x_offset / width)
         } else {
-            Vec2::new(x_offset, y_offset)
+            Coord::new(x_offset, y_offset)
         };
 
-        Rect::new_in_origin(w, h).contains_point(pos).then_some(pos)
+        Rect::new_in_origin(width, height)
+            .contains_point(pos)
+            .then_some(pos)
     }
 
     fn get_highlight_color(offs: usize, highlights: &mut &[Highlight]) -> Option<Color> {
@@ -300,6 +307,7 @@ impl Buffer {
 #[cfg(test)]
 mod tests {
     use edi_lib::vec2::Vec2;
+    use edi_term::coord::{Coord, Dimensions};
 
     use crate::{
         buffer::{draw::FlushOptions, Buffer},
@@ -308,7 +316,7 @@ mod tests {
 
     struct TestSurface {
         chars: Vec<Vec<char>>,
-        cursor_pos: Option<Vec2<usize>>,
+        cursor_pos: Option<Coord>,
     }
 
     impl TestSurface {
@@ -329,21 +337,21 @@ mod tests {
     }
 
     impl Surface for TestSurface {
-        fn set(&mut self, position: Vec2<usize>, cell: crate::draw::Cell) {
-            let Vec2 { x, y } = position;
+        fn set(&mut self, position: Coord, cell: crate::draw::Cell) {
+            let Coord { x, y } = position;
             if y < self.chars.len() && x < self.chars[y].len() {
                 self.chars[y][x] = cell.char;
             }
         }
         fn clear(&mut self) {
-            let Vec2 { x, y } = self.dimensions();
-            self.chars = vec![vec![' '; x]; y];
+            let Dimensions { width, height } = self.dimensions();
+            self.chars = vec![vec![' '; width]; height];
             self.cursor_pos = None;
         }
-        fn dimensions(&self) -> Vec2<usize> {
-            Vec2::new(self.chars[0].len(), self.chars.len())
+        fn dimensions(&self) -> Dimensions<usize> {
+            Dimensions::new(self.chars[0].len(), self.chars.len())
         }
-        fn move_cursor(&mut self, point: Vec2<usize>) {
+        fn move_cursor(&mut self, point: Coord) {
             self.cursor_pos = Some(point)
         }
     }
@@ -361,7 +369,7 @@ mod tests {
         assert_eq!(contents[0], "Hello!    ");
         assert_eq!(contents[1], "World!    ");
 
-        assert_eq!(surface.cursor_pos, Some(Vec2::new(1, 0)));
+        assert_eq!(surface.cursor_pos, Some(Coord::new(1, 0)));
 
         for line in &contents[2..] {
             assert_eq!(line, "          ");
@@ -385,7 +393,7 @@ mod tests {
         assert_eq!(contents[3], "should wra");
         assert_eq!(contents[4], "p around  ");
 
-        assert_eq!(surface.cursor_pos, Some(Vec2::new(1, 1)));
+        assert_eq!(surface.cursor_pos, Some(Coord::new(1, 1)));
 
         let mut surface = TestSurface::new(Vec2::new(10, 5));
         let opts = super::FlushOptions::default().with_wrap(false);
@@ -408,7 +416,7 @@ mod tests {
         let contents = surface.get_contents();
         assert_eq!(contents[0], "Exactly10c");
         assert_eq!(contents[1], "          ");
-        assert_eq!(surface.cursor_pos, Some(Vec2::new(0, 0)));
+        assert_eq!(surface.cursor_pos, Some(Coord::new(0, 0)));
 
         let with_empty = "First\nVery very long line that wraps\nLast";
         let buf = Buffer::new(with_empty);
@@ -423,7 +431,7 @@ mod tests {
         assert_eq!(contents[3], "that wraps");
         assert_eq!(contents[4], "Last      ");
         assert_eq!(contents[5], "          ");
-        assert_eq!(surface.cursor_pos, Some(Vec2::new(0, 0)));
+        assert_eq!(surface.cursor_pos, Some(Coord::new(0, 0)));
     }
 
     #[test]

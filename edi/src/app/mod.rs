@@ -3,7 +3,7 @@ mod meta;
 
 use action::{Action, InputMapper, MoveAction};
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
-use edi_term::{coord::Coordinates, escaping::ANSIEscape, window::Window};
+use edi_term::{coord::Coord, escaping::ANSIEscape, frame::rect::Rect, window::Window};
 use meta::BufferMeta;
 
 use std::{
@@ -16,7 +16,6 @@ use std::{
 use edi::{
     buffer::Buffer,
     draw::{Surface, WindowBind},
-    rect::Rect,
     string::highlight::get_highlights,
 };
 
@@ -297,7 +296,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         }
 
         window.set_size(size);
-        window.set_cursor(Coordinates::new(0, 0));
+        window.set_cursor(Coord::new(0, 0));
         window.rerender()?;
 
         redraw(&mut state, &mut window)?;

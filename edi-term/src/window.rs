@@ -3,7 +3,7 @@
 use std::io::{Result, Stdout, Write, stdout};
 
 use crate::{
-    coord::{Coordinates, Dimensions},
+    coord::{Coord, Dimensions},
     escaping::{ANSIColor, EscapeBuilder},
 };
 
@@ -46,7 +46,7 @@ where
     width: usize,
     height: usize,
 
-    cursor_pos: Coordinates,
+    cursor_pos: Coord,
 
     buffer: Vec<Cell>,
     back_buffer: Vec<Cell>,
@@ -64,7 +64,7 @@ where
             width: Default::default(),
             height: Default::default(),
 
-            cursor_pos: Coordinates::default(),
+            cursor_pos: Coord::default(),
 
             buffer: Vec::default(),
             back_buffer: Vec::default(),
@@ -125,7 +125,7 @@ where
     }
 
     /// Sets the cursor position to the `new_pos`
-    pub const fn set_cursor(&mut self, new_pos: Coordinates) {
+    pub const fn set_cursor(&mut self, new_pos: Coord) {
         self.cursor_pos = new_pos;
     }
 
@@ -143,14 +143,14 @@ where
         let changes = EscapeBuilder::new()
             .clear_screen()
             .concat(self.as_escapes())
-            .move_to(Coordinates::default())
+            .move_to(Coord::default())
             .build();
 
         self.write_flush(changes.as_bytes())
     }
 
     /// Puts a `Cell` in the position `pos`. Does not draw
-    pub fn put_cell(&mut self, pos: Coordinates, cell: Cell) -> bool {
+    pub fn put_cell(&mut self, pos: Coord, cell: Cell) -> bool {
         if pos.x >= self.width || pos.y >= self.height {
             return false;
         }
@@ -182,7 +182,7 @@ where
                 }
 
                 if prev_pos != Some((x.saturating_sub(1), y)) {
-                    escape = escape.move_to(Coordinates::new(x, y));
+                    escape = escape.move_to(Coord::new(x, y));
                 }
 
                 if prev_color != Some(cell.fg_color) {

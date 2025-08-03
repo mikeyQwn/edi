@@ -1,6 +1,6 @@
 //! A two-element vector
 
-use edi_term::coord::{Coordinates, Dimensions};
+use edi_term::coord::{Coord, Dimensions};
 
 /// A two-element vector, usually is used to represent 2d coordinates
 ///
@@ -36,8 +36,8 @@ impl<T> Vec2<T> {
 
 impl Vec2<usize> {
     #[must_use]
-    pub const fn as_coords(&self) -> Coordinates {
-        Coordinates::new(self.x, self.y)
+    pub const fn as_coords(&self) -> Coord {
+        Coord::new(self.x, self.y)
     }
 }
 

@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use crate::coord::Coordinates;
+use crate::coord::Coord;
 
 /// An ANSI color representation
 /// Does not support true color
@@ -60,7 +60,7 @@ pub enum ANSIEscape<'a> {
     /// Fully clears the terminal screen
     ClearScreen,
     /// Moves the caret to the given position
-    MoveTo(Coordinates),
+    MoveTo(Coord),
     /// Writes a string at a given position
     Write(Cow<'a, str>),
     /// Sets the foreground color to the ANSI color
@@ -132,7 +132,7 @@ impl<'a> EscapeBuilder<'a> {
 
     /// Moves the caret to the given position
     #[must_use]
-    pub fn move_to(mut self, pos: Coordinates) -> Self {
+    pub fn move_to(mut self, pos: Coord) -> Self {
         self.inner.push(ANSIEscape::MoveTo(pos));
         self
     }

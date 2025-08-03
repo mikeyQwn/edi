@@ -1,7 +1,9 @@
-use edi_lib::vec2::Vec2;
-use edi_term::{escaping::ANSIColor, window};
-
-use crate::rect::Rect;
+use edi_term::{
+    coord::{Coord, Dimensions},
+    escaping::ANSIColor,
+    frame::rect::Rect,
+    window,
+};
 
 #[allow(unused)]
 #[allow(missing_docs)]
@@ -95,9 +97,9 @@ impl From<Cell> for window::Cell {
 /// A generic terminal-like surface that can be drawn to
 pub trait Surface {
     fn clear(&mut self);
-    fn move_cursor(&mut self, point: Vec2<usize>);
-    fn set(&mut self, position: Vec2<usize>, cell: Cell);
-    fn dimensions(&self) -> Vec2<usize>;
+    fn move_cursor(&mut self, point: Coord);
+    fn set(&mut self, position: Coord, cell: Cell);
+    fn dimensions(&self) -> Dimensions<usize>;
 }
 
 pub trait WindowBind<'a> {
@@ -119,14 +121,14 @@ where
     S: Surface,
 {
     fn clear(&self, surface: &mut S);
-    fn move_cursor(&self, point: Vec2<usize>, surface: &mut S);
-    fn set(&self, position: Vec2<usize>, cell: Cell, surface: &mut S);
-    fn dimensions(&self, surface: &S) -> Vec2<usize>;
+    fn move_cursor(&self, point: Coord, surface: &mut S);
+    fn set(&self, position: Coord, cell: Cell, surface: &mut S);
+    fn dimensions(&self, surface: &S) -> Dimensions<usize>;
 }
 
-fn get_bounded_position(position: Vec2<usize>, bound: &Rect) -> Option<Vec2<usize>> {
+fn get_bounded_position(position: Coord, bound: &Rect) -> Option<Coord> {
     let bound_position = bound.position();
-    let position = Vec2::new(position.x + bound_position.x, position.y + bound_position.y);
+    let position = Coord::new(position.x + bound_position.x, position.y + bound_position.y);
     bound.contains_point(position).then_some(position)
 }
 
@@ -134,7 +136,7 @@ impl<S> BoundExt<S> for Rect
 where
     S: Surface,
 {
-    fn set(&self, position: Vec2<usize>, cell: Cell, surface: &mut S) {
+    fn set(&self, position: Coord, cell: Cell, surface: &mut S) {
         let Some(position) = get_bounded_position(position, self) else {
             return;
         };
@@ -147,7 +149,7 @@ where
         let h = self.height();
         for y in 0..h {
             for x in 0..w {
-                let Some(position) = get_bounded_position(Vec2::new(x, y), self) else {
+                let Some(position) = get_bounded_position(Coord::new(x, y), self) else {
                     continue;
                 };
 
@@ -156,19 +158,19 @@ where
         }
     }
 
-    fn dimensions(&self, surface: &S) -> Vec2<usize> {
+    fn dimensions(&self, surface: &S) -> Dimensions<usize> {
         let surface_dimensions = surface.dimensions();
         let position = self.position();
 
-        Vec2::new(
+        Dimensions::new(
             self.width()
-                .min(surface_dimensions.x.saturating_sub(position.x)),
+                .min(surface_dimensions.width.saturating_sub(position.x)),
             self.height()
-                .midpoint(surface_dimensions.y.saturating_sub(position.y)),
+                .midpoint(surface_dimensions.height.saturating_sub(position.y)),
         )
     }
 
-    fn move_cursor(&self, point: Vec2<usize>, surface: &mut S) {
+    fn move_cursor(&self, point: Coord, surface: &mut S) {
         let Some(position) = get_bounded_position(point, self) else {
             return;
         };
@@ -178,20 +180,20 @@ where
 }
 
 impl Surface for window::Window {
-    fn set(&mut self, position: Vec2<usize>, cell: Cell) {
-        window::Window::put_cell(self, position.as_coords(), window::Cell::from(cell));
+    fn set(&mut self, position: Coord, cell: Cell) {
+        window::Window::put_cell(self, position, window::Cell::from(cell));
     }
 
     fn clear(&mut self) {
         window::Window::clear(self);
     }
 
-    fn dimensions(&self) -> Vec2<usize> {
-        Vec2::from_dims(window::Window::size(self))
+    fn dimensions(&self) -> Dimensions<usize> {
+        window::Window::size(self)
     }
 
-    fn move_cursor(&mut self, point: Vec2<usize>) {
-        window::Window::set_cursor(self, point.as_coords());
+    fn move_cursor(&mut self, point: Coord) {
+        window::Window::set_cursor(self, point);
     }
 }
 
@@ -202,7 +204,7 @@ pub struct BoundedWindow<'a> {
 }
 
 impl Surface for BoundedWindow<'_> {
-    fn set(&mut self, position: Vec2<usize>, cell: Cell) {
+    fn set(&mut self, position: Coord, cell: Cell) {
         self.bound.set(position, cell, self.window);
     }
 
@@ -210,11 +212,11 @@ impl Surface for BoundedWindow<'_> {
         self.bound.clear(self.window);
     }
 
-    fn move_cursor(&mut self, point: Vec2<usize>) {
+    fn move_cursor(&mut self, point: Coord) {
         self.bound.move_cursor(point, self.window);
     }
 
-    fn dimensions(&self) -> Vec2<usize> {
+    fn dimensions(&self) -> Dimensions<usize> {
         self.bound.dimensions(self.window)
     }
 }
