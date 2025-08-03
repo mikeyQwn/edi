@@ -1,6 +1,6 @@
 [workspace]
 members = [
-	"edi", "edi-lib", "edi-rope", "edi-term",
+	"edi", "edi-frame", "edi-lib", "edi-rope", "edi-term",
 ]
 default-members=["edi"]
 resolver = "2"

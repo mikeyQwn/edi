@@ -7,6 +7,7 @@ edition = "2021"
 edi-rope = { path = "../edi-rope/" }
 edi-term = { path = "../edi-term/" }
 edi-lib = { path = "../edi-lib/" }
+edi-frame = { path = "../edi-frame/" }
 anyhow = "1.0.95"
 smallvec = "1.15.1"
 

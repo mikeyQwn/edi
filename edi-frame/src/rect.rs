@@ -1,6 +1,6 @@
 //! Rectangular region abstraction for tui layout management.
 
-use crate::coord::Coord;
+use edi_term::coord::Coord;
 
 /// A rectangular shape in tui sceenspace
 #[derive(Debug, Clone, Copy)]

@@ -2,7 +2,6 @@
 
 pub mod coord;
 pub mod escaping;
-pub mod frame;
 pub mod input;
 pub mod prettify;
 pub mod window;

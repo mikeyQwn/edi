@@ -1,7 +1,7 @@
+use edi_frame::rect::Rect;
 use edi_term::{
     coord::{Coord, Dimensions},
     escaping::ANSIColor,
-    frame::rect::Rect,
     window,
 };
 

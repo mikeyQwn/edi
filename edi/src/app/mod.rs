@@ -2,8 +2,9 @@ mod action;
 mod meta;
 
 use action::{Action, InputMapper, MoveAction};
+use edi_frame::rect::Rect;
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
-use edi_term::{coord::Coord, escaping::ANSIEscape, frame::rect::Rect, window::Window};
+use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
 use meta::BufferMeta;
 
 use std::{
