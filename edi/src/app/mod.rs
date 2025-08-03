@@ -22,7 +22,8 @@ use edi::{
 
 use crate::{
     cli::EdiCli,
-    event::{self, handlers, sources, EventManager},
+    event::{sender::EventBuffer, sources, EventManager},
+    handlers,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -92,7 +93,7 @@ impl State {
 pub fn handle_action(
     event: Action,
     state: &mut State,
-    sender: &event::Sender,
+    buf: &mut EventBuffer,
 ) -> anyhow::Result<()> {
     let _span = edi_lib::span!("handle_action");
 
@@ -100,20 +101,20 @@ pub fn handle_action(
         Action::SwitchMode(mode) => {
             if state.mode == Mode::Terminal {
                 let _ = state.buffers.pop_front();
-                let _ = sender.send_redraw();
+                let _ = buf.add_redraw();
             }
             state.mode = mode;
             if state.mode == Mode::Terminal {
                 let size = edi_term::get_size()
                     .map(Vec2::from_dims)
                     .unwrap_or(Vec2::new(10, 1));
-                let mut buf = Buffer::new(":");
-                buf.cursor_offset = 1;
+                let mut buffer = Buffer::new(":");
+                buffer.cursor_offset = 1;
                 state.buffers.push_front((
-                    buf,
+                    buffer,
                     BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
                 ));
-                let _ = sender.send_redraw();
+                buf.add_redraw();
             }
         }
         Action::InsertChar(c) => {
@@ -128,34 +129,34 @@ pub fn handle_action(
                     }
                     m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
 
-                    let _ = sender.send_redraw();
+                    buf.add_redraw();
                 }
                 None => {
                     edi_lib::debug!("no buffers to write to");
                 }
             }
-            let _ = sender.send_redraw();
+            let _ = buf.add_redraw();
         }
         Action::DeleteChar => {
             match state.buffers.front_mut() {
                 Some((b, m)) => {
                     b.delete();
                     m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
-                    sender.send_redraw();
+                    buf.add_redraw();
                 }
                 None => {
                     edi_lib::debug!("no buffers to delete from");
                 }
             }
-            sender.send_redraw();
+            buf.add_redraw();
         }
         Action::Submit => {
             // TODO: Add proper error handling
             let (cmd_buf, _) = state.buffers.pop_front().unwrap();
-            let _ = sender.send_redraw();
+            let _ = buf.add_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
-                let _ = sender.send_quit();
+                let _ = buf.add_quit();
                 return Ok(());
             }
             if cmd == ":wq" {
@@ -181,7 +182,7 @@ pub fn handle_action(
                     Ok(f) => f,
                     Err(e) => {
                         edi_lib::debug!("unable to create output file {e} {swap_name:?}");
-                        let _ = sender.send_quit();
+                        let _ = buf.add_quit();
                         return Ok(());
                     }
                 };
@@ -203,7 +204,7 @@ pub fn handle_action(
                     edi_lib::debug!("app::handle_event failed to rename file {e}");
                 }
 
-                let _ = sender.send_quit();
+                let _ = buf.add_quit();
             }
         }
 
@@ -211,13 +212,13 @@ pub fn handle_action(
             match state.buffers.front_mut() {
                 Some((buffer, meta)) => {
                     handle_move(buffer, meta, action, repeat);
-                    sender.send_redraw();
+                    buf.add_redraw();
                 }
                 None => {
                     edi_lib::debug!("handle_event: no buffers to move cursor in");
                 }
             }
-            let _ = sender.send_redraw();
+            let _ = buf.add_redraw();
         }
         Action::Undo => {
             match state.buffers.front_mut() {
@@ -225,26 +226,26 @@ pub fn handle_action(
                     edi_lib::debug!("undoing last action");
                     buffer.undo();
                     meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
-                    let _ = sender.send_redraw();
+                    let _ = buf.add_redraw();
                 }
                 None => {
                     edi_lib::debug!("handle_event: no buffers to undo in");
                 }
             }
-            let _ = sender.send_redraw();
+            let _ = buf.add_redraw();
         }
         Action::Redo => {
             match state.buffers.front_mut() {
                 Some((buffer, meta)) => {
                     buffer.redo();
                     meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
-                    let _ = sender.send_redraw();
+                    let _ = buf.add_redraw();
                 }
                 None => {
                     edi_lib::debug!("handle_event: no buffers to undo in");
                 }
             }
-            let _ = sender.send_redraw();
+            let _ = buf.add_redraw();
         }
     }
 

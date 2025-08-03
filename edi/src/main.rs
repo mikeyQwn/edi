@@ -13,6 +13,7 @@ mod app;
 mod cli;
 mod error;
 mod event;
+mod handlers;
 
 const DEBUG_FILE: &str = "log";
 

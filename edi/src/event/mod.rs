@@ -1,9 +1,10 @@
-pub mod handlers;
+pub mod sender;
 pub mod sources;
 
 use std::{sync::mpsc, thread::JoinHandle};
 
 use edi_term::input::Input;
+use sender::{EventBuffer, Sender};
 
 pub struct SourcesHandle {
     senders: Vec<JoinHandle<()>>,
@@ -28,28 +29,6 @@ impl SourcesHandle {
     }
 }
 
-pub struct Sender {
-    tx: mpsc::Sender<Event>,
-}
-
-impl Sender {
-    pub fn send_event(&self, event: Event) -> bool {
-        self.tx.send(event).is_ok()
-    }
-
-    pub fn send_input(&self, input: Input) -> bool {
-        self.send_event(Event::input(input))
-    }
-
-    pub fn send_redraw(&self) -> bool {
-        self.send_event(Event::redraw())
-    }
-
-    pub fn send_quit(&self) -> bool {
-        self.send_event(Event::quit())
-    }
-}
-
 pub trait Source: Send {
     fn run(&mut self, sender: Sender);
 }
@@ -64,7 +43,7 @@ where
 }
 
 pub trait Handler<State> {
-    fn handle(&mut self, state: &mut State, event: &Event, sender: &Sender);
+    fn handle(&mut self, state: &mut State, event: &Event, buf: &mut EventBuffer);
     fn interested_in(&self, event: &Event) -> bool {
         let _ = event;
         true
@@ -123,30 +102,59 @@ impl<State> EventManager<State> {
             }));
         }
 
-        let sender = Sender { tx: self.tx };
+        let mut event_buffer = EventBuffer::new();
 
-        while let Ok(event) = self.rx.recv() {
-            if event.is_quit() {
-                break;
-            }
-
-            for handler in &mut self.attached_handlers {
-                if !handler.interested_in(&event) {
-                    continue;
+        'outer: loop {
+            while let Some(event) = event_buffer.pop_first() {
+                if event.is_quit() {
+                    break 'outer;
                 }
 
-                handler.handle(&mut state, &event, &sender);
+                Self::handle_event(
+                    &mut self.attached_handlers,
+                    &mut state,
+                    &mut event_buffer,
+                    event,
+                );
+            }
+
+            if let Ok(event) = self.rx.recv() {
+                if event.is_quit() {
+                    break 'outer;
+                }
+
+                Self::handle_event(
+                    &mut self.attached_handlers,
+                    &mut state,
+                    &mut event_buffer,
+                    event,
+                );
             }
         }
 
         handle
     }
+
+    fn handle_event(
+        handlers: &mut [Box<dyn Handler<State>>],
+        state: &mut State,
+        buf: &mut EventBuffer,
+        event: Event,
+    ) {
+        for handler in handlers {
+            if !handler.interested_in(&event) {
+                continue;
+            }
+
+            handler.handle(state, &event, buf);
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Event {
-    ty: Type,
-    payload: Option<Payload>,
+    pub ty: Type,
+    pub payload: Option<Payload>,
 }
 
 impl Event {
