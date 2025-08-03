@@ -2,6 +2,9 @@
 
 #![deny(missing_docs)]
 
+#[cfg(test)]
+use criterion as _;
+
 pub mod iter;
 pub mod node;
 

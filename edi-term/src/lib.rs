@@ -32,15 +32,10 @@ pub fn get_current_state() -> Result<termios::Termios, Errno> {
 pub fn into_raw() -> Result<(), Errno> {
     let mut termios = termios::tcgetattr(std::io::stdin())?;
 
-    termios
-        .local_flags
-        .remove(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
-    // termios.local_flags &= !(termios::LocalFlags::ICANON | termios::LocalFlags::ECHO);
+    termios.local_flags.remove(
+        termios::LocalFlags::ICANON | termios::LocalFlags::ECHO | termios::LocalFlags::ISIG,
+    );
 
-    // termios
-    //     .input_flags
-    //     .remove(termios::InputFlags::IXON | termios::InputFlags::ICRNL);
-    //
     termios.output_flags.remove(termios::OutputFlags::OPOST);
     termios.control_flags.remove(termios::ControlFlags::CS8);
 

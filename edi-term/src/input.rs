@@ -1,26 +1,10 @@
 //! Raw mode terminal input hadnler implementation
 
 use std::{
-    io::Read,
+    io::{self, Read},
     os::fd::AsFd,
-    sync::mpsc::{Receiver, RecvError, SendError, Sender},
+    sync::mpsc::{Receiver, RecvError, Sender},
 };
-
-use thiserror::Error;
-
-/// An error that occurs during reading from stdio/sending the input signals through channels
-#[derive(Error, Debug)]
-pub enum InputError {
-    /// Occurs when io reads fail
-    #[error("error while reading: `{0}`")]
-    IO(#[from] std::io::Error),
-    /// Occurs when send to event channel fails
-    #[error("unable to send to a channel: `{0}`")]
-    Send(#[from] Box<SendError<Message>>),
-    /// Occurs when receive from event channel fails
-    #[error("unable to receive from a channel: `{0}`")]
-    Receive(#[from] RecvError),
-}
 
 /// A message sent through the event channel
 #[derive(Debug)]
@@ -29,7 +13,7 @@ pub enum Message {
     Input(Input),
     /// An error while reading from the file
     /// The caller might use this error to signal the read stream to stop
-    Error(InputError),
+    Error(io::Error),
 }
 
 /// An input receieved in the raw terminal mode
@@ -60,11 +44,13 @@ pub enum Input {
 }
 
 pub const ESCAPE: u8 = 27;
+pub const LBRACE: u8 = 91;
 
 impl Input {
     #[must_use]
     pub fn from_bytes(bytes: &[u8]) -> Self {
         match bytes {
+            [3] => Input::Control('c'),
             [4] => Input::Control('d'),
             [10] => Input::Enter,
             [18] => Input::Control('r'),
@@ -73,10 +59,10 @@ impl Input {
             [127] => Input::Backspace,
             [c] if c.is_ascii() => Input::Keypress(*c as char),
 
-            [ESCAPE, 91, 65] => Input::ArrowUp,
-            [ESCAPE, 91, 66] => Input::ArrowDown,
-            [ESCAPE, 91, 67] => Input::ArrowRight,
-            [ESCAPE, 91, 68] => Input::ArrowLeft,
+            [ESCAPE, LBRACE, 65] => Input::ArrowUp,
+            [ESCAPE, LBRACE, 66] => Input::ArrowDown,
+            [ESCAPE, LBRACE, 67] => Input::ArrowRight,
+            [ESCAPE, LBRACE, 68] => Input::ArrowLeft,
 
             _ => Input::Unimplemented(bytes.into()),
         }
@@ -144,7 +130,7 @@ impl Stream {
 
                         // If the receiver is gone, we should probably kill the read loop
                         // and exit
-                        if t_events.send(Message::Error(InputError::from(e))).is_err() {
+                        if t_events.send(Message::Error(e)).is_err() {
                             break;
                         }
                         continue;

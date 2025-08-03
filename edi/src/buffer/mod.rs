@@ -141,7 +141,7 @@ impl Buffer {
             LinePosition::End => character_offset + length,
             LinePosition::CharacterStart => character_offset + search::character_start(&contents),
             LinePosition::CurrentWordEnd => {
-                let is_at_eol = self.cursor_offset - character_offset == length.saturating_sub(1);
+                let is_at_eol = self.cursor_offset - character_offset >= length.saturating_sub(1);
                 let offset = if is_at_eol {
                     0
                 } else {
