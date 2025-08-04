@@ -19,19 +19,20 @@ impl EventBuffer {
     }
 
     pub fn add_event(&mut self, event: Event) {
-        self.0.push_back(event)
+        self.0.push_back(event);
     }
 
+    #[allow(unused)]
     pub fn add_input(&mut self, input: Input) {
-        self.add_event(Event::input(input))
+        self.add_event(Event::input(input));
     }
 
     pub fn add_redraw(&mut self) {
-        self.add_event(Event::redraw())
+        self.add_event(Event::redraw());
     }
 
     pub fn add_quit(&mut self) {
-        self.add_event(Event::quit())
+        self.add_event(Event::quit());
     }
 }
 
@@ -48,10 +49,12 @@ impl Sender {
         self.send_event(Event::input(input))
     }
 
+    #[allow(unused)]
     pub fn send_redraw(&self) -> bool {
         self.send_event(Event::redraw())
     }
 
+    #[allow(unused)]
     pub fn send_quit(&self) -> bool {
         self.send_event(Event::quit())
     }

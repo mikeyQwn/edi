@@ -6,7 +6,6 @@ use crate::string::{
     search,
 };
 
-use edi_lib::debug;
 use edi_rope::{iter::LineInfo, Rope};
 use write::ChangeHistory;
 
@@ -38,6 +37,7 @@ impl Buffer {
     /// # Panics
     ///
     /// Never panics
+    ///
     pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
         match direction {
             Direction::Left => {
@@ -76,12 +76,12 @@ impl Buffer {
             }
             Direction::Down => {
                 if self.inner.total_lines() == 0 {
-                    debug!("total lines is zero");
+                    edi_lib::debug!("total lines is zero");
                     return;
                 }
 
                 let current_line = self.current_line();
-                debug!("curr_line: {}", current_line);
+                edi_lib::debug!("curr_line: {}", current_line);
 
                 let offs = self
                     .cursor_offset
@@ -108,7 +108,7 @@ impl Buffer {
     fn set_cursor_line(&mut self, line: usize, offs: usize) {
         let total_lines = self.inner.total_lines();
         let actual_line = line.min(total_lines);
-        debug!(
+        edi_lib::debug!(
             "setting cursor to line: {line} (actual {}),  offs: {offs}, total_lines: {}",
             actual_line,
             self.inner.total_lines()

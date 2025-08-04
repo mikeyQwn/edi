@@ -1,6 +1,6 @@
 use crate::{
     app::{handle_action, AppState},
-    event::{self, sender::EventBuffer, Event},
+    event::{self, manager::Handler, sender::EventBuffer, Event},
 };
 
 pub struct InputHandler;
@@ -11,7 +11,7 @@ impl InputHandler {
     }
 }
 
-impl event::Handler<AppState> for InputHandler {
+impl Handler<AppState> for InputHandler {
     fn handle(&mut self, app_state: &mut AppState, event: &Event, buf: &mut EventBuffer) {
         let Some(event::Payload::Input(input)) = event.payload.as_ref() else {
             return;
