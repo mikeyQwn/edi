@@ -34,37 +34,27 @@ impl manager::Handler<State> for Handler {
 }
 
 impl Handler {
-    fn write_char(app_state: &mut State, event: &Event) {
+    fn write_char(state: &mut State, event: &Event) {
         let Some(Payload::WriteChar(c)) = event.payload else {
             return;
         };
 
-        match app_state.buffers.front_mut() {
-            Some((b, m)) => {
-                let is_empty = b.inner.is_empty();
-                b.write(c);
-                // Hack to always add a newline at the end of the file
-                if is_empty {
-                    b.write('\n');
-                    b.cursor_offset -= 1;
-                }
-                m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
+        state.within_first_buffer(|buffer, meta| {
+            let is_empty = buffer.inner.is_empty();
+            buffer.write(c);
+            // Hack to always add a newline at the end of the file
+            if is_empty {
+                buffer.write('\n');
+                buffer.cursor_offset -= 1;
             }
-            None => {
-                edi_lib::debug!("no buffers to write to");
-            }
-        }
+            meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+        });
     }
 
-    fn delete_char(app_state: &mut State) {
-        match app_state.buffers.front_mut() {
-            Some((b, m)) => {
-                b.delete();
-                m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
-            }
-            None => {
-                edi_lib::debug!("no buffers to delete from");
-            }
-        }
+    fn delete_char(state: &mut State) {
+        state.within_first_buffer(|buffer, meta| {
+            buffer.delete();
+            meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+        });
     }
 }

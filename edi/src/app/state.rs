@@ -53,4 +53,14 @@ impl State {
 
         Ok(())
     }
+
+    pub fn within_first_buffer<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Buffer, &mut BufferMeta),
+    {
+        let _ = self
+            .buffers
+            .front_mut()
+            .map(|(buffer, meta)| f(buffer, meta));
+    }
 }
