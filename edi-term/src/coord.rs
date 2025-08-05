@@ -26,6 +26,8 @@ pub struct Dimensions<T> {
     pub height: T,
 }
 
+pub type UDims = Dimensions<usize>;
+
 impl<T> Dimensions<T> {
     /// Initializes `Dimensions` with given `width` and `height`
     #[must_use]

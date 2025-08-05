@@ -1,4 +1,4 @@
-use edi::draw::{Surface, WindowBind};
+use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
 
 use crate::{

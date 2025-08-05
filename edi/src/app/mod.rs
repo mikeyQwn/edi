@@ -2,6 +2,7 @@ mod action;
 mod meta;
 
 use action::{Action, InputMapper, MoveAction};
+use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
@@ -14,11 +15,7 @@ use std::{
     path::PathBuf,
 };
 
-use edi::{
-    buffer::Buffer,
-    draw::{Surface, WindowBind},
-    string::highlight::get_highlights,
-};
+use edi::{buffer::Buffer, string::highlight::get_highlights};
 
 use crate::{
     cli::EdiCli,

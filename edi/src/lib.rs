@@ -4,7 +4,6 @@
 //#![deny(missing_docs)]
 
 pub mod buffer;
-pub mod draw;
 pub mod string;
 
 use anyhow as _;

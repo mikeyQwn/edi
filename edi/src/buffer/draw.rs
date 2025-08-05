@@ -1,14 +1,13 @@
 //! Draw-related buffer functionality
 
+use edi_frame::cell::Color;
 use edi_frame::rect::Rect;
+use edi_frame::{cell::Cell, prelude::*};
 use edi_lib::{debug, span};
 use edi_rope::iter::LineInfo;
 use edi_term::coord::{Coord, Dimensions};
 
-use crate::{
-    draw::{BoundExt, Cell, Color, Surface},
-    string::highlight::{Highlight, Type},
-};
+use crate::string::highlight::{Highlight, Type};
 
 use super::Buffer;
 
@@ -304,13 +303,11 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
+    use edi_frame::{cell, surface::Surface};
     use edi_lib::vec2::Vec2;
     use edi_term::coord::{Coord, Dimensions};
 
-    use crate::{
-        buffer::{draw::FlushOptions, Buffer},
-        draw::Surface,
-    };
+    use crate::buffer::{draw::FlushOptions, Buffer};
 
     struct TestSurface {
         chars: Vec<Vec<char>>,
@@ -335,7 +332,7 @@ mod tests {
     }
 
     impl Surface for TestSurface {
-        fn set(&mut self, position: Coord, cell: crate::draw::Cell) {
+        fn set(&mut self, position: Coord, cell: cell::Cell) {
             let Coord { x, y } = position;
             if y < self.chars.len() && x < self.chars[y].len() {
                 self.chars[y][x] = cell.char;
