@@ -58,7 +58,6 @@ impl Event {
 pub enum Payload {
     Input(Input),
     WriteChar(char),
-    DeleteChar,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

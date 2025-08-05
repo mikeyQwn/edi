@@ -2,36 +2,38 @@ use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
 
 use crate::{
-    app::AppState,
-    event::{self, manager::Handler, sender::EventBuffer, Event},
+    app::state::State,
+    event::{
+        self,
+        manager::{self},
+        sender::EventBuffer,
+        Event,
+    },
 };
 
-pub struct DrawHandler;
+pub struct Handler;
 
-impl DrawHandler {
+impl Handler {
     pub const fn new() -> Self {
         Self
     }
 }
 
-impl Handler<AppState> for DrawHandler {
-    fn handle(&mut self, app_state: &mut AppState, _event: &Event, _buf: &mut EventBuffer) {
+impl manager::Handler<State> for Handler {
+    fn handle(&mut self, state: &mut State, _event: &Event, _buf: &mut EventBuffer) {
         let _span = edi_lib::span!("draw");
-
-        let AppState { state, window } = app_state;
 
         edi_lib::debug!("drawing {} buffers", state.buffers.len());
 
-        window.clear();
-
+        state.window.clear();
         state.buffers.iter_mut().rev().for_each(|(b, m)| {
             m.normalize(b);
-            let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(window);
+            let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
             bound.clear();
             b.flush(&mut bound, &m.flush_options);
         });
 
-        if let Err(err) = window.render() {
+        if let Err(err) = state.window.render() {
             edi_lib::debug!("{err}");
         }
     }

@@ -1,30 +1,27 @@
 use crate::{
-    app::{handle_action, AppState},
-    event::{self, manager::Handler, sender::EventBuffer, Event},
+    app::{handle_action, state::State},
+    event::{self, manager, sender::EventBuffer, Event},
 };
 
-pub struct InputHandler;
+pub struct Handler;
 
-impl InputHandler {
+impl Handler {
     pub const fn new() -> Self {
         Self
     }
 }
 
-impl Handler<AppState> for InputHandler {
-    fn handle(&mut self, app_state: &mut AppState, event: &Event, buf: &mut EventBuffer) {
+impl manager::Handler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
         let Some(event::Payload::Input(input)) = event.payload.as_ref() else {
             return;
         };
 
         let _span = edi_lib::span!("input");
 
-        let actions = app_state
-            .state
-            .mapper
-            .map_input(input, app_state.state.mode);
+        let actions = app_state.mapper.map_input(input, app_state.mode);
         for action in actions {
-            if let Err(err) = handle_action(action, &mut app_state.state, buf) {
+            if let Err(err) = handle_action(action, app_state, buf) {
                 edi_lib::debug!("{err}");
             }
         }

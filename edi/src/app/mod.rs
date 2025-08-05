@@ -1,15 +1,18 @@
 mod action;
 mod meta;
 
-use action::{Action, InputMapper, MoveAction};
+pub mod state;
+
+use action::{Action, MoveAction};
 use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
-use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
+use edi_lib::vec2::Vec2;
 use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
 use meta::BufferMeta;
 
+use state::State;
+
 use std::{
-    collections::VecDeque,
     fs::OpenOptions,
     io::{stdout, BufWriter, Write},
     path::PathBuf,
@@ -28,57 +31,6 @@ pub enum Mode {
     Normal,
     Insert,
     Terminal,
-}
-
-pub struct AppState {
-    pub state: State,
-    pub window: Window,
-}
-
-#[derive(Debug)]
-pub struct State {
-    pub mode: Mode,
-    pub mapper: InputMapper,
-    pub buffers: VecDeque<(Buffer, BufferMeta)>,
-}
-
-impl State {
-    /// Instantiates an empty `State` with nothing stored in buffers and mode set to `Normal`
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            mode: Mode::Normal,
-            mapper: InputMapper::default(),
-            buffers: VecDeque::new(),
-        }
-    }
-
-    /// Opens a file with the given path, appending it's contents to the leftmost buffer
-    pub fn open_file(
-        &mut self,
-        filepath: impl AsRef<std::path::Path>,
-        buff_dimensions: Vec2<usize>,
-    ) -> anyhow::Result<()> {
-        let filepath = filepath.as_ref();
-        let contents = std::fs::read_to_string(filepath)?;
-
-        let buffer = Buffer::new(&contents);
-        let filetype = Filetype::from(filepath);
-
-        let mut meta = BufferMeta::default()
-            .with_filepath(Some(filepath.into()))
-            .with_filetype(filetype)
-            .with_size(buff_dimensions);
-
-        meta.flush_options = meta
-            .flush_options
-            .with_highlights(get_highlights(&buffer.inner, &meta.filetype))
-            .with_line_numbers(true);
-
-        self.buffers.push_back((buffer, meta));
-
-        Ok(())
-    }
 }
 
 /// Handles a signle event, returning Ok(true), if the program should terminate
@@ -237,18 +189,18 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
     }
 }
 
-pub fn redraw(state: &mut State, draw_window: &mut Window) -> std::io::Result<()> {
+pub fn redraw(state: &mut State) -> std::io::Result<()> {
     let _span = edi_lib::span!("redraw");
     edi_lib::debug!("drawing {} buffers", state.buffers.len());
 
-    draw_window.clear();
+    state.window.clear();
     state.buffers.iter_mut().rev().for_each(|(b, m)| {
         m.normalize(b);
-        let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(draw_window);
+        let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
         bound.clear();
         b.flush(&mut bound, &m.flush_options);
     });
-    draw_window.render()
+    state.window.render()
 }
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal
@@ -258,30 +210,31 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
     edi_term::within_raw_mode(|| {
         let mut window = Window::new();
-        let mut state = State::new();
         let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
         let size = edi_term::get_size()?.map(|v| v as usize);
-
-        if let Some(filepath) = args.edit_file {
-            state.open_file(filepath, Vec2::from_dims(size))?;
-        }
 
         window.set_size(size);
         window.set_cursor(Coord::new(0, 0));
         window.rerender()?;
 
-        redraw(&mut state, &mut window)?;
+        let mut state = State::new(window);
 
-        let input_handler = handlers::input::InputHandler::new();
-        let draw_handler = handlers::draw::DrawHandler::new();
-        let write_handler = handlers::write::WriteHandler::new();
+        if let Some(filepath) = args.edit_file {
+            state.open_file(filepath, Vec2::from_dims(size))?;
+        }
+
+        redraw(&mut state)?;
+
+        let input_handler = handlers::input::Handler::new();
+        let draw_handler = handlers::draw::Handler::new();
+        let write_handler = handlers::write::Handler::new();
 
         event_manager.attach_handler(input_handler);
         event_manager.attach_handler(draw_handler);
         event_manager.attach_handler(write_handler);
 
-        let _ = event_manager.run(AppState { state, window });
+        let _ = event_manager.run(state);
 
         let _ = stdout().write(ANSIEscape::ExitAlternateScreen.to_str().as_bytes());
 

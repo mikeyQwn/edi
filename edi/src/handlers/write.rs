@@ -1,20 +1,20 @@
 use edi::string::highlight::get_highlights;
 
 use crate::{
-    app::AppState,
-    event::{self, manager::Handler, sender::EventBuffer, Event, Payload},
+    app::state::State,
+    event::{self, manager, sender::EventBuffer, Event, Payload},
 };
 
-pub struct WriteHandler;
+pub struct Handler;
 
-impl WriteHandler {
+impl Handler {
     pub const fn new() -> Self {
         Self
     }
 }
 
-impl Handler<AppState> for WriteHandler {
-    fn handle(&mut self, app_state: &mut AppState, event: &Event, buf: &mut EventBuffer) {
+impl manager::Handler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("write");
 
         match event.ty {
@@ -33,13 +33,13 @@ impl Handler<AppState> for WriteHandler {
     }
 }
 
-impl WriteHandler {
-    fn write_char(app_state: &mut AppState, event: &Event) {
+impl Handler {
+    fn write_char(app_state: &mut State, event: &Event) {
         let Some(Payload::WriteChar(c)) = event.payload else {
             return;
         };
 
-        match app_state.state.buffers.front_mut() {
+        match app_state.buffers.front_mut() {
             Some((b, m)) => {
                 let is_empty = b.inner.is_empty();
                 b.write(c);
@@ -56,8 +56,8 @@ impl WriteHandler {
         }
     }
 
-    fn delete_char(app_state: &mut AppState) {
-        match app_state.state.buffers.front_mut() {
+    fn delete_char(app_state: &mut State) {
+        match app_state.buffers.front_mut() {
             Some((b, m)) => {
                 b.delete();
                 m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
