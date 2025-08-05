@@ -41,19 +41,15 @@ impl Buffer {
     pub fn move_cursor(&mut self, direction: Direction, steps: usize) {
         match direction {
             Direction::Left => {
-                let new_offset = self.cursor_offset.saturating_sub(steps);
-                if let Some(c) = self.inner.get(new_offset) {
-                    if c != '\n' {
-                        self.cursor_offset = new_offset;
-                    }
+                if self.is_at_line_start() {
+                    return;
                 }
+
+                let new_offset = self.cursor_offset.saturating_sub(steps);
+                self.cursor_offset = new_offset;
             }
             Direction::Right => {
-                let Some(prev) = self.inner.get(self.cursor_offset) else {
-                    return;
-                };
-
-                if prev == '\n' {
+                if self.is_at_line_end() {
                     return;
                 }
 
@@ -67,27 +63,19 @@ impl Buffer {
                 }
 
                 let current_line = self.current_line();
+                let line_start_offset = self.offset_from_line_start();
 
-                let offs = self
-                    .cursor_offset
-                    .saturating_sub(self.current_line_info().character_offset);
-
-                self.set_cursor_line(current_line.saturating_sub(steps), offs);
+                self.set_cursor_line(current_line.saturating_sub(steps), line_start_offset);
             }
             Direction::Down => {
                 if self.inner.total_lines() == 0 {
-                    edi_lib::debug!("total lines is zero");
                     return;
                 }
 
                 let current_line = self.current_line();
-                edi_lib::debug!("curr_line: {}", current_line);
+                let line_start_offset = self.offset_from_line_start();
 
-                let offs = self
-                    .cursor_offset
-                    .saturating_sub(self.current_line_info().character_offset);
-
-                self.set_cursor_line(current_line + steps, offs);
+                self.set_cursor_line(current_line + steps, line_start_offset);
             }
         }
     }
@@ -103,6 +91,20 @@ impl Buffer {
                 length: 0,
                 contents: String::new(),
             })
+    }
+
+    fn offset_from_line_start(&self) -> usize {
+        let line_offset = self.current_line_info().character_offset;
+        self.cursor_offset - line_offset
+    }
+
+    fn is_at_line_start(&self) -> bool {
+        self.current_line_info().character_offset == self.cursor_offset
+    }
+
+    fn is_at_line_end(&self) -> bool {
+        let line_info = self.current_line_info();
+        line_info.character_offset + line_info.length == self.cursor_offset
     }
 
     fn set_cursor_line(&mut self, line: usize, offs: usize) {
@@ -161,10 +163,20 @@ impl Buffer {
     }
 
     pub fn move_global(&mut self, position: GlobalPosition) {
-        match position {
-            GlobalPosition::Start => self.cursor_offset = 0,
-            GlobalPosition::End => self.cursor_offset = self.inner.len().saturating_sub(1),
-        }
+        let line_start_offset = self.offset_from_line_start();
+        let target_line_nr = match position {
+            GlobalPosition::Start => 0,
+            GlobalPosition::End => self.inner.total_lines().saturating_sub(1),
+        };
+        let target_line = self.inner.line_info(target_line_nr).unwrap_or(LineInfo {
+            line_number: 0,
+            character_offset: 0,
+            length: 0,
+            contents: String::new(),
+        });
+        edi_lib::debug!("target_line: {:?}", target_line);
+        let new_line_start_offset = target_line.length.min(line_start_offset);
+        self.cursor_offset = target_line.character_offset + new_line_start_offset
     }
 
     #[must_use]

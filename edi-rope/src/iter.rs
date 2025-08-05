@@ -243,7 +243,7 @@ pub struct LineInfo {
     pub line_number: usize,
     /// Offset from the start of the string
     pub character_offset: usize,
-    /// A total number of characters in a string line, NOT number of bytes that the line takes
+    /// A total number of characters in a string line, NOT number of bytes that the line uses
     pub length: usize,
     /// A string representation of the line. It will be empty if `parse_contents` is `false` OR if
     /// line is actually empty
