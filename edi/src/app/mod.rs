@@ -115,37 +115,10 @@ pub fn handle_action(
             }
         }
         Action::InsertChar(c) => {
-            match state.buffers.front_mut() {
-                Some((b, m)) => {
-                    let is_empty = b.inner.is_empty();
-                    b.write(c);
-                    // Hack to always add a newline at the end of the file
-                    if is_empty {
-                        b.write('\n');
-                        b.cursor_offset -= 1;
-                    }
-                    m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
-
-                    buf.add_redraw();
-                }
-                None => {
-                    edi_lib::debug!("no buffers to write to");
-                }
-            }
-            buf.add_redraw();
+            buf.add_write_char(c);
         }
         Action::DeleteChar => {
-            match state.buffers.front_mut() {
-                Some((b, m)) => {
-                    b.delete();
-                    m.flush_options.highlights = get_highlights(&b.inner, &m.filetype);
-                    buf.add_redraw();
-                }
-                None => {
-                    edi_lib::debug!("no buffers to delete from");
-                }
-            }
-            buf.add_redraw();
+            buf.add_delete_char();
         }
         Action::Submit => {
             // TODO: Add proper error handling
@@ -302,9 +275,11 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         let input_handler = handlers::input::InputHandler::new();
         let draw_handler = handlers::draw::DrawHandler::new();
+        let write_handler = handlers::write::WriteHandler::new();
 
         event_manager.attach_handler(input_handler);
         event_manager.attach_handler(draw_handler);
+        event_manager.attach_handler(write_handler);
 
         let _ = event_manager.run(AppState { state, window });
 

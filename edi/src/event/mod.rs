@@ -24,6 +24,16 @@ impl Event {
     }
 
     #[must_use]
+    pub fn write_char(c: char) -> Self {
+        Self::new(Type::WriteChar).with_payload(Payload::WriteChar(c))
+    }
+
+    #[must_use]
+    pub fn delete_char() -> Self {
+        Self::new(Type::DeleteChar)
+    }
+
+    #[must_use]
     pub const fn redraw() -> Self {
         Self::new(Type::Redraw)
     }
@@ -47,11 +57,15 @@ impl Event {
 #[derive(Debug, Clone)]
 pub enum Payload {
     Input(Input),
+    WriteChar(char),
+    DeleteChar,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
     Input,
+    WriteChar,
+    DeleteChar,
     Redraw,
     Quit,
 }

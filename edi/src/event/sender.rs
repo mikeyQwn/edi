@@ -27,6 +27,16 @@ impl EventBuffer {
         self.add_event(Event::input(input));
     }
 
+    #[allow(unused)]
+    pub fn add_write_char(&mut self, c: char) {
+        self.add_event(Event::write_char(c));
+    }
+
+    #[allow(unused)]
+    pub fn add_delete_char(&mut self) {
+        self.add_event(Event::delete_char());
+    }
+
     pub fn add_redraw(&mut self) {
         self.add_event(Event::redraw());
     }
