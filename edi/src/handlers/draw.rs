@@ -2,7 +2,7 @@ use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
 
 use crate::{
-    app::state::State,
+    app::{buffer_bundle::BufferBundle, state::State},
     event::{
         self,
         manager::{self},
@@ -26,12 +26,17 @@ impl manager::Handler<State> for Handler {
         edi_lib::debug!("drawing {} buffers", state.buffers.len());
 
         state.window.clear();
-        state.buffers.iter_mut().rev().for_each(|(b, m)| {
-            m.normalize(b);
-            let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
-            bound.clear();
-            b.flush(&mut bound, &m.flush_options);
-        });
+        state
+            .buffers
+            .iter_mut()
+            .rev()
+            .map(BufferBundle::as_split_mut)
+            .for_each(|(b, m)| {
+                m.normalize(b);
+                let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
+                bound.clear();
+                b.flush(&mut bound, &m.flush_options);
+            });
 
         if let Err(err) = state.window.render() {
             edi_lib::debug!("{err}");

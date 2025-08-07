@@ -6,13 +6,15 @@ use edi_term::window::Window;
 
 use crate::app::{action::InputMapper, meta::BufferMeta, Mode};
 
+use super::buffer_bundle::BufferBundle;
+
 #[derive(Debug)]
 pub struct State {
     pub window: Window,
 
     pub mode: Mode,
     pub mapper: InputMapper,
-    pub buffers: VecDeque<(Buffer, BufferMeta)>,
+    pub buffers: VecDeque<BufferBundle>,
 }
 
 impl State {
@@ -49,7 +51,7 @@ impl State {
             .with_highlights(get_highlights(&buffer.inner, &meta.filetype))
             .with_line_numbers(true);
 
-        self.buffers.push_back((buffer, meta));
+        self.buffers.push_back(BufferBundle::new(buffer, meta));
 
         Ok(())
     }
@@ -61,6 +63,7 @@ impl State {
         let _ = self
             .buffers
             .front_mut()
+            .map(BufferBundle::as_split_mut)
             .map(|(buffer, meta)| f(buffer, meta));
     }
 }
