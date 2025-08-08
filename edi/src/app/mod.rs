@@ -24,7 +24,7 @@ use edi::{buffer::Buffer, string::highlight::get_highlights};
 
 use crate::{
     cli::EdiCli,
-    event::{manager::EventManager, sender::EventBuffer, sources},
+    event::{self, emitter, manager::EventManager, sender::EventBuffer, sources, Event},
     handlers,
 };
 
@@ -138,8 +138,8 @@ pub fn handle_action(
         Action::Move { action, repeat } => {
             match state.buffers.front_mut() {
                 Some(bundle) => {
-                    let (buffer, meta) = bundle.as_split_mut();
-                    handle_move(buffer, meta, action, repeat);
+                    let (mut buffer, meta) = bundle.as_split_mut(buf);
+                    handle_move(&mut buffer, meta, action, repeat);
                     buf.add_redraw();
                 }
                 None => {
@@ -151,7 +151,8 @@ pub fn handle_action(
         Action::Undo => {
             match state.buffers.front_mut() {
                 Some(bundle) => {
-                    let (buffer, meta) = bundle.as_split_mut();
+                    let (mut buffer, meta) = bundle.as_split_mut(buf);
+                    let buffer = buffer.as_mut();
                     edi_lib::debug!("undoing last action");
                     buffer.undo();
                     meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
@@ -166,7 +167,8 @@ pub fn handle_action(
         Action::Redo => {
             match state.buffers.front_mut() {
                 Some(bundle) => {
-                    let (buffer, meta) = bundle.as_split_mut();
+                    let (mut buffer, meta) = bundle.as_split_mut(buf);
+                    let buffer = buffer.as_mut();
                     buffer.redo();
                     meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
                     buf.add_redraw();
@@ -182,7 +184,13 @@ pub fn handle_action(
     Ok(())
 }
 
-fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, repeat: usize) {
+fn handle_move(
+    buffer: &mut emitter::buffer::Buffer,
+    meta: &mut BufferMeta,
+    action: MoveAction,
+    repeat: usize,
+) {
+    let buffer = buffer.as_mut();
     match action {
         MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
@@ -197,22 +205,19 @@ fn handle_move(buffer: &mut Buffer, meta: &mut BufferMeta, action: MoveAction, r
     }
 }
 
-pub fn redraw(state: &mut State) -> std::io::Result<()> {
+pub fn redraw(state: &mut State, event_buffer: &mut EventBuffer) -> std::io::Result<()> {
     let _span = edi_lib::span!("redraw");
     edi_lib::debug!("drawing {} buffers", state.buffers.len());
 
     state.window.clear();
-    state
-        .buffers
-        .iter_mut()
-        .rev()
-        .map(BufferBundle::as_split_mut)
-        .for_each(|(b, m)| {
-            m.normalize(b);
-            let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
-            bound.clear();
-            b.flush(&mut bound, &m.flush_options);
-        });
+    state.buffers.iter_mut().rev().for_each(|bundle| {
+        let (mut b, m) = bundle.as_split_mut(event_buffer);
+        let b = b.as_mut();
+        m.normalize(b);
+        let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
+        bound.clear();
+        b.flush(&mut bound, &m.flush_options);
+    });
     state.window.render()
 }
 
@@ -237,8 +242,6 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
             state.open_file(filepath, Vec2::from_dims(size))?;
         }
 
-        redraw(&mut state)?;
-
         let input_handler = handlers::input::Handler::new();
         let draw_handler = handlers::draw::Handler::new();
         let write_handler = handlers::write::Handler::new();
@@ -246,6 +249,8 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         event_manager.attach_handler(input_handler);
         event_manager.attach_handler(draw_handler);
         event_manager.attach_handler(write_handler);
+
+        event_manager.pipe_event(Event::redraw());
 
         let _ = event_manager.run(state);
 

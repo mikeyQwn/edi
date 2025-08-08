@@ -1,3 +1,4 @@
+pub mod emitter;
 pub mod manager;
 pub mod sender;
 pub mod source;

@@ -4,7 +4,10 @@ use edi::{buffer::Buffer, string::highlight::get_highlights};
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::window::Window;
 
-use crate::app::{action::InputMapper, meta::BufferMeta, Mode};
+use crate::{
+    app::{action::InputMapper, meta::BufferMeta, Mode},
+    event::{emitter, sender::EventBuffer},
+};
 
 use super::buffer_bundle::BufferBundle;
 
@@ -56,14 +59,14 @@ impl State {
         Ok(())
     }
 
-    pub fn within_first_buffer<F>(&mut self, mut f: F)
+    pub fn within_first_buffer<F>(&mut self, mut f: F, event_buffer: &mut EventBuffer)
     where
-        F: FnMut(&mut Buffer, &mut BufferMeta),
+        F: FnMut(emitter::buffer::Buffer, &mut BufferMeta),
     {
         let _ = self
             .buffers
             .front_mut()
-            .map(BufferBundle::as_split_mut)
+            .map(|bundle| bundle.as_split_mut(event_buffer))
             .map(|(buffer, meta)| f(buffer, meta));
     }
 }

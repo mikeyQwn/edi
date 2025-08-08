@@ -20,6 +20,7 @@ pub struct EventManager<State> {
 
     attached_sources: Vec<Box<dyn Source>>,
     attached_handlers: Vec<Box<dyn Handler<State>>>,
+    piped_events: Vec<Event>,
 }
 
 impl<State> EventManager<State> {
@@ -32,6 +33,7 @@ impl<State> EventManager<State> {
 
             attached_sources: Vec::new(),
             attached_handlers: Vec::new(),
+            piped_events: Vec::new(),
         }
     }
 
@@ -55,6 +57,10 @@ impl<State> EventManager<State> {
         self.attached_handlers.push(Box::new(handler));
     }
 
+    pub fn pipe_event(&mut self, event: Event) {
+        self.piped_events.push(event);
+    }
+
     pub fn run(mut self, mut state: State) -> SourcesHandle {
         let mut handle = SourcesHandle::new(self.attached_sources.len());
         let sources = std::mem::take(&mut self.attached_sources);
@@ -67,6 +73,15 @@ impl<State> EventManager<State> {
         }
 
         let mut event_buffer = EventBuffer::new();
+
+        while let Some(event) = self.piped_events.pop() {
+            Self::handle_event(
+                &mut self.attached_handlers,
+                &mut state,
+                &mut event_buffer,
+                &event,
+            );
+        }
 
         'outer: loop {
             while let Some(event) = event_buffer.pop_first() {
