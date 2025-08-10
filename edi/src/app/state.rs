@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use edi::{buffer::Buffer, string::highlight::get_highlights};
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::window::Window;
@@ -9,7 +7,7 @@ use crate::{
     event::{emitter, sender::EventBuffer},
 };
 
-use super::buffer_bundle::BufferBundle;
+use super::buffers::Buffers;
 
 #[derive(Debug)]
 pub struct State {
@@ -17,7 +15,7 @@ pub struct State {
 
     pub mode: Mode,
     pub mapper: InputMapper,
-    pub buffers: VecDeque<BufferBundle>,
+    pub buffers: Buffers,
 }
 
 impl State {
@@ -28,7 +26,7 @@ impl State {
             window,
             mode: Mode::Normal,
             mapper: InputMapper::default(),
-            buffers: VecDeque::new(),
+            buffers: Buffers::new(),
         }
     }
 
@@ -54,7 +52,7 @@ impl State {
             .with_highlights(get_highlights(&buffer.inner, &meta.filetype))
             .with_line_numbers(true);
 
-        self.buffers.push_back(BufferBundle::new(buffer, meta));
+        self.buffers.attach(buffer, meta);
 
         Ok(())
     }
@@ -65,7 +63,7 @@ impl State {
     {
         let _ = self
             .buffers
-            .front_mut()
+            .first_mut()
             .map(|bundle| bundle.as_split_mut(event_buffer))
             .map(|(buffer, meta)| f(buffer, meta));
     }
