@@ -2,10 +2,10 @@ mod action;
 mod meta;
 
 pub mod buffer_bundle;
+pub mod buffers;
 pub mod state;
 
 use action::{Action, MoveAction};
-use buffer_bundle::BufferBundle;
 use edi_lib::vec2::Vec2;
 use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
 use meta::BufferMeta;
@@ -49,7 +49,7 @@ pub fn handle_action(
     match event {
         Action::SwitchMode(mode) => {
             if state.mode == Mode::Terminal {
-                let _ = state.buffers.pop_front();
+                let _ = state.buffers.remove_first();
                 buf.add_redraw();
             }
             state.mode = mode;
@@ -59,10 +59,10 @@ pub fn handle_action(
                     .unwrap_or(Vec2::new(10, 1));
                 let mut buffer = Buffer::new(":");
                 buffer.cursor_offset = 1;
-                state.buffers.push_front(BufferBundle::new(
+                state.buffers.attach(
                     buffer,
                     BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
-                ));
+                );
                 buf.add_redraw();
             }
         }
@@ -74,7 +74,7 @@ pub fn handle_action(
         }
         Action::Submit => {
             // TODO: Add proper error handling
-            let bundle = state.buffers.pop_front().unwrap();
+            let bundle = state.buffers.remove_first().unwrap();
             let cmd_buf = bundle.buffer();
             buf.add_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
@@ -83,7 +83,7 @@ pub fn handle_action(
                 return Ok(());
             }
             if cmd == ":wq" {
-                let Some(bundle) = state.buffers.pop_front() else {
+                let Some(bundle) = state.buffers.remove_first() else {
                     edi_lib::fatal!("no buffer to write")
                 };
                 let (b, meta) = bundle.as_split();
@@ -134,7 +134,7 @@ pub fn handle_action(
         }
 
         Action::Move { action, repeat } => {
-            match state.buffers.front_mut() {
+            match state.buffers.first_mut() {
                 Some(bundle) => {
                     let (mut buffer, meta) = bundle.as_split_mut(buf);
                     handle_move(&mut buffer, meta, action, repeat);
@@ -147,7 +147,7 @@ pub fn handle_action(
             buf.add_redraw();
         }
         Action::Undo => {
-            match state.buffers.front_mut() {
+            match state.buffers.first_mut() {
                 Some(bundle) => {
                     let (mut buffer, meta) = bundle.as_split_mut(buf);
                     let buffer = buffer.as_mut();
@@ -163,7 +163,7 @@ pub fn handle_action(
             buf.add_redraw();
         }
         Action::Redo => {
-            match state.buffers.front_mut() {
+            match state.buffers.first_mut() {
                 Some(bundle) => {
                     let (mut buffer, meta) = bundle.as_split_mut(buf);
                     let buffer = buffer.as_mut();

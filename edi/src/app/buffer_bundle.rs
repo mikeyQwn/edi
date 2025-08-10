@@ -1,4 +1,5 @@
 use edi::buffer;
+use edi_lib::brand::Id;
 
 use crate::event::{emitter, sender::EventBuffer};
 
@@ -6,13 +7,14 @@ use super::meta;
 
 #[derive(Debug)]
 pub struct BufferBundle {
+    id: Id,
     buffer: buffer::Buffer,
     meta: meta::BufferMeta,
 }
 
 impl BufferBundle {
-    pub fn new(buffer: buffer::Buffer, meta: meta::BufferMeta) -> Self {
-        Self { buffer, meta }
+    pub fn new(id: Id, buffer: buffer::Buffer, meta: meta::BufferMeta) -> Self {
+        Self { id, buffer, meta }
     }
 
     pub fn as_split(&self) -> (&buffer::Buffer, &meta::BufferMeta) {
