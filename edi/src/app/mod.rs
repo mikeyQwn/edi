@@ -6,8 +6,6 @@ pub mod state;
 
 use action::{Action, MoveAction};
 use buffer_bundle::BufferBundle;
-use edi_frame::prelude::*;
-use edi_frame::rect::Rect;
 use edi_lib::vec2::Vec2;
 use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
 use meta::BufferMeta;
@@ -24,7 +22,7 @@ use edi::{buffer::Buffer, string::highlight::get_highlights};
 
 use crate::{
     cli::EdiCli,
-    event::{self, emitter, manager::EventManager, sender::EventBuffer, sources, Event},
+    event::{emitter, manager::EventManager, sender::EventBuffer, sources, Event},
     handlers,
 };
 
@@ -190,7 +188,6 @@ fn handle_move(
     action: MoveAction,
     repeat: usize,
 ) {
-    let buffer = buffer.as_mut();
     match action {
         MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
@@ -203,22 +200,6 @@ fn handle_move(
         }
         MoveAction::Global(global_position) => buffer.move_global(global_position),
     }
-}
-
-pub fn redraw(state: &mut State, event_buffer: &mut EventBuffer) -> std::io::Result<()> {
-    let _span = edi_lib::span!("redraw");
-    edi_lib::debug!("drawing {} buffers", state.buffers.len());
-
-    state.window.clear();
-    state.buffers.iter_mut().rev().for_each(|bundle| {
-        let (mut b, m) = bundle.as_split_mut(event_buffer);
-        let b = b.as_mut();
-        m.normalize(b);
-        let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
-        bound.clear();
-        b.flush(&mut bound, &m.flush_options);
-    });
-    state.window.render()
 }
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal

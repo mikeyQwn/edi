@@ -41,15 +41,15 @@ impl Handler {
 
         state.within_first_buffer(
             |mut buffer, meta| {
-                let buffer = buffer.as_mut();
-                let is_empty = buffer.inner.is_empty();
+                let is_empty = buffer.as_ref().inner.is_empty();
                 buffer.write(c);
                 // Hack to always add a newline at the end of the file
                 if is_empty {
                     buffer.write('\n');
-                    buffer.cursor_offset -= 1;
+                    buffer.set_cursor_offset(buffer.as_ref().cursor_offset - 1);
                 }
-                meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+                meta.flush_options.highlights =
+                    get_highlights(&buffer.as_ref().inner, &meta.filetype);
             },
             buf,
         );
@@ -58,9 +58,9 @@ impl Handler {
     fn delete_char(state: &mut State, buf: &mut EventBuffer) {
         state.within_first_buffer(
             |mut buffer, meta| {
-                let buffer = buffer.as_mut();
                 buffer.delete();
-                meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
+                meta.flush_options.highlights =
+                    get_highlights(&buffer.as_ref().inner, &meta.filetype);
             },
             buf,
         );

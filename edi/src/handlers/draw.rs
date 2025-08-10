@@ -27,12 +27,11 @@ impl manager::Handler<State> for Handler {
 
         state.window.clear();
         state.buffers.iter_mut().rev().for_each(|bundle| {
-            let (mut b, m) = bundle.as_split_mut(buf);
-            let b = b.as_mut();
-            m.normalize(b);
+            let (b, m) = bundle.as_split_mut(buf);
+            m.normalize(b.as_ref());
             let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
             bound.clear();
-            b.flush(&mut bound, &m.flush_options);
+            b.as_ref().flush(&mut bound, &m.flush_options);
         });
 
         if let Err(err) = state.window.render() {
