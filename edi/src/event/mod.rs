@@ -4,6 +4,7 @@ pub mod sender;
 pub mod source;
 pub mod sources;
 
+use edi_lib::brand::Id;
 use edi_term::input::Input;
 use sender::Sender;
 
@@ -35,6 +36,20 @@ impl Event {
     }
 
     #[must_use]
+    pub fn char_written(buffer_id: Id, offset: usize, c: char) -> Self {
+        Self::new(Type::CharWritten).with_payload(Payload::CharWritten {
+            buffer_id,
+            offset,
+            c,
+        })
+    }
+
+    #[must_use]
+    pub fn char_deleted(buffer_id: Id, offset: usize) -> Self {
+        Self::new(Type::CharDeleted).with_payload(Payload::CharDeleted { buffer_id, offset })
+    }
+
+    #[must_use]
     pub const fn redraw() -> Self {
         Self::new(Type::Redraw)
     }
@@ -59,6 +74,15 @@ impl Event {
 pub enum Payload {
     Input(Input),
     WriteChar(char),
+    CharWritten {
+        buffer_id: Id,
+        offset: usize,
+        c: char,
+    },
+    CharDeleted {
+        buffer_id: Id,
+        offset: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +90,8 @@ pub enum Type {
     Input,
     WriteChar,
     DeleteChar,
+    CharWritten,
+    CharDeleted,
     Redraw,
     Quit,
 }

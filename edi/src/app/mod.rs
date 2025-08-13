@@ -48,11 +48,13 @@ pub fn handle_action(
 
     match event {
         Action::SwitchMode(mode) => {
+            let _span = edi_lib::span!("switch_mode");
             if state.mode == Mode::Terminal {
                 let _ = state.buffers.remove_first();
                 buf.add_redraw();
             }
             state.mode = mode;
+            edi_lib::debug!("mode switched to: {mode:?}");
             if state.mode == Mode::Terminal {
                 let size = edi_term::get_size()
                     .map(Vec2::from_dims)

@@ -2,8 +2,9 @@ use edi::{
     buffer::{self, Direction},
     string::position::{GlobalPosition, LinePosition},
 };
+use edi_lib::brand::Id;
 
-use crate::event::sender::EventBuffer;
+use crate::event::{sender::EventBuffer, Event};
 
 macro_rules! proxy_method {
     (
@@ -19,24 +20,30 @@ macro_rules! proxy_method {
 
 #[derive(Debug)]
 pub struct Buffer<'a, 'b> {
+    id: Id,
     inner: &'a mut buffer::Buffer,
     event_buffer: &'b mut EventBuffer,
 }
 
 impl<'a, 'b> Buffer<'a, 'b> {
-    pub fn new(buf: &'a mut buffer::Buffer, event_buffer: &'b mut EventBuffer) -> Self {
+    pub fn new(id: Id, buf: &'a mut buffer::Buffer, event_buffer: &'b mut EventBuffer) -> Self {
         Self {
+            id,
             inner: buf,
             event_buffer,
         }
     }
 
     pub fn write(&mut self, c: char) {
+        let write_event = Event::char_written(self.id, self.inner.cursor_offset, c);
         self.inner.write(c);
+        self.event_buffer.add_event(write_event);
     }
 
     pub fn delete(&mut self) {
+        let write_event = Event::char_deleted(self.id, self.inner.cursor_offset);
         self.inner.delete();
+        self.event_buffer.add_event(write_event);
     }
 
     pub fn set_cursor_offset(&mut self, cursor_offset: usize) {

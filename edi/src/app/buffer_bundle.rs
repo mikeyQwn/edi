@@ -26,7 +26,7 @@ impl BufferBundle {
         event_buffer: &'b mut EventBuffer,
     ) -> (emitter::buffer::Buffer<'a, 'b>, &'a mut meta::BufferMeta) {
         (
-            emitter::buffer::Buffer::new(&mut self.buffer, event_buffer),
+            emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer),
             &mut self.meta,
         )
     }
@@ -40,6 +40,6 @@ impl BufferBundle {
         &'a mut self,
         event_buffer: &'b mut EventBuffer,
     ) -> emitter::buffer::Buffer<'a, 'b> {
-        emitter::buffer::Buffer::new(&mut self.buffer, event_buffer)
+        emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer)
     }
 }
