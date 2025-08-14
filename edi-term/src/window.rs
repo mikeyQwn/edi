@@ -205,7 +205,7 @@ where
         escape
     }
 
-    fn as_escapes(&self) -> EscapeBuilder {
+    fn as_escapes(&self) -> EscapeBuilder<'_> {
         let mut result = EscapeBuilder::new();
 
         for i in 0..self.height {

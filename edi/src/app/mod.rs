@@ -61,7 +61,7 @@ pub fn handle_action(
                     .unwrap_or(Vec2::new(10, 1));
                 let mut buffer = Buffer::new(":");
                 buffer.cursor_offset = 1;
-                state.buffers.attach(
+                state.buffers.attach_first(
                     buffer,
                     BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
                 );

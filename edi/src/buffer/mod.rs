@@ -268,6 +268,8 @@ mod tests {
         }
     }
 
+    // NOTE: this test is too heavy for miri to handle
+    #[cfg(not(miri))]
     #[test]
     fn movement() {
         const TRIES: usize = 1024;

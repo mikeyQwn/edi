@@ -17,6 +17,10 @@ impl BufferBundle {
         Self { id, buffer, meta }
     }
 
+    pub fn id(&self) -> Id {
+        self.id
+    }
+
     pub fn as_split(&self) -> (&buffer::Buffer, &meta::BufferMeta) {
         (&self.buffer, &self.meta)
     }
@@ -41,5 +45,10 @@ impl BufferBundle {
         event_buffer: &'b mut EventBuffer,
     ) -> emitter::buffer::Buffer<'a, 'b> {
         emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer)
+    }
+
+    #[allow(unused)]
+    pub fn meta_mut(&mut self) -> &mut meta::BufferMeta {
+        &mut self.meta
     }
 }
