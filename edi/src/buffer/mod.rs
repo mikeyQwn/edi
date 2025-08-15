@@ -159,6 +159,24 @@ impl Buffer {
                 }
                 character_offset + search::current_word_end(&contents, offset)
             }
+            LinePosition::CurrentWordStart => {
+                let is_at_start = self.cursor_offset - character_offset == 0;
+                edi_lib::debug!("is_at_start: {}", is_at_start);
+                let mut offset = self.cursor_offset - character_offset;
+                if is_at_start {
+                    if current_line == 0 {
+                        return;
+                    }
+                    let Some(next_line) = self.inner.line(current_line - 1) else {
+                        // at the start of the file, nothing we can do
+                        return;
+                    };
+                    offset = next_line.length;
+                    contents = next_line.contents;
+                    character_offset = next_line.character_offset;
+                }
+                character_offset + search::current_word_start(&contents, offset)
+            }
         }
     }
 

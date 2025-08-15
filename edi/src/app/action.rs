@@ -178,6 +178,11 @@ impl InputMapper {
         );
 
         map(
+            Input::Keypress('b'),
+            Action::move_once(MoveAction::InLine(LinePosition::CurrentWordStart)),
+        );
+
+        map(
             Input::Keypress('G'),
             Action::move_once(MoveAction::Global(GlobalPosition::End)),
         );
