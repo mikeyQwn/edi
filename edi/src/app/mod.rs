@@ -228,10 +228,12 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         let input_handler = handlers::input::Handler::new();
         let draw_handler = handlers::draw::Handler::new();
         let write_handler = handlers::write::Handler::new();
+        let history_handler = handlers::history::Handler::new();
 
         event_manager.attach_handler(input_handler);
         event_manager.attach_handler(draw_handler);
         event_manager.attach_handler(write_handler);
+        event_manager.attach_handler(history_handler);
 
         event_manager.pipe_event(Event::redraw());
 
