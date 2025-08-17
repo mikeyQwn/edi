@@ -191,9 +191,8 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
     let mut event_manager = EventManager::new();
     event_manager.attach_source(sources::input_source);
 
-    edi_term::within_raw_mode(|| {
+    edi_term::within_alternative_screen_mode(|| {
         let mut window = Window::new();
-        let _ = stdout().write(ANSIEscape::EnterAlternateScreen.to_str().as_bytes());
 
         let size = edi_term::get_size()?.map(|v| v as usize);
 
@@ -207,24 +206,29 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
             state.open_file(filepath, Vec2::from_dims(size))?;
         }
 
-        let input_handler = handlers::input::Handler::new();
-        let draw_handler = handlers::draw::Handler::new();
-        let write_handler = handlers::write::Handler::new();
-        let history_handler = handlers::history::Handler::new();
-        let mode_handler = handlers::mode::Handler::new();
-
-        event_manager.attach_handler(input_handler);
-        event_manager.attach_handler(draw_handler);
-        event_manager.attach_handler(write_handler);
-        event_manager.attach_handler(history_handler);
-        event_manager.attach_handler(mode_handler);
+        init_handlers(&mut event_manager);
 
         event_manager.pipe_event(Event::redraw());
 
         let _ = event_manager.run(state);
 
-        let _ = stdout().write(ANSIEscape::ExitAlternateScreen.to_str().as_bytes());
-
         Ok(())
     })?
+}
+
+pub fn init_handlers(event_manager: &mut EventManager<State>) {
+    let input_handler = handlers::input::Handler::new();
+    event_manager.attach_handler(input_handler);
+
+    let draw_handler = handlers::draw::Handler::new();
+    event_manager.attach_handler(draw_handler);
+
+    let write_handler = handlers::write::Handler::new();
+    event_manager.attach_handler(write_handler);
+
+    let history_handler = handlers::history::Handler::new();
+    event_manager.attach_handler(history_handler);
+
+    let mode_handler = handlers::mode::Handler::new();
+    event_manager.attach_handler(mode_handler);
 }

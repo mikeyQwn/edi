@@ -17,6 +17,7 @@ use std::os::fd::{AsRawFd, RawFd};
 /// # Errors
 ///
 /// Returns an error with corresponding `Errno` if underlying c function fails
+///
 pub fn get_current_state() -> Result<termios::Termios, Errno> {
     termios::tcgetattr(std::io::stdin())
 }
@@ -29,6 +30,7 @@ pub fn get_current_state() -> Result<termios::Termios, Errno> {
 /// # Errors
 ///
 /// Returns an error with corresponding `Errno` if underlying c function fails
+///
 pub fn into_raw() -> Result<(), Errno> {
     let mut termios = termios::tcgetattr(std::io::stdin())?;
 
@@ -50,6 +52,7 @@ pub fn into_raw() -> Result<(), Errno> {
 /// # Errors
 ///
 /// Returns an error with corresponding `Errno` if underlying c function fails
+///
 pub fn restore_state(state: &termios::Termios) -> Result<(), Errno> {
     termios::tcsetattr(std::io::stdin(), termios::SetArg::TCSAFLUSH, state)
 }
@@ -61,6 +64,7 @@ ioctl_read_bad!(get_win_size, TIOCGWINSZ, nix::pty::Winsize);
 /// # Errors
 ///
 /// Returns an error with corresponding `Errno` if underlying c function fails
+///
 pub fn get_size() -> Result<Dimensions<u16>, Errno> {
     let mut winsize = nix::pty::Winsize {
         ws_row: 0,
@@ -82,6 +86,7 @@ pub fn get_size() -> Result<Dimensions<u16>, Errno> {
 /// # Errors
 ///
 /// Returns an error with corresponding `Errno` if underlying c function fails
+///
 pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T, Errno> {
     let initial_state = get_current_state()?;
     into_raw()?;
@@ -90,6 +95,37 @@ pub fn within_raw_mode<T>(f: impl FnOnce() -> T) -> Result<T, Errno> {
 
     restore_state(&initial_state)?;
     Ok(ret)
+}
+
+/// Executes a function within alternative screen mode,
+/// ensuring that state is restored after function returns.
+///
+/// Implies entering raw mode
+///
+/// # Errors
+///
+/// Returns an error with corresponding `Errno` if underlying c function fails
+///
+pub fn within_alternative_screen_mode<T>(f: impl FnOnce() -> T) -> Result<T, Errno> {
+    use std::io::Write;
+
+    within_raw_mode(|| {
+        let _ = std::io::stdout().write(
+            escaping::ANSIEscape::EnterAlternateScreen
+                .to_str()
+                .as_bytes(),
+        );
+
+        let out = f();
+
+        let _ = std::io::stdout().write(
+            escaping::ANSIEscape::ExitAlternateScreen
+                .to_str()
+                .as_bytes(),
+        );
+
+        out
+    })
 }
 
 fn get_stdin_fd() -> RawFd {
@@ -104,6 +140,16 @@ mod tests {
     fn within_raw() {
         let init_state = get_current_state().unwrap();
         let raw_state = within_raw_mode(|| get_current_state().unwrap()).unwrap();
+
+        let exit_state = get_current_state().unwrap();
+        assert_eq!(init_state, exit_state);
+        assert_ne!(init_state, raw_state);
+    }
+
+    #[test]
+    fn within_as() {
+        let init_state = get_current_state().unwrap();
+        let raw_state = within_alternative_screen_mode(|| get_current_state().unwrap()).unwrap();
 
         let exit_state = get_current_state().unwrap();
         assert_eq!(init_state, exit_state);
