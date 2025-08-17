@@ -167,13 +167,13 @@ impl Buffer {
                     if current_line == 0 {
                         return;
                     }
-                    let Some(next_line) = self.inner.line(current_line - 1) else {
+                    let Some(prev_line) = self.inner.line(current_line - 1) else {
                         // at the start of the file, nothing we can do
                         return;
                     };
-                    offset = next_line.length;
-                    contents = next_line.contents;
-                    character_offset = next_line.character_offset;
+                    offset = prev_line.length.saturating_sub(1);
+                    contents = prev_line.contents;
+                    character_offset = prev_line.character_offset;
                 }
                 character_offset + search::current_word_start(&contents, offset)
             }
