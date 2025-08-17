@@ -1,6 +1,6 @@
 use crate::{
     app::{handle_action, state::State},
-    event::{self, manager, sender::EventBuffer, Event},
+    event::{self, manager, sender::EventBuffer, Event, Payload},
 };
 
 pub struct Handler;
@@ -13,7 +13,7 @@ impl Handler {
 
 impl manager::Handler<State> for Handler {
     fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
-        let Event::Input(input) = event else {
+        let Payload::Input(input) = event.payload() else {
             return;
         };
 

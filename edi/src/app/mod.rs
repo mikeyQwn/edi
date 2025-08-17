@@ -26,7 +26,7 @@ use edi::string::highlight::get_highlights;
 
 use crate::{
     cli::EdiCli,
-    event::{emitter, manager::EventManager, sender::EventBuffer, sources, Event},
+    event::{emitter, manager::EventManager, sender::EventBuffer, sources, Payload},
     handlers,
 };
 
@@ -223,7 +223,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         init_handlers(&mut event_manager);
 
-        event_manager.pipe_event(Event::Redraw);
+        event_manager.pipe_event(Payload::Redraw);
 
         let _ = event_manager.run(state);
 

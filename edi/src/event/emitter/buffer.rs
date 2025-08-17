@@ -4,7 +4,7 @@ use edi::{
 };
 use edi_lib::brand::Id;
 
-use crate::event::{sender::EventBuffer, Event};
+use crate::event::{sender::EventBuffer, Payload};
 
 macro_rules! proxy_method {
     (
@@ -35,7 +35,7 @@ impl<'a, 'b> Buffer<'a, 'b> {
     }
 
     pub fn write(&mut self, c: char) {
-        let write_event = Event::CharWritten {
+        let write_event = Payload::CharWritten {
             buffer_id: self.id,
             offset: self.inner.cursor_offset,
             c,
@@ -45,7 +45,7 @@ impl<'a, 'b> Buffer<'a, 'b> {
     }
 
     pub fn delete(&mut self) {
-        let write_event = Event::CharDeleted {
+        let write_event = Payload::CharDeleted {
             buffer_id: self.id,
             offset: self.inner.cursor_offset,
         };

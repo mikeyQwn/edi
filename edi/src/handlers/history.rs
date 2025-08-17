@@ -8,7 +8,7 @@ use crate::{
         self,
         manager::{self},
         sender::EventBuffer,
-        Event,
+        Event, Payload,
     },
 };
 
@@ -78,13 +78,13 @@ impl manager::Handler<State> for Handler {
     fn handle(&mut self, _state: &mut State, event: &Event, _buf: &mut EventBuffer) {
         let _span = edi_lib::span!("history");
 
-        match event {
-            &Event::CharWritten {
+        match event.payload() {
+            &Payload::CharWritten {
                 buffer_id,
                 offset,
                 c,
             } => self.char_written(buffer_id, offset, c),
-            &Event::CharDeleted { buffer_id, offset } => self.char_deleted(buffer_id, offset),
+            &Payload::CharDeleted { buffer_id, offset } => self.char_deleted(buffer_id, offset),
             _ => return,
         }
 

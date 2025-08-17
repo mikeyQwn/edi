@@ -5,49 +5,61 @@ use edi_term::input::Input;
 
 use crate::app;
 
-use super::Event;
+use super::{Event, Payload};
 
 #[derive(Debug)]
-pub struct EventBuffer(VecDeque<Event>);
+pub struct EventBuffer {
+    handler_id: Option<Id>,
+    events: VecDeque<Event>,
+}
 
 impl EventBuffer {
     #[must_use]
     pub(super) fn new() -> Self {
-        Self(VecDeque::default())
+        Self {
+            handler_id: None,
+            events: VecDeque::default(),
+        }
+    }
+
+    pub(super) fn with_id(&mut self, id: Id) -> &mut Self {
+        self.handler_id = Some(id);
+        self
     }
 
     #[must_use]
     pub(super) fn pop_first(&mut self) -> Option<Event> {
-        self.0.pop_front()
+        self.events.pop_front()
     }
 
-    pub fn add_event(&mut self, event: Event) {
-        self.0.push_back(event);
+    pub fn add_event(&mut self, payload: Payload) {
+        let event = Event::new(self.handler_id, payload);
+        self.events.push_back(event);
     }
 
     #[allow(unused)]
     pub fn add_input(&mut self, input: Input) {
-        self.add_event(Event::Input(input));
+        self.add_event(Payload::Input(input));
     }
 
     #[allow(unused)]
     pub fn add_switch_mode(&mut self, mode: app::Mode) {
-        self.add_event(Event::SwitchMode(mode));
+        self.add_event(Payload::SwitchMode(mode));
     }
 
     #[allow(unused)]
     pub fn add_write_char(&mut self, c: char) {
-        self.add_event(Event::WriteChar(c));
+        self.add_event(Payload::WriteChar(c));
     }
 
     #[allow(unused)]
     pub fn add_delete_char(&mut self) {
-        self.add_event(Event::DeleteChar);
+        self.add_event(Payload::DeleteChar);
     }
 
     #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
-        self.add_event(Event::CharWritten {
+        self.add_event(Payload::CharWritten {
             buffer_id,
             offset,
             c,
@@ -56,28 +68,28 @@ impl EventBuffer {
 
     #[allow(unused)]
     pub fn add_char_deleted(&mut self, buffer_id: Id, offset: usize) {
-        self.add_event(Event::CharDeleted { buffer_id, offset });
+        self.add_event(Payload::CharDeleted { buffer_id, offset });
     }
 
     pub fn add_redraw(&mut self) {
-        self.add_event(Event::Redraw);
+        self.add_event(Payload::Redraw);
     }
 
     pub fn add_quit(&mut self) {
-        self.add_event(Event::Quit);
+        self.add_event(Payload::Quit);
     }
 }
 
 pub struct Sender {
-    pub(super) tx: mpsc::Sender<Event>,
+    pub(super) tx: mpsc::Sender<Payload>,
 }
 
 impl Sender {
-    pub fn send_event(&self, event: Event) -> bool {
+    pub fn send_event(&self, event: Payload) -> bool {
         self.tx.send(event).is_ok()
     }
 
     pub fn send_input(&self, input: Input) -> bool {
-        self.send_event(Event::Input(input))
+        self.send_event(Payload::Input(input))
     }
 }

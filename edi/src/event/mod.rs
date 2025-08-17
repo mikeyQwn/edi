@@ -10,8 +10,36 @@ use sender::Sender;
 
 use crate::app;
 
+#[derive(Debug)]
+pub struct Event {
+    source: Option<Id>,
+    payload: Payload,
+}
+
+impl Event {
+    pub(super) fn new(source: Option<Id>, payload: Payload) -> Self {
+        Self { source, payload }
+    }
+
+    pub(super) fn without_source(payload: Payload) -> Self {
+        Self::new(None, payload)
+    }
+
+    pub fn ty(&self) -> Type {
+        self.payload().ty()
+    }
+
+    pub fn source_id(&self) -> Option<Id> {
+        self.source
+    }
+
+    pub fn payload(&self) -> &Payload {
+        &self.payload
+    }
+}
+
 #[derive(Debug, Clone)]
-pub enum Event {
+pub enum Payload {
     Input(Input),
     SwitchMode(app::Mode),
     WriteChar(char),
@@ -29,7 +57,7 @@ pub enum Event {
     Quit,
 }
 
-impl Event {
+impl Payload {
     pub fn is_quit(&self) -> bool {
         matches!(self, Self::Quit)
     }

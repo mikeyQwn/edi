@@ -1,9 +1,11 @@
-use std::sync::mpsc;
+use std::{collections::HashMap, sync::mpsc};
+
+use edi_lib::brand::{Id, Tag};
 
 use super::{
     sender::{EventBuffer, Sender},
     source::{Source, SourcesHandle},
-    Event,
+    Event, Payload,
 };
 
 pub trait Handler<State> {
@@ -15,24 +17,29 @@ pub trait Handler<State> {
 }
 
 pub struct EventManager<State> {
-    tx: mpsc::Sender<Event>,
-    rx: mpsc::Receiver<Event>,
+    tag: Tag,
+
+    tx: mpsc::Sender<Payload>,
+    rx: mpsc::Receiver<Payload>,
 
     attached_sources: Vec<Box<dyn Source>>,
-    attached_handlers: Vec<Box<dyn Handler<State>>>,
-    piped_events: Vec<Event>,
+    attached_handlers: HashMap<Id, Box<dyn Handler<State>>>,
+    piped_events: Vec<Payload>,
 }
 
 impl<State> EventManager<State> {
     #[must_use]
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
+        let tag = Tag::new();
         Self {
+            tag,
+
             tx,
             rx,
 
             attached_sources: Vec::new(),
-            attached_handlers: Vec::new(),
+            attached_handlers: HashMap::new(),
             piped_events: Vec::new(),
         }
     }
@@ -54,10 +61,11 @@ impl<State> EventManager<State> {
     where
         Hnd: Handler<State> + 'static,
     {
-        self.attached_handlers.push(Box::new(handler));
+        let child_id = self.tag.child_id();
+        let _ = self.attached_handlers.insert(child_id, Box::new(handler));
     }
 
-    pub fn pipe_event(&mut self, event: Event) {
+    pub fn pipe_event(&mut self, event: Payload) {
         self.piped_events.push(event);
     }
 
@@ -74,23 +82,23 @@ impl<State> EventManager<State> {
 
         let mut event_buffer = EventBuffer::new();
 
-        while let Some(event) = self.piped_events.pop() {
+        while let Some(payload) = self.piped_events.pop() {
             Self::handle_event(
-                &mut self.attached_handlers,
+                self.attached_handlers.iter_mut(),
                 &mut state,
                 &mut event_buffer,
-                &event,
+                &Event::without_source(payload),
             );
         }
 
         'outer: loop {
             while let Some(event) = event_buffer.pop_first() {
-                if event.is_quit() {
+                if event.payload.is_quit() {
                     break 'outer;
                 }
 
                 Self::handle_event(
-                    &mut self.attached_handlers,
+                    self.attached_handlers.iter_mut(),
                     &mut state,
                     &mut event_buffer,
                     &event,
@@ -103,10 +111,10 @@ impl<State> EventManager<State> {
                 }
 
                 Self::handle_event(
-                    &mut self.attached_handlers,
+                    self.attached_handlers.iter_mut(),
                     &mut state,
                     &mut event_buffer,
-                    &event,
+                    &Event::without_source(event),
                 );
             }
         }
@@ -114,18 +122,18 @@ impl<State> EventManager<State> {
         handle
     }
 
-    fn handle_event(
-        handlers: &mut [Box<dyn Handler<State>>],
-        state: &mut State,
-        buf: &mut EventBuffer,
-        event: &Event,
+    fn handle_event<'a>(
+        handlers: impl Iterator<Item = (&'a Id, &'a mut Box<dyn Handler<State>>)>,
+        state: &'a mut State,
+        buf: &'a mut EventBuffer,
+        event: &'a Event,
     ) {
-        for handler in handlers {
+        for (&id, handler) in handlers {
             if !handler.interested_in(event) {
                 continue;
             }
 
-            handler.handle(state, event, buf);
+            handler.handle(state, event, buf.with_id(id));
         }
     }
 }
