@@ -25,11 +25,20 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn find(self) -> usize {
-        if !self.rev {
-            current_word_end(self.line, self.offset)
-        } else {
-            current_word_start(self.line, self.offset)
+        match (self.rev, self.offset) {
+            (true, 0) => 0,
+            (true, _) => current_word_start(self.get_rev_it(), self.line.len(), self.offset),
+            (false, _) => current_word_end(self.get_it(), self.offset),
         }
+    }
+
+    fn get_it(&self) -> Peekable<impl Iterator<Item = char> + '_> {
+        consume_n(self.line.chars(), self.offset).peekable()
+    }
+
+    fn get_rev_it(&self) -> Peekable<impl Iterator<Item = char> + '_> {
+        let offset_from_end = self.line.len() - self.offset;
+        consume_n(self.line.chars().rev(), offset_from_end.saturating_sub(1)).peekable()
     }
 }
 
@@ -77,12 +86,12 @@ where
 /// Returns character offset of the end of the current word OR next word
 /// if the search head is already at offset
 #[must_use]
-fn current_word_end(line: &str, offset: usize) -> usize {
+fn current_word_end(mut chars: Peekable<impl Iterator<Item = char>>, offset: usize) -> usize {
     let mut pos = offset;
 
-    let mut chars = consume_n(line.chars(), offset).peekable();
-
-    // Part one: skip whitespace if any
+    // let mut chars = consume_n(line.chars(), offset).peekable();
+    //
+    // // Part one: skip whitespace if any
     pos += consume_whitespace(&mut chars);
 
     // Part two: hop to the next word if it it current's word end
@@ -127,15 +136,16 @@ fn current_word_end(line: &str, offset: usize) -> usize {
 }
 
 #[must_use]
-fn current_word_start(line: &str, offset: usize) -> usize {
-    if line.len() == 0 || offset == 0 {
+fn current_word_start(
+    mut chars: Peekable<impl Iterator<Item = char>>,
+    len: usize,
+    offset: usize,
+) -> usize {
+    if len == 0 || offset == 0 {
         return 0;
     }
 
     let mut pos = offset;
-
-    let offset_from_end = line.len() - offset;
-    let mut chars = consume_n(line.chars().rev(), offset_from_end.saturating_sub(1)).peekable();
 
     // Part one: skip whitespace if any
     let whitespace_consumed = consume_whitespace(&mut chars);
@@ -196,6 +206,8 @@ fn consume_whitespace(it: &mut Peekable<impl Iterator<Item = char>>) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use crate::string::search::Searcher;
+
     #[test]
     fn current_word_end() {
         let cases = [
@@ -216,7 +228,7 @@ mod tests {
         for ((line, offset), expected) in cases {
             assert_eq!(
                 expected,
-                super::current_word_end(line, offset),
+                Searcher::new(line, offset).find(),
                 "{line}, {offset}",
             );
         }
@@ -241,7 +253,7 @@ mod tests {
         for ((line, offset), expected) in cases {
             assert_eq!(
                 expected,
-                super::current_word_start(line, offset),
+                Searcher::new_rev(line, offset).find(),
                 "{line}, {offset}",
             );
         }

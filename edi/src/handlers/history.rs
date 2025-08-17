@@ -81,7 +81,7 @@ impl Handler {
         let history = self
             .id_to_history
             .entry(buffer_id)
-            .or_insert(History::default());
+            .or_insert_with(History::new);
 
         history.write_furute(Change::Delete { offset, length: 1 });
     }

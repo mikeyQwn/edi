@@ -17,6 +17,7 @@ impl BufferBundle {
         Self { id, buffer, meta }
     }
 
+    #[allow(unused)]
     pub fn id(&self) -> Id {
         self.id
     }
