@@ -61,8 +61,13 @@ pub fn handle_action(
             buf.add_delete_char();
         }
         Action::Submit => {
+            let _span = edi_lib::span!("submit");
+            edi_lib::debug!(
+                "hit submit action with {buf_count} buffers",
+                buf_count = state.buffers.len()
+            );
             // TODO: Add proper error handling
-            let bundle = state.buffers.remove_first().unwrap();
+            let bundle = state.buffers.first().unwrap();
             let cmd_buf = bundle.buffer();
             buf.add_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
@@ -71,7 +76,7 @@ pub fn handle_action(
                 return Ok(());
             }
             if cmd == ":wq" {
-                let Some(bundle) = state.buffers.remove_first() else {
+                let Some(bundle) = state.buffers.second() else {
                     edi_lib::fatal!("no buffer to write")
                 };
                 let (b, meta) = bundle.as_split();
@@ -119,6 +124,12 @@ pub fn handle_action(
 
                 buf.add_quit();
             }
+
+            edi_lib::debug!(
+                "exit submit action with {buf_count} buffers",
+                buf_count = state.buffers.len()
+            );
+            buf.add_switch_mode(Mode::Normal);
         }
 
         Action::Move { action, repeat } => {

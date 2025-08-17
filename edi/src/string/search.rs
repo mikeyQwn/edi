@@ -5,6 +5,8 @@ pub struct Searcher<'a> {
     line: &'a str,
     offset: usize,
     rev: bool,
+
+    allow_skip: bool,
 }
 
 impl<'a> Searcher<'a> {
@@ -13,6 +15,8 @@ impl<'a> Searcher<'a> {
             line,
             offset,
             rev: false,
+
+            allow_skip: true,
         }
     }
 
@@ -21,18 +25,25 @@ impl<'a> Searcher<'a> {
             line,
             offset,
             rev: true,
+
+            allow_skip: true,
         }
+    }
+
+    pub fn with_skip(mut self, allow_skip: bool) -> Self {
+        self.allow_skip = allow_skip;
+        self
     }
 
     pub fn find(self) -> usize {
         match (self.rev, self.offset) {
             (true, 0) => 0,
-            (true, _) => self.offset - Self::offset_until_target(self.get_rev_it()),
-            (false, _) => self.offset + Self::offset_until_target(self.get_it()),
+            (true, _) => self.offset - self.offset_until_target(self.get_rev_it()),
+            (false, _) => self.offset + self.offset_until_target(self.get_it()),
         }
     }
 
-    fn offset_until_target(mut chars: Peekable<impl Iterator<Item = char>>) -> usize {
+    fn offset_until_target(&self, mut chars: Peekable<impl Iterator<Item = char>>) -> usize {
         let mut diff = 0;
 
         // Part one: skip whitespace if any
@@ -47,11 +58,31 @@ impl<'a> Searcher<'a> {
             return diff;
         };
 
-        // Part two: hop to the next word if it it current's word end
-        // TODO: skip this part when hit called with a flag
+        if self.allow_skip {
+            // Part two: hop to the next word if it it current's word end
+            let (hopped, new_current_char) =
+                Self::hop_to_next_word(&mut chars, next_char, current_char, whitespace_consumed);
+            diff += hopped;
+            current_char = new_current_char;
+        }
+
+        // Part 3: get the current character's group and
+        // iterate until some other group is found
+        let current_group = CharGroup::new(current_char);
+        diff + Self::skip_to_different_group(chars, current_group)
+    }
+
+    fn hop_to_next_word(
+        mut chars: &mut Peekable<impl Iterator<Item = char>>,
+        next_char: char,
+        mut current_char: char,
+        whitespace_consumed: usize,
+    ) -> (usize, char) {
+        let mut diff = 0;
+
         let is_at_end = CharGroup::new(next_char).ne(&CharGroup::new(current_char));
         if is_at_end && whitespace_consumed != 0 {
-            return diff;
+            return (diff, current_char);
         }
         if is_at_end {
             diff += 1;
@@ -62,16 +93,13 @@ impl<'a> Searcher<'a> {
         if next_char == ' ' {
             diff += consume_whitespace(&mut chars);
             let Some(new_current_char) = chars.next() else {
-                return diff;
+                return (diff, current_char);
             };
             diff += 1;
             current_char = new_current_char;
         }
 
-        // Part 3: get the current character's group and
-        // iterate until some other group is found
-        let current_group = CharGroup::new(current_char);
-        diff + Self::skip_to_different_group(chars, current_group)
+        (diff, current_char)
     }
 
     fn skip_to_different_group(

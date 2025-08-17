@@ -24,6 +24,16 @@ impl Buffers {
         }
     }
 
+    pub fn first(&self) -> Option<&BufferBundle> {
+        let first_id = self.buffer_order.first()?;
+        self.inner.get(first_id)
+    }
+
+    pub fn second(&self) -> Option<&BufferBundle> {
+        let first_id = self.buffer_order.iter().nth(1)?;
+        self.inner.get(first_id)
+    }
+
     pub fn first_mut(&mut self) -> Option<&mut BufferBundle> {
         let first_id = self.buffer_order.first()?;
         self.inner.get_mut(first_id)

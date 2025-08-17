@@ -157,7 +157,10 @@ impl Buffer {
                     contents = next_line.contents;
                     character_offset = next_line.character_offset;
                 }
-                character_offset + search::Searcher::new(&contents, offset).find()
+                character_offset
+                    + search::Searcher::new(&contents, offset)
+                        .with_skip(!is_at_eol)
+                        .find()
             }
             LinePosition::CurrentWordStart => {
                 let is_at_start = self.cursor_offset - character_offset == 0;
@@ -175,7 +178,10 @@ impl Buffer {
                     contents = prev_line.contents;
                     character_offset = prev_line.character_offset;
                 }
-                character_offset + search::Searcher::new_rev(&contents, offset).find()
+                character_offset
+                    + search::Searcher::new_rev(&contents, offset)
+                        .with_skip(!is_at_start)
+                        .find()
             }
         }
     }
