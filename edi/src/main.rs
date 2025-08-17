@@ -21,14 +21,13 @@ const DEBUG_FILE: &str = "log";
 ///
 /// Returns `AppError` if debug file is not available or subscriber is already set
 pub fn setup_logging() -> Result<()> {
+    use std::format as f;
     let sub = FileLogSubscriber::new(DEBUG_FILE).map_err(|err| {
-        AppError::io(format!(
+        AppError::io(f!(
             "unable to initialize logging, file `{DEBUG_FILE}` could not be created"
         ))
         .with_cause(err)
-        .with_hint(format!(
-            "try adjusting the permissions for file {DEBUG_FILE}"
-        ))
+        .with_hint(f!("try adjusting the permissions for `{DEBUG_FILE}`"))
     })?;
 
     if !edi_lib::trace::set_subscriber(sub) {

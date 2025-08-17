@@ -27,9 +27,66 @@ impl<'a> Searcher<'a> {
     pub fn find(self) -> usize {
         match (self.rev, self.offset) {
             (true, 0) => 0,
-            (true, _) => current_word_start(self.get_rev_it(), self.line.len(), self.offset),
-            (false, _) => current_word_end(self.get_it(), self.offset),
+            (true, _) => self.offset - Self::offset_until_target(self.get_rev_it()),
+            (false, _) => self.offset + Self::offset_until_target(self.get_it()),
         }
+    }
+
+    fn offset_until_target(mut chars: Peekable<impl Iterator<Item = char>>) -> usize {
+        let mut diff = 0;
+
+        // Part one: skip whitespace if any
+        let whitespace_consumed = consume_whitespace(&mut chars);
+        diff += whitespace_consumed;
+
+        let Some(mut current_char) = chars.next() else {
+            return diff;
+        };
+
+        let Some(&next_char) = chars.peek() else {
+            return diff;
+        };
+
+        // Part two: hop to the next word if it it current's word end
+        // TODO: skip this part when hit called with a flag
+        let is_at_end = CharGroup::new(next_char).ne(&CharGroup::new(current_char));
+        if is_at_end && whitespace_consumed != 0 {
+            return diff;
+        }
+        if is_at_end {
+            diff += 1;
+            current_char = next_char;
+            let _ = chars.next();
+        }
+
+        if next_char == ' ' {
+            diff += consume_whitespace(&mut chars);
+            let Some(new_current_char) = chars.next() else {
+                return diff;
+            };
+            diff += 1;
+            current_char = new_current_char;
+        }
+
+        // Part 3: get the current character's group and
+        // iterate until some other group is found
+        let current_group = CharGroup::new(current_char);
+        diff + Self::skip_to_different_group(chars, current_group)
+    }
+
+    fn skip_to_different_group(
+        chars: Peekable<impl Iterator<Item = char>>,
+        current_group: CharGroup,
+    ) -> usize {
+        let mut diff = 0;
+        for char in chars {
+            if CharGroup::new(char).ne(&current_group) {
+                break;
+            }
+            diff += 1;
+        }
+
+        diff
     }
 
     fn get_it(&self) -> Peekable<impl Iterator<Item = char> + '_> {
@@ -79,121 +136,6 @@ where
     }
     let _ = it.nth(n - 1);
     it
-}
-
-// TODO: this is a mess, refactor to state machine maybe>
-
-/// Returns character offset of the end of the current word OR next word
-/// if the search head is already at offset
-#[must_use]
-fn current_word_end(mut chars: Peekable<impl Iterator<Item = char>>, offset: usize) -> usize {
-    let mut pos = offset;
-
-    // let mut chars = consume_n(line.chars(), offset).peekable();
-    //
-    // // Part one: skip whitespace if any
-    pos += consume_whitespace(&mut chars);
-
-    // Part two: hop to the next word if it it current's word end
-    let Some(mut current_char) = chars.next() else {
-        return pos;
-    };
-
-    let Some(next_char) = chars.peek() else {
-        return pos;
-    };
-
-    let next_char = *next_char;
-
-    let is_at_end = CharGroup::new(next_char).ne(&CharGroup::new(current_char));
-    if is_at_end {
-        pos += 1;
-        current_char = next_char;
-        let _ = chars.next();
-    }
-
-    if next_char == ' ' {
-        pos += consume_whitespace(&mut chars);
-        let Some(new_current_char) = chars.next() else {
-            return pos;
-        };
-        pos += 1;
-        current_char = new_current_char;
-    }
-
-    // Part 3: get the current character's group and
-    // iterate until some other group is found
-    let current_group = CharGroup::new(current_char);
-
-    for char in chars {
-        if CharGroup::new(char).ne(&current_group) {
-            break;
-        }
-        pos += 1;
-    }
-
-    pos
-}
-
-#[must_use]
-fn current_word_start(
-    mut chars: Peekable<impl Iterator<Item = char>>,
-    len: usize,
-    offset: usize,
-) -> usize {
-    if len == 0 || offset == 0 {
-        return 0;
-    }
-
-    let mut pos = offset;
-
-    // Part one: skip whitespace if any
-    let whitespace_consumed = consume_whitespace(&mut chars);
-    pos -= whitespace_consumed;
-
-    // Part two: hop to the next word if it it current's word end
-    let Some(mut current_char) = chars.next() else {
-        return pos;
-    };
-
-    let Some(next_char) = chars.peek() else {
-        return pos;
-    };
-
-    let next_char = *next_char;
-
-    let is_at_start = CharGroup::new(next_char).ne(&CharGroup::new(current_char));
-    if is_at_start && whitespace_consumed != 0 {
-        return pos;
-    }
-    if is_at_start {
-        pos -= 1;
-        current_char = next_char;
-        let _ = chars.next();
-    }
-
-    if next_char == ' ' {
-        pos -= consume_whitespace(&mut chars);
-        let Some(new_current_char) = chars.next() else {
-            return pos;
-        };
-        pos -= 1;
-        current_char = new_current_char;
-    }
-
-    // Part 3: get the current character's group and
-    // iterate until some other group is found
-    let current_group = CharGroup::new(current_char);
-
-    for char in chars {
-        // eprintln!("I hit this {char}");
-        if CharGroup::new(char).ne(&current_group) {
-            break;
-        }
-        pos -= 1;
-    }
-
-    pos
 }
 
 fn consume_whitespace(it: &mut Peekable<impl Iterator<Item = char>>) -> usize {
