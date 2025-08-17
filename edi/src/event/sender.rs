@@ -27,40 +27,44 @@ impl EventBuffer {
 
     #[allow(unused)]
     pub fn add_input(&mut self, input: Input) {
-        self.add_event(Event::input(input));
+        self.add_event(Event::Input(input));
     }
 
     #[allow(unused)]
     pub fn add_switch_mode(&mut self, mode: app::Mode) {
-        self.add_event(Event::switch_mode(mode));
+        self.add_event(Event::SwitchMode(mode));
     }
 
     #[allow(unused)]
     pub fn add_write_char(&mut self, c: char) {
-        self.add_event(Event::write_char(c));
+        self.add_event(Event::WriteChar(c));
     }
 
     #[allow(unused)]
     pub fn add_delete_char(&mut self) {
-        self.add_event(Event::delete_char());
+        self.add_event(Event::DeleteChar);
     }
 
     #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
-        self.add_event(Event::char_written(buffer_id, offset, c));
+        self.add_event(Event::CharWritten {
+            buffer_id,
+            offset,
+            c,
+        });
     }
 
     #[allow(unused)]
     pub fn add_char_deleted(&mut self, buffer_id: Id, offset: usize) {
-        self.add_event(Event::char_deleted(buffer_id, offset));
+        self.add_event(Event::CharDeleted { buffer_id, offset });
     }
 
     pub fn add_redraw(&mut self) {
-        self.add_event(Event::redraw());
+        self.add_event(Event::Redraw);
     }
 
     pub fn add_quit(&mut self) {
-        self.add_event(Event::quit());
+        self.add_event(Event::Quit);
     }
 }
 
@@ -74,16 +78,6 @@ impl Sender {
     }
 
     pub fn send_input(&self, input: Input) -> bool {
-        self.send_event(Event::input(input))
-    }
-
-    #[allow(unused)]
-    pub fn send_redraw(&self) -> bool {
-        self.send_event(Event::redraw())
-    }
-
-    #[allow(unused)]
-    pub fn send_quit(&self) -> bool {
-        self.send_event(Event::quit())
+        self.send_event(Event::Input(input))
     }
 }

@@ -4,7 +4,7 @@ use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
     app::{meta::BufferMeta, state::State, Mode},
-    event::{self, manager, sender::EventBuffer, Event, Payload},
+    event::{self, manager, sender::EventBuffer, Event},
 };
 
 pub struct Handler;
@@ -17,11 +17,10 @@ impl Handler {
 
 impl manager::Handler<State> for Handler {
     fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
-        let Some(Payload::SwtichMode(target_mode)) = event.payload else {
+        let _span = edi_lib::span!("mode");
+        let &Event::SwitchMode(target_mode) = event else {
             return;
         };
-
-        let _span = edi_lib::span!("mode");
 
         if app_state.mode == Mode::Terminal {
             let _ = app_state.buffers.remove_first();
@@ -49,6 +48,6 @@ impl manager::Handler<State> for Handler {
     }
 
     fn interested_in(&self, event: &Event) -> bool {
-        event.ty == event::Type::SwtichMode
+        event.ty() == event::Type::SwtichMode
     }
 }

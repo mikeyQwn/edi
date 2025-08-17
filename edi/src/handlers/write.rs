@@ -2,7 +2,7 @@ use edi::string::highlight::get_highlights;
 
 use crate::{
     app::state::State,
-    event::{self, manager, sender::EventBuffer, Event, Payload},
+    event::{self, manager, sender::EventBuffer, Event},
 };
 
 pub struct Handler;
@@ -17,28 +17,23 @@ impl manager::Handler<State> for Handler {
     fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("write");
 
-        match event.ty {
-            event::Type::WriteChar => Self::write_char(app_state, event, buf),
-            event::Type::DeleteChar => Self::delete_char(app_state, buf),
-            _ => {
-                return;
-            }
+        match event {
+            &Event::WriteChar(c) => Self::write_char(app_state, c, buf),
+            &Event::DeleteChar => Self::delete_char(app_state, buf),
+            _ => return,
         }
 
         buf.add_redraw();
     }
 
     fn interested_in(&self, event: &Event) -> bool {
-        event.ty == event::Type::WriteChar || event.ty == event::Type::DeleteChar
+        let types = &[event::Type::WriteChar, event::Type::DeleteChar];
+        event.ty().is_oneof(types)
     }
 }
 
 impl Handler {
-    fn write_char(state: &mut State, event: &Event, buf: &mut EventBuffer) {
-        let Some(Payload::WriteChar(c)) = event.payload else {
-            return;
-        };
-
+    fn write_char(state: &mut State, c: char, buf: &mut EventBuffer) {
         state.within_first_buffer(
             |mut buffer, meta| {
                 let is_empty = buffer.as_ref().inner.is_empty();

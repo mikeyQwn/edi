@@ -11,77 +11,11 @@ use sender::Sender;
 use crate::app;
 
 #[derive(Debug, Clone)]
-pub struct Event {
-    pub ty: Type,
-    pub payload: Option<Payload>,
-}
-
-impl Event {
-    #[must_use]
-    pub const fn new(ty: Type) -> Self {
-        Self { ty, payload: None }
-    }
-
-    #[must_use]
-    pub fn input(input: Input) -> Self {
-        Self::new(Type::Input).with_payload(Payload::Input(input))
-    }
-
-    #[must_use]
-    pub fn switch_mode(mode: app::Mode) -> Self {
-        Self::new(Type::SwtichMode).with_payload(Payload::SwtichMode(mode))
-    }
-
-    #[must_use]
-    pub fn write_char(c: char) -> Self {
-        Self::new(Type::WriteChar).with_payload(Payload::WriteChar(c))
-    }
-
-    #[must_use]
-    pub fn delete_char() -> Self {
-        Self::new(Type::DeleteChar)
-    }
-
-    #[must_use]
-    pub fn char_written(buffer_id: Id, offset: usize, c: char) -> Self {
-        Self::new(Type::CharWritten).with_payload(Payload::CharWritten {
-            buffer_id,
-            offset,
-            c,
-        })
-    }
-
-    #[must_use]
-    pub fn char_deleted(buffer_id: Id, offset: usize) -> Self {
-        Self::new(Type::CharDeleted).with_payload(Payload::CharDeleted { buffer_id, offset })
-    }
-
-    #[must_use]
-    pub const fn redraw() -> Self {
-        Self::new(Type::Redraw)
-    }
-
-    #[must_use]
-    pub const fn quit() -> Self {
-        Self::new(Type::Quit)
-    }
-
-    #[must_use]
-    pub fn with_payload(mut self, payload: Payload) -> Self {
-        self.payload = Some(payload);
-        self
-    }
-
-    pub fn is_quit(&self) -> bool {
-        self.ty == Type::Quit
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Payload {
+pub enum Event {
     Input(Input),
-    SwtichMode(app::Mode),
+    SwitchMode(app::Mode),
     WriteChar(char),
+    DeleteChar,
     CharWritten {
         buffer_id: Id,
         offset: usize,
@@ -91,6 +25,27 @@ pub enum Payload {
         buffer_id: Id,
         offset: usize,
     },
+    Redraw,
+    Quit,
+}
+
+impl Event {
+    pub fn is_quit(&self) -> bool {
+        matches!(self, Self::Quit)
+    }
+
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::Input(_) => Type::Input,
+            Self::SwitchMode(_) => Type::SwtichMode,
+            Self::WriteChar(_) => Type::WriteChar,
+            Self::DeleteChar => Type::DeleteChar,
+            Self::CharWritten { .. } => Type::CharWritten,
+            Self::CharDeleted { .. } => Type::CharDeleted,
+            Self::Redraw => Type::Redraw,
+            Self::Quit => Type::Quit,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,4 +58,10 @@ pub enum Type {
     CharDeleted,
     Redraw,
     Quit,
+}
+
+impl Type {
+    pub fn is_oneof(self, s: &[Type]) -> bool {
+        s.iter().any(|&ty| ty == self)
+    }
 }

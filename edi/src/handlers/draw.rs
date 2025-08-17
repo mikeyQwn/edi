@@ -23,15 +23,19 @@ impl manager::Handler<State> for Handler {
     fn handle(&mut self, state: &mut State, _event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("draw");
 
-        edi_lib::debug!("drawing {} buffers", state.buffers.len());
+        edi_lib::debug!(
+            "drawing {buffer_count} buffers",
+            buffer_count = state.buffers.len()
+        );
 
         state.window.clear();
         state.buffers.iter_mut().rev().for_each(|bundle| {
-            let (b, m) = bundle.as_split_mut(buf);
-            m.normalize(b.as_ref());
-            let mut bound = Rect::new_in_origin(m.size.x, m.size.y).bind(&mut state.window);
+            let (buffer, meta) = bundle.as_split_mut(buf);
+            meta.normalize(buffer.as_ref());
+
+            let mut bound = Rect::new_in_origin(meta.size.x, meta.size.y).bind(&mut state.window);
             bound.clear();
-            b.as_ref().flush(&mut bound, &m.flush_options);
+            buffer.as_ref().flush(&mut bound, &meta.flush_options);
         });
 
         if let Err(err) = state.window.render() {
@@ -40,6 +44,6 @@ impl manager::Handler<State> for Handler {
     }
 
     fn interested_in(&self, event: &Event) -> bool {
-        event.ty == event::Type::Redraw
+        event.ty() == event::Type::Redraw
     }
 }

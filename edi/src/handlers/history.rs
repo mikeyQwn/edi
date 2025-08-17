@@ -8,7 +8,7 @@ use crate::{
         self,
         manager::{self},
         sender::EventBuffer,
-        Event, Payload,
+        Event,
     },
 };
 
@@ -52,16 +52,7 @@ impl Handler {
         }
     }
 
-    fn char_written(&mut self, event: &Event) {
-        let Some(Payload::CharWritten {
-            buffer_id,
-            offset,
-            c,
-        }) = event.payload
-        else {
-            return;
-        };
-
+    fn char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
         let history = self
             .id_to_history
             .entry(buffer_id)
@@ -73,11 +64,7 @@ impl Handler {
         });
     }
 
-    fn char_deleted(&mut self, event: &Event) {
-        let Some(Payload::CharDeleted { buffer_id, offset }) = event.payload else {
-            return;
-        };
-
+    fn char_deleted(&mut self, buffer_id: Id, offset: usize) {
         let history = self
             .id_to_history
             .entry(buffer_id)
@@ -91,18 +78,21 @@ impl manager::Handler<State> for Handler {
     fn handle(&mut self, _state: &mut State, event: &Event, _buf: &mut EventBuffer) {
         let _span = edi_lib::span!("history");
 
-        match event.ty {
-            event::Type::CharWritten => self.char_written(event),
-            event::Type::CharDeleted => self.char_deleted(event),
-            _ => {
-                return;
-            }
+        match event {
+            &Event::CharWritten {
+                buffer_id,
+                offset,
+                c,
+            } => self.char_written(buffer_id, offset, c),
+            &Event::CharDeleted { buffer_id, offset } => self.char_deleted(buffer_id, offset),
+            _ => return,
         }
 
         edi_lib::debug!("history changed, new history: {:?}", self.id_to_history);
     }
 
     fn interested_in(&self, event: &Event) -> bool {
-        event.ty == event::Type::CharWritten || event.ty == event::Type::CharDeleted
+        let types = &[event::Type::CharWritten, event::Type::CharDeleted];
+        event.ty().is_oneof(types)
     }
 }

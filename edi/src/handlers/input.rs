@@ -13,7 +13,7 @@ impl Handler {
 
 impl manager::Handler<State> for Handler {
     fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
-        let Some(event::Payload::Input(input)) = event.payload.as_ref() else {
+        let Event::Input(input) = event else {
             return;
         };
 
@@ -28,6 +28,6 @@ impl manager::Handler<State> for Handler {
     }
 
     fn interested_in(&self, event: &Event) -> bool {
-        event.ty == event::Type::Input
+        event.ty() == event::Type::Input
     }
 }

@@ -212,7 +212,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         init_handlers(&mut event_manager);
 
-        event_manager.pipe_event(Event::redraw());
+        event_manager.pipe_event(Event::Redraw);
 
         let _ = event_manager.run(state);
 

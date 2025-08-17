@@ -35,13 +35,20 @@ impl<'a, 'b> Buffer<'a, 'b> {
     }
 
     pub fn write(&mut self, c: char) {
-        let write_event = Event::char_written(self.id, self.inner.cursor_offset, c);
+        let write_event = Event::CharWritten {
+            buffer_id: self.id,
+            offset: self.inner.cursor_offset,
+            c,
+        };
         self.inner.write(c);
         self.event_buffer.add_event(write_event);
     }
 
     pub fn delete(&mut self) {
-        let write_event = Event::char_deleted(self.id, self.inner.cursor_offset);
+        let write_event = Event::CharDeleted {
+            buffer_id: self.id,
+            offset: self.inner.cursor_offset,
+        };
         self.inner.delete();
         self.event_buffer.add_event(write_event);
     }
