@@ -8,6 +8,8 @@ use edi_lib::brand::Id;
 use edi_term::input::Input;
 use sender::Sender;
 
+use crate::app;
+
 #[derive(Debug, Clone)]
 pub struct Event {
     pub ty: Type,
@@ -23,6 +25,11 @@ impl Event {
     #[must_use]
     pub fn input(input: Input) -> Self {
         Self::new(Type::Input).with_payload(Payload::Input(input))
+    }
+
+    #[must_use]
+    pub fn switch_mode(mode: app::Mode) -> Self {
+        Self::new(Type::SwtichMode).with_payload(Payload::SwtichMode(mode))
     }
 
     #[must_use]
@@ -73,6 +80,7 @@ impl Event {
 #[derive(Debug, Clone)]
 pub enum Payload {
     Input(Input),
+    SwtichMode(app::Mode),
     WriteChar(char),
     CharWritten {
         buffer_id: Id,
@@ -88,6 +96,7 @@ pub enum Payload {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
     Input,
+    SwtichMode,
     WriteChar,
     DeleteChar,
     CharWritten,

@@ -3,6 +3,8 @@ use std::{collections::VecDeque, sync::mpsc};
 use edi_lib::brand::Id;
 use edi_term::input::Input;
 
+use crate::app;
+
 use super::Event;
 
 #[derive(Debug)]
@@ -26,6 +28,11 @@ impl EventBuffer {
     #[allow(unused)]
     pub fn add_input(&mut self, input: Input) {
         self.add_event(Event::input(input));
+    }
+
+    #[allow(unused)]
+    pub fn add_switch_mode(&mut self, mode: app::Mode) {
+        self.add_event(Event::switch_mode(mode));
     }
 
     #[allow(unused)]

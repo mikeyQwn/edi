@@ -1,8 +1,8 @@
 mod action;
-mod meta;
 
 pub mod buffer_bundle;
 pub mod buffers;
+pub mod meta;
 pub mod state;
 
 use action::{Action, MoveAction};
@@ -48,25 +48,7 @@ pub fn handle_action(
 
     match event {
         Action::SwitchMode(mode) => {
-            let _span = edi_lib::span!("switch_mode");
-            if state.mode == Mode::Terminal {
-                let _ = state.buffers.remove_first();
-                buf.add_redraw();
-            }
-            state.mode = mode;
-            edi_lib::debug!("mode switched to: {mode:?}");
-            if state.mode == Mode::Terminal {
-                let size = edi_term::get_size()
-                    .map(Vec2::from_dims)
-                    .unwrap_or(Vec2::new(10, 1));
-                let mut buffer = Buffer::new(":");
-                buffer.cursor_offset = 1;
-                state.buffers.attach_first(
-                    buffer,
-                    BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
-                );
-                buf.add_redraw();
-            }
+            buf.add_switch_mode(mode);
         }
         Action::InsertChar(c) => {
             buf.add_write_char(c);
@@ -229,11 +211,13 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         let draw_handler = handlers::draw::Handler::new();
         let write_handler = handlers::write::Handler::new();
         let history_handler = handlers::history::Handler::new();
+        let mode_handler = handlers::mode::Handler::new();
 
         event_manager.attach_handler(input_handler);
         event_manager.attach_handler(draw_handler);
         event_manager.attach_handler(write_handler);
         event_manager.attach_handler(history_handler);
+        event_manager.attach_handler(mode_handler);
 
         event_manager.pipe_event(Event::redraw());
 
