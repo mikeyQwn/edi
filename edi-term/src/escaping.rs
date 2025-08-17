@@ -54,6 +54,23 @@ impl ANSIColor {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum CursorStyle {
+    Line,
+    Block,
+    Underline,
+}
+
+impl CursorStyle {
+    fn escape(self) -> &'static str {
+        match self {
+            Self::Line => "\x1b[6 q",
+            Self::Block => "\x1b[2 q",
+            Self::Underline => "\x1b[4 q",
+        }
+    }
+}
+
 /// An ANSI escape code
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ANSIEscape<'a> {
@@ -85,6 +102,8 @@ pub enum ANSIEscape<'a> {
     EnterAlternateScreen,
     /// Exits the alternate screen state
     ExitAlternateScreen,
+    /// Sets the cursor style
+    ChangeCursor(CursorStyle),
 }
 
 impl<'a> ANSIEscape<'a> {
@@ -105,7 +124,14 @@ impl<'a> ANSIEscape<'a> {
             Self::EndAll => Cow::Borrowed("\x1b[0m"),
             Self::EnterAlternateScreen => Cow::Borrowed("\x1b[?1049h"),
             Self::ExitAlternateScreen => Cow::Borrowed("\x1b[?1049l"),
+            Self::ChangeCursor(style) => Cow::Borrowed(style.escape()),
         }
+    }
+
+    pub fn write_to_stdout(self) -> Result<usize, std::io::Error> {
+        use std::io::Write;
+
+        std::io::stdout().write(self.to_str().as_bytes())
     }
 }
 

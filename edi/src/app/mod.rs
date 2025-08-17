@@ -7,7 +7,11 @@ pub mod state;
 
 use action::{Action, MoveAction};
 use edi_lib::vec2::Vec2;
-use edi_term::{coord::Coord, escaping::ANSIEscape, window::Window};
+use edi_term::{
+    coord::Coord,
+    escaping::{ANSIEscape, CursorStyle, EscapeBuilder},
+    window::Window,
+};
 use meta::BufferMeta;
 
 use state::State;
@@ -16,9 +20,10 @@ use std::{
     fs::OpenOptions,
     io::{stdout, BufWriter, Write},
     path::PathBuf,
+    slice::EscapeAscii,
 };
 
-use edi::{buffer::Buffer, string::highlight::get_highlights};
+use edi::string::highlight::get_highlights;
 
 use crate::{
     cli::EdiCli,
@@ -211,6 +216,8 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         event_manager.pipe_event(Event::redraw());
 
         let _ = event_manager.run(state);
+
+        let _ = ANSIEscape::ChangeCursor(CursorStyle::Block).write_to_stdout();
 
         Ok(())
     })?

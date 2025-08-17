@@ -1,5 +1,6 @@
 use edi::buffer::Buffer;
 use edi_lib::vec2::Vec2;
+use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
     app::{meta::BufferMeta, state::State, Mode},
@@ -24,9 +25,14 @@ impl manager::Handler<State> for Handler {
 
         if app_state.mode == Mode::Terminal {
             let _ = app_state.buffers.remove_first();
-            buf.add_redraw();
         }
         app_state.mode = target_mode;
+        if app_state.mode == Mode::Insert {
+            let _ = ANSIEscape::ChangeCursor(CursorStyle::Line).write_to_stdout();
+        } else {
+            let _ = ANSIEscape::ChangeCursor(CursorStyle::Block).write_to_stdout();
+        }
+
         edi_lib::debug!("mode switched to: {target_mode:?}");
         if app_state.mode == Mode::Terminal {
             let size = edi_term::get_size()
@@ -38,8 +44,8 @@ impl manager::Handler<State> for Handler {
                 buffer,
                 BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
             );
-            buf.add_redraw();
         }
+        buf.add_redraw();
     }
 
     fn interested_in(&self, event: &Event) -> bool {
