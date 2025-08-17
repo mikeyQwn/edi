@@ -9,7 +9,7 @@ use action::{Action, MoveAction};
 use edi_lib::vec2::Vec2;
 use edi_term::{
     coord::Coord,
-    escaping::{ANSIEscape, CursorStyle, EscapeBuilder},
+    escaping::{ANSIEscape, CursorStyle},
     window::Window,
 };
 use meta::BufferMeta;
@@ -18,9 +18,8 @@ use state::State;
 
 use std::{
     fs::OpenOptions,
-    io::{stdout, BufWriter, Write},
+    io::{BufWriter, Write},
     path::PathBuf,
-    slice::EscapeAscii,
 };
 
 use edi::string::highlight::get_highlights;

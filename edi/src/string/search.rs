@@ -1,5 +1,38 @@
 use std::iter::Peekable;
 
+#[derive(Debug)]
+pub struct Searcher<'a> {
+    line: &'a str,
+    offset: usize,
+    rev: bool,
+}
+
+impl<'a> Searcher<'a> {
+    pub fn new(line: &'a str, offset: usize) -> Self {
+        Self {
+            line,
+            offset,
+            rev: false,
+        }
+    }
+
+    pub fn new_rev(line: &'a str, offset: usize) -> Self {
+        Self {
+            line,
+            offset,
+            rev: true,
+        }
+    }
+
+    pub fn find(self) -> usize {
+        if !self.rev {
+            current_word_end(self.line, self.offset)
+        } else {
+            current_word_start(self.line, self.offset)
+        }
+    }
+}
+
 /// Returns character offset of the first non-whitespace character in a line
 #[must_use]
 pub fn character_start(s: &str) -> usize {
@@ -44,7 +77,7 @@ where
 /// Returns character offset of the end of the current word OR next word
 /// if the search head is already at offset
 #[must_use]
-pub fn current_word_end(line: &str, offset: usize) -> usize {
+fn current_word_end(line: &str, offset: usize) -> usize {
     let mut pos = offset;
 
     let mut chars = consume_n(line.chars(), offset).peekable();
@@ -94,7 +127,7 @@ pub fn current_word_end(line: &str, offset: usize) -> usize {
 }
 
 #[must_use]
-pub fn current_word_start(line: &str, offset: usize) -> usize {
+fn current_word_start(line: &str, offset: usize) -> usize {
     if line.len() == 0 || offset == 0 {
         return 0;
     }
