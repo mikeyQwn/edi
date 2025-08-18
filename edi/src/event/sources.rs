@@ -13,11 +13,11 @@ pub fn input_source(sender: &Sender) {
     'outer: loop {
         let n = match stdin.read(&mut buf) {
             Ok(n) => {
-                edi_lib::debug!("Input: {:?}", &buf[..n]);
+                edi_lib::debug!("input: {:?}", &buf[..n]);
                 n
             }
             Err(err) => {
-                edi_lib::debug!("{err}");
+                edi_lib::debug!("error: {err}");
                 continue;
             }
         };
@@ -37,7 +37,9 @@ pub fn input_source(sender: &Sender) {
             }
 
             let input = Input::from_bytes(chunk);
-            edi_lib::debug!("{input:?}");
+            chunk = &[];
+
+            edi_lib::debug!("got non-zero input: {input:?}");
 
             if !sender.send_input(input) {
                 break 'outer;
