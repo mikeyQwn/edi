@@ -6,6 +6,13 @@ use edi_lib::brand::{Id, Tag};
 use super::{buffer_bundle::BufferBundle, meta::BufferMeta};
 
 #[derive(Debug)]
+pub enum Selector {
+    First,
+    Nth(usize),
+    WithId(Id),
+}
+
+#[derive(Debug)]
 pub struct Buffers {
     brand: Tag,
     inner: BTreeMap<Id, BufferBundle>,
@@ -24,6 +31,22 @@ impl Buffers {
         }
     }
 
+    pub fn get(&self, selector: Selector) -> Option<&BufferBundle> {
+        match selector {
+            Selector::First | Selector::Nth(0) => self.first(),
+            Selector::WithId(id) => self.inner.get(&id),
+            Selector::Nth(n) => self.nth(n),
+        }
+    }
+
+    pub fn get_mut(&mut self, selector: Selector) -> Option<&mut BufferBundle> {
+        match selector {
+            Selector::First | Selector::Nth(0) => self.first_mut(),
+            Selector::WithId(id) => self.inner.get_mut(&id),
+            Selector::Nth(n) => self.nth_mut(n),
+        }
+    }
+
     pub fn first(&self) -> Option<&BufferBundle> {
         let first_id = self.buffer_order.first()?;
         self.inner.get(first_id)
@@ -34,9 +57,19 @@ impl Buffers {
         self.inner.get(first_id)
     }
 
+    pub fn nth(&self, n: usize) -> Option<&BufferBundle> {
+        let id = self.buffer_order.get(n)?;
+        self.inner.get(id)
+    }
+
     pub fn first_mut(&mut self) -> Option<&mut BufferBundle> {
         let first_id = self.buffer_order.first()?;
         self.inner.get_mut(first_id)
+    }
+
+    pub fn nth_mut(&mut self, n: usize) -> Option<&mut BufferBundle> {
+        let id = self.buffer_order.get(n)?;
+        self.inner.get_mut(id)
     }
 
     pub fn remove_first(&mut self) -> Option<BufferBundle> {
@@ -60,6 +93,10 @@ impl Buffers {
         self.buffer_order.swap(a_ord, b_ord);
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &BufferBundle> + DoubleEndedIterator {
+        BuffersIter::new(&self.inner, &self.buffer_order)
+    }
+
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut BufferBundle> + DoubleEndedIterator {
         // SAFETY: this struct upholds the invariant that all ids in buffer_order are unique
         //
@@ -69,6 +106,37 @@ impl Buffers {
 
     pub fn len(&self) -> usize {
         self.inner.len()
+    }
+}
+
+struct BuffersIter<'a> {
+    inner: &'a BTreeMap<Id, BufferBundle>,
+    order: std::slice::Iter<'a, Id>,
+}
+
+impl<'a> Iterator for BuffersIter<'a> {
+    type Item = &'a BufferBundle;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let id = self.order.next()?;
+        self.inner.get(id)
+    }
+}
+
+impl<'a> DoubleEndedIterator for BuffersIter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let id = self.order.next_back()?;
+        self.inner.get(id)
+    }
+}
+
+impl<'a> BuffersIter<'a> {
+    #[must_use]
+    pub fn new(inner: &'a BTreeMap<Id, BufferBundle>, buffer_order: &'a [Id]) -> Self {
+        Self {
+            inner,
+            order: buffer_order.iter(),
+        }
     }
 }
 
@@ -112,14 +180,14 @@ impl<'a> DoubleEndedIterator for BuffersIterMut<'a> {
 mod tests {
     use edi_lib::vec2::Vec2;
 
-    use crate::app::meta;
+    use crate::app::{meta, Mode};
 
     use super::*;
 
     fn make_buffers(n: usize) -> Buffers {
         let mut bufs = Buffers::new();
         for _ in 0..n {
-            bufs.attach(buffer::Buffer::new(""), meta::BufferMeta::default());
+            bufs.attach(buffer::Buffer::new(""), meta::BufferMeta::new(Mode::Normal));
         }
         bufs
     }
@@ -168,7 +236,7 @@ mod tests {
     #[test]
     fn attach_first_places_element_at_front() {
         let mut b = make_buffers(2);
-        b.attach_first(buffer::Buffer::new(""), BufferMeta::default());
+        b.attach_first(buffer::Buffer::new(""), BufferMeta::new(Mode::Normal));
 
         let first = b.first_mut().unwrap();
         assert_eq!(first.id(), b.buffer_order[0]);

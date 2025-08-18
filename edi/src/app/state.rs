@@ -42,7 +42,7 @@ impl State {
         let buffer = Buffer::new(&contents);
         let filetype = Filetype::from(filepath);
 
-        let mut meta = BufferMeta::default()
+        let mut meta = BufferMeta::new(Mode::Normal)
             .with_filepath(Some(filepath.into()))
             .with_filetype(filetype)
             .with_size(buff_dimensions);

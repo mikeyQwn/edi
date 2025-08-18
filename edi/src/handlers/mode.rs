@@ -41,7 +41,7 @@ impl manager::Handler<State> for Handler {
             buffer.cursor_offset = 1;
             app_state.buffers.attach_first(
                 buffer,
-                BufferMeta::default().with_size(Vec2::new(size.x as usize, 1)),
+                BufferMeta::new(Mode::Terminal).with_size(Vec2::new(size.x as usize, 1)),
             );
         }
         buf.add_redraw();

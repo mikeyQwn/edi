@@ -3,15 +3,29 @@ use std::path::PathBuf;
 use edi::buffer::{draw::FlushOptions, Buffer};
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 
-#[derive(Default, Debug)]
+use crate::app::Mode;
+
+#[derive(Debug)]
 pub struct BufferMeta {
     pub flush_options: FlushOptions,
     pub filepath: Option<PathBuf>,
     pub filetype: Filetype,
     pub size: Vec2<usize>,
+    pub mode: Mode,
 }
 
 impl BufferMeta {
+    #[must_use]
+    pub fn new(mode: Mode) -> Self {
+        Self {
+            flush_options: FlushOptions::default(),
+            filepath: None,
+            filetype: Filetype::default(),
+            size: Vec2::default(),
+            mode,
+        }
+    }
+
     pub fn with_filepath(mut self, filepath: Option<PathBuf>) -> Self {
         self.filepath = filepath;
         self
