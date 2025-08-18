@@ -1,4 +1,5 @@
 use edi::string::highlight::get_highlights;
+use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
@@ -26,7 +27,7 @@ impl manager::Handler<State> for Handler {
         buf.add_redraw();
     }
 
-    fn interested_in(&self, event: &Event) -> bool {
+    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
         let types = &[event::Type::WriteChar, event::Type::DeleteChar];
         event.ty().is_oneof(types)
     }

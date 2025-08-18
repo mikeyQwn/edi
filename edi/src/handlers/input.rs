@@ -1,3 +1,5 @@
+use edi_lib::brand::Id;
+
 use crate::{
     app::{handle_action, state::State},
     event::{self, manager, sender::EventBuffer, Event, Payload},
@@ -27,7 +29,7 @@ impl manager::Handler<State> for Handler {
         }
     }
 
-    fn interested_in(&self, event: &Event) -> bool {
+    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
         event.ty() == event::Type::Input
     }
 }

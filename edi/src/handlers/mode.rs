@@ -1,5 +1,5 @@
 use edi::buffer::Buffer;
-use edi_lib::vec2::Vec2;
+use edi_lib::{brand::Id, vec2::Vec2};
 use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
@@ -47,7 +47,7 @@ impl manager::Handler<State> for Handler {
         buf.add_redraw();
     }
 
-    fn interested_in(&self, event: &Event) -> bool {
+    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
         event.ty() == event::Type::SwtichMode
     }
 }

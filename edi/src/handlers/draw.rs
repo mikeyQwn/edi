@@ -1,5 +1,6 @@
 use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
+use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
@@ -43,7 +44,7 @@ impl manager::Handler<State> for Handler {
         }
     }
 
-    fn interested_in(&self, event: &Event) -> bool {
+    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
         event.ty() == event::Type::Redraw
     }
 }

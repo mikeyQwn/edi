@@ -45,9 +45,11 @@ impl<'a, 'b> Buffer<'a, 'b> {
     }
 
     pub fn delete(&mut self) {
+        // TODO: Store the deleted character
         let write_event = Payload::CharDeleted {
             buffer_id: self.id,
             offset: self.inner.cursor_offset,
+            c: ' ',
         };
         self.inner.delete();
         self.event_buffer.add_event(write_event);

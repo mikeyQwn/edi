@@ -67,8 +67,12 @@ impl EventBuffer {
     }
 
     #[allow(unused)]
-    pub fn add_char_deleted(&mut self, buffer_id: Id, offset: usize) {
-        self.add_event(Payload::CharDeleted { buffer_id, offset });
+    pub fn add_char_deleted(&mut self, buffer_id: Id, offset: usize, c: char) {
+        self.add_event(Payload::CharDeleted {
+            buffer_id,
+            offset,
+            c,
+        });
     }
 
     pub fn add_redraw(&mut self) {

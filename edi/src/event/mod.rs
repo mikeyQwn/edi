@@ -52,6 +52,7 @@ pub enum Payload {
     CharDeleted {
         buffer_id: Id,
         offset: usize,
+        c: char,
     },
     Redraw,
     Quit,

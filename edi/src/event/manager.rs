@@ -10,8 +10,8 @@ use super::{
 
 pub trait Handler<State> {
     fn handle(&mut self, state: &mut State, event: &Event, buf: &mut EventBuffer);
-    fn interested_in(&self, event: &Event) -> bool {
-        let _ = event;
+    fn interested_in(&self, own_id: Id, event: &Event) -> bool {
+        let _ = (own_id, event);
         true
     }
 }
@@ -129,7 +129,7 @@ impl<State> EventManager<State> {
         event: &'a Event,
     ) {
         for (&id, handler) in handlers {
-            if !handler.interested_in(event) {
+            if !handler.interested_in(id, event) {
                 continue;
             }
 
