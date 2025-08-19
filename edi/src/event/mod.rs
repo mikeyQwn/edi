@@ -8,7 +8,7 @@ use edi_lib::brand::Id;
 use edi_term::input::Input;
 use sender::Sender;
 
-use crate::app;
+use crate::app::{self, buffers};
 
 #[derive(Debug)]
 pub struct Event {
@@ -41,7 +41,10 @@ impl Event {
 #[derive(Debug, Clone)]
 pub enum Payload {
     Input(Input),
-    SwitchMode(app::Mode),
+    SwitchMode {
+        selector: buffers::Selector,
+        target_mode: app::Mode,
+    },
     WriteChar(char),
     DeleteChar,
     CharWritten {
@@ -66,7 +69,7 @@ impl Payload {
     pub fn ty(&self) -> Type {
         match self {
             Self::Input(_) => Type::Input,
-            Self::SwitchMode(_) => Type::SwtichMode,
+            Self::SwitchMode { .. } => Type::SwtichMode,
             Self::WriteChar(_) => Type::WriteChar,
             Self::DeleteChar => Type::DeleteChar,
             Self::CharWritten { .. } => Type::CharWritten,

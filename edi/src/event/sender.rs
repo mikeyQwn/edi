@@ -3,7 +3,7 @@ use std::{collections::VecDeque, sync::mpsc};
 use edi_lib::brand::Id;
 use edi_term::input::Input;
 
-use crate::app;
+use crate::app::{self, buffers};
 
 use super::{Event, Payload};
 
@@ -43,8 +43,11 @@ impl EventBuffer {
     }
 
     #[allow(unused)]
-    pub fn add_switch_mode(&mut self, mode: app::Mode) {
-        self.add_event(Payload::SwitchMode(mode));
+    pub fn add_switch_mode(&mut self, selector: buffers::Selector, target_mode: app::Mode) {
+        self.add_event(Payload::SwitchMode {
+            selector,
+            target_mode,
+        });
     }
 
     #[allow(unused)]

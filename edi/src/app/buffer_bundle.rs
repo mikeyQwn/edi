@@ -8,13 +8,28 @@ use super::meta;
 #[derive(Debug)]
 pub struct BufferBundle {
     id: Id,
+    pub(super) position: usize,
     buffer: buffer::Buffer,
     meta: meta::BufferMeta,
 }
 
 impl BufferBundle {
-    pub fn new(id: Id, buffer: buffer::Buffer, meta: meta::BufferMeta) -> Self {
-        Self { id, buffer, meta }
+    pub fn new(id: Id, position: usize, buffer: buffer::Buffer, meta: meta::BufferMeta) -> Self {
+        Self {
+            id,
+            position,
+            buffer,
+            meta,
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.position() == 0
+    }
+
+    #[allow(unused)]
+    pub fn position(&self) -> usize {
+        self.position
     }
 
     #[allow(unused)]

@@ -6,6 +6,7 @@ pub mod meta;
 pub mod state;
 
 use action::{Action, MoveAction};
+use buffers::Selector;
 use edi_lib::vec2::Vec2;
 use edi_term::{
     coord::Coord,
@@ -52,7 +53,7 @@ pub fn handle_action(
 
     match event {
         Action::SwitchMode(mode) => {
-            buf.add_switch_mode(mode);
+            buf.add_switch_mode(Selector::Active, mode);
         }
         Action::InsertChar(c) => {
             buf.add_write_char(c);
@@ -129,7 +130,7 @@ pub fn handle_action(
                 "exit submit action with {buf_count} buffers",
                 buf_count = state.buffers.len()
             );
-            buf.add_switch_mode(Mode::Normal);
+            buf.add_switch_mode(Selector::Active, Mode::Normal);
         }
 
         Action::Move { action, repeat } => {

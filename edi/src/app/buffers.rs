@@ -5,9 +5,10 @@ use edi_lib::brand::{Id, Tag};
 
 use super::{buffer_bundle::BufferBundle, meta::BufferMeta};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Selector {
     First,
+    Active,
     Nth(usize),
     WithId(Id),
 }
@@ -31,19 +32,19 @@ impl Buffers {
         }
     }
 
-    pub fn get(&self, selector: Selector) -> Option<&BufferBundle> {
+    pub fn get(&self, selector: &Selector) -> Option<&BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) => self.first(),
+            Selector::First | Selector::Nth(0) | Selector::Active => self.first(),
             Selector::WithId(id) => self.inner.get(&id),
-            Selector::Nth(n) => self.nth(n),
+            &Selector::Nth(n) => self.nth(n),
         }
     }
 
-    pub fn get_mut(&mut self, selector: Selector) -> Option<&mut BufferBundle> {
+    pub fn get_mut(&mut self, selector: &Selector) -> Option<&mut BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) => self.first_mut(),
+            Selector::First | Selector::Nth(0) | Selector::Active => self.first_mut(),
             Selector::WithId(id) => self.inner.get_mut(&id),
-            Selector::Nth(n) => self.nth_mut(n),
+            &Selector::Nth(n) => self.nth_mut(n),
         }
     }
 
@@ -80,7 +81,10 @@ impl Buffers {
 
     pub fn attach(&mut self, buffer: buffer::Buffer, meta: BufferMeta) {
         let id = self.brand.child_id();
-        self.inner.insert(id, BufferBundle::new(id, buffer, meta));
+        self.inner.insert(
+            id,
+            BufferBundle::new(id, self.buffer_order.len(), buffer, meta),
+        );
         self.buffer_order.push(id);
     }
 
@@ -91,6 +95,14 @@ impl Buffers {
 
     fn swap(&mut self, a_ord: usize, b_ord: usize) {
         self.buffer_order.swap(a_ord, b_ord);
+        self.set_buffer_order(a_ord);
+        self.set_buffer_order(b_ord);
+    }
+
+    fn set_buffer_order(&mut self, order: usize) {
+        self.inner
+            .get_mut(&self.buffer_order[order])
+            .map(|entry| entry.position = order);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &BufferBundle> + DoubleEndedIterator {

@@ -113,7 +113,7 @@ impl manager::Handler<State> for Handler {
                 offset,
                 c,
             } => self.char_deleted(buffer_id, offset, c),
-            &Payload::SwitchMode(_) => {
+            &Payload::SwitchMode { .. } => {
                 // TODO: implement this
             }
             _ => return,

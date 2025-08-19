@@ -18,14 +18,29 @@ impl Handler {
 impl manager::Handler<State> for Handler {
     fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("mode");
-        let &Payload::SwitchMode(target_mode) = event.payload() else {
+        let Payload::SwitchMode {
+            selector,
+            target_mode,
+        } = event.payload()
+        else {
             return;
         };
+
+        let Some(bundle) = app_state.buffers.get_mut(selector) else {
+            edi_lib::debug!("no buffer found by selector: {selector:?}");
+            return;
+        };
+
+        let _ = bundle.meta_mut().set_mode(*target_mode);
+
+        if !bundle.is_active() {
+            return;
+        }
 
         if app_state.mode == Mode::Terminal {
             let _ = app_state.buffers.remove_first();
         }
-        app_state.mode = target_mode;
+        app_state.mode = *target_mode;
         if app_state.mode == Mode::Insert {
             let _ = ANSIEscape::ChangeCursor(CursorStyle::Line).write_to_stdout();
         } else {
