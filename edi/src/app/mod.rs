@@ -23,7 +23,7 @@ use std::{
     path::PathBuf,
 };
 
-use edi::string::highlight::get_highlights;
+use edi::{buffer::Buffer, string::highlight::get_highlights};
 
 use crate::{
     cli::EdiCli,
@@ -52,6 +52,21 @@ pub fn handle_action(
     let _span = edi_lib::span!("handle_action");
 
     match event {
+        Action::SwitchMode(Mode::Terminal) => {
+            let mut size = edi_term::get_size()
+                .map(Vec2::from_dims)
+                .unwrap_or(Vec2::new(10, 1))
+                .map(|v| v as usize);
+            size.y = 1;
+
+            let mut buffer = Buffer::new(":");
+            buffer.cursor_offset = 1;
+
+            state
+                .buffers
+                .attach_first(buffer, BufferMeta::new(Mode::Terminal).with_size(size));
+            buf.add_redraw();
+        }
         Action::SwitchMode(mode) => {
             buf.add_switch_mode(Selector::Active, mode);
         }

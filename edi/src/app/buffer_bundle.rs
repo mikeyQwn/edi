@@ -27,7 +27,6 @@ impl BufferBundle {
         self.position() == 0
     }
 
-    #[allow(unused)]
     pub fn position(&self) -> usize {
         self.position
     }
@@ -63,7 +62,10 @@ impl BufferBundle {
         emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer)
     }
 
-    #[allow(unused)]
+    pub fn meta(&self) -> &meta::BufferMeta {
+        &self.meta
+    }
+
     pub fn meta_mut(&mut self) -> &mut meta::BufferMeta {
         &mut self.meta
     }

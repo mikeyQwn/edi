@@ -3,7 +3,7 @@ use edi_lib::{brand::Id, vec2::Vec2};
 use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
-    app::{meta::BufferMeta, state::State, Mode},
+    app::{buffers::Selector, meta::BufferMeta, state::State, Mode},
     event::{self, manager, sender::EventBuffer, Event, Payload},
 };
 
@@ -31,34 +31,32 @@ impl manager::Handler<State> for Handler {
             return;
         };
 
-        let _ = bundle.meta_mut().set_mode(*target_mode);
+        let id = bundle.id();
+        edi_lib::debug!("ID: {id:?}");
+        let prev_mode = bundle.meta().mode();
+        bundle.meta_mut().set_mode(*target_mode);
 
         if !bundle.is_active() {
             return;
         }
 
-        if app_state.mode == Mode::Terminal {
-            let _ = app_state.buffers.remove_first();
+        if prev_mode == Mode::Terminal {
+            let _ = app_state.buffers.remove(id);
+            edi_lib::debug!(
+                "removed active buffer, buffers left: {buffers_left}, target: {target_mode:?}",
+                buffers_left = app_state.buffers.len()
+            );
+            buf.add_switch_mode(Selector::Active, *target_mode);
+            return;
         }
-        app_state.mode = *target_mode;
-        if app_state.mode == Mode::Insert {
+
+        if bundle.meta().mode() == Mode::Insert {
             let _ = ANSIEscape::ChangeCursor(CursorStyle::Line).write_to_stdout();
         } else {
             let _ = ANSIEscape::ChangeCursor(CursorStyle::Block).write_to_stdout();
         }
 
         edi_lib::debug!("mode switched to: {target_mode:?}");
-        if app_state.mode == Mode::Terminal {
-            let size = edi_term::get_size()
-                .map(Vec2::from_dims)
-                .unwrap_or(Vec2::new(10, 1));
-            let mut buffer = Buffer::new(":");
-            buffer.cursor_offset = 1;
-            app_state.buffers.attach_first(
-                buffer,
-                BufferMeta::new(Mode::Terminal).with_size(Vec2::new(size.x as usize, 1)),
-            );
-        }
         buf.add_redraw();
     }
 

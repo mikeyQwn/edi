@@ -1,7 +1,7 @@
 use edi_lib::brand::Id;
 
 use crate::{
-    app::{handle_action, state::State},
+    app::{handle_action, state::State, Mode},
     event::{self, manager, sender::EventBuffer, Event, Payload},
 };
 
@@ -21,7 +21,12 @@ impl manager::Handler<State> for Handler {
 
         let _span = edi_lib::span!("input");
 
-        let actions = app_state.mapper.map_input(input, app_state.mode);
+        let active_mode = app_state
+            .buffers
+            .active_buffer_mode()
+            .unwrap_or(Mode::Normal);
+
+        let actions = app_state.mapper.map_input(input, active_mode);
         for action in actions {
             if let Err(err) = handle_action(action, app_state, buf) {
                 edi_lib::debug!("{err}");

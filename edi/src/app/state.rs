@@ -13,7 +13,6 @@ use super::buffers::Buffers;
 pub struct State {
     pub window: Window,
 
-    pub mode: Mode,
     pub mapper: InputMapper,
     pub buffers: Buffers,
 }
@@ -24,7 +23,6 @@ impl State {
     pub fn new(window: Window) -> Self {
         Self {
             window,
-            mode: Mode::Normal,
             mapper: InputMapper::default(),
             buffers: Buffers::new(),
         }

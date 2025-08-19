@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use edi::buffer::{self};
 use edi_lib::brand::{Id, Tag};
 
-use super::{buffer_bundle::BufferBundle, meta::BufferMeta};
+use super::{buffer_bundle::BufferBundle, meta::BufferMeta, Mode};
 
 #[derive(Debug, Clone)]
 pub enum Selector {
@@ -32,9 +32,14 @@ impl Buffers {
         }
     }
 
+    pub fn active_buffer_mode(&self) -> Option<Mode> {
+        self.active().map(BufferBundle::meta).map(BufferMeta::mode)
+    }
+
     pub fn get(&self, selector: &Selector) -> Option<&BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) | Selector::Active => self.first(),
+            Selector::First | Selector::Nth(0) => self.first(),
+            Selector::Active => self.active(),
             Selector::WithId(id) => self.inner.get(&id),
             &Selector::Nth(n) => self.nth(n),
         }
@@ -42,7 +47,8 @@ impl Buffers {
 
     pub fn get_mut(&mut self, selector: &Selector) -> Option<&mut BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) | Selector::Active => self.first_mut(),
+            Selector::First | Selector::Nth(0) => self.first_mut(),
+            Selector::Active => self.active_mut(),
             Selector::WithId(id) => self.inner.get_mut(&id),
             &Selector::Nth(n) => self.nth_mut(n),
         }
@@ -63,14 +69,34 @@ impl Buffers {
         self.inner.get(id)
     }
 
+    pub fn active(&self) -> Option<&BufferBundle> {
+        self.first()
+    }
+
     pub fn first_mut(&mut self) -> Option<&mut BufferBundle> {
         let first_id = self.buffer_order.first()?;
         self.inner.get_mut(first_id)
     }
 
+    pub fn active_mut(&mut self) -> Option<&mut BufferBundle> {
+        self.first_mut()
+    }
+
     pub fn nth_mut(&mut self, n: usize) -> Option<&mut BufferBundle> {
         let id = self.buffer_order.get(n)?;
         self.inner.get_mut(id)
+    }
+
+    pub fn remove(&mut self, id: Id) -> Option<BufferBundle> {
+        let bundle = self.inner.remove(&id)?;
+        let pos = bundle.position();
+
+        self.buffer_order.remove(pos);
+        for i in pos..self.buffer_order.len() {
+            self.set_buffer_order(i);
+        }
+
+        Some(bundle)
     }
 
     pub fn remove_first(&mut self) -> Option<BufferBundle> {
