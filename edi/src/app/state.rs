@@ -3,7 +3,7 @@ use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::window::Window;
 
 use crate::{
-    app::{action::InputMapper, meta::BufferMeta, Mode},
+    app::{action::InputMapper, context::Context, meta::BufferMeta, Mode},
     event::{emitter, sender::EventBuffer},
 };
 
@@ -11,6 +11,8 @@ use super::buffers::Buffers;
 
 #[derive(Debug)]
 pub struct State {
+    pub context: Context,
+
     pub window: Window,
 
     pub mapper: InputMapper,
@@ -22,6 +24,8 @@ impl State {
     #[must_use]
     pub fn new(window: Window) -> Self {
         Self {
+            context: Context::new(),
+
             window,
             mapper: InputMapper::default(),
             buffers: Buffers::new(),

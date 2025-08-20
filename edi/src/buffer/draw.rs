@@ -15,6 +15,7 @@ use super::Buffer;
 pub struct FlushOptions {
     pub wrap: bool,
     pub line_numbers: bool,
+
     pub highlights: Vec<Highlight>,
     pub line_offset: usize,
 }
@@ -33,7 +34,19 @@ impl FlushOptions {
     }
 
     #[must_use]
+    pub const fn set_wrap(&mut self, wrap: bool) -> &mut Self {
+        self.wrap = wrap;
+        self
+    }
+
+    #[must_use]
     pub const fn with_line_numbers(mut self, line_numbers: bool) -> Self {
+        self.line_numbers = line_numbers;
+        self
+    }
+
+    #[must_use]
+    pub const fn set_line_numbers(&mut self, line_numbers: bool) -> &mut Self {
         self.line_numbers = line_numbers;
         self
     }

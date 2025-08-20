@@ -23,6 +23,7 @@ impl Handler {
 impl manager::Handler<State> for Handler {
     fn handle(&mut self, state: &mut State, _event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("draw");
+        let ctx = &state.context;
 
         edi_lib::debug!(
             "drawing {buffer_count} buffers",
@@ -36,7 +37,13 @@ impl manager::Handler<State> for Handler {
 
             let mut bound = Rect::new_in_origin(meta.size.x, meta.size.y).bind(&mut state.window);
             bound.clear();
-            buffer.as_ref().flush(&mut bound, &meta.flush_options);
+
+            let opts = meta
+                .flush_options
+                .set_wrap(ctx.settings.word_wrap)
+                .set_line_numbers(ctx.settings.line_numbers);
+
+            buffer.as_ref().flush(&mut bound, opts);
         });
 
         if let Err(err) = state.window.render() {
