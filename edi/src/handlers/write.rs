@@ -35,7 +35,7 @@ impl manager::Handler<State> for Handler {
 
 impl Handler {
     fn write_char(state: &mut State, c: char, buf: &mut EventBuffer) {
-        state.within_first_buffer(
+        state.within_active_buffer(
             |mut buffer, meta| {
                 let is_empty = buffer.as_ref().inner.is_empty();
                 buffer.write(c);
@@ -52,7 +52,7 @@ impl Handler {
     }
 
     fn delete_char(state: &mut State, buf: &mut EventBuffer) {
-        state.within_first_buffer(
+        state.within_active_buffer(
             |mut buffer, meta| {
                 buffer.delete();
                 meta.flush_options.highlights =

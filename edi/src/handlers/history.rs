@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use edi_lib::brand::Id;
 
 use crate::{
-    app::state::State,
+    app::{buffer_bundle::BufferBundle, state::State},
     event::{
         self,
+        emitter::buffer,
         manager::{self},
         sender::EventBuffer,
         Event, Payload,
@@ -18,6 +19,40 @@ enum Change {
     Write { offset: usize, content: String },
     // Remove `content` starting from `offset`
     Delete { offset: usize, content: String },
+}
+
+impl Change {
+    fn undo(&self, buffer: &mut buffer::Buffer) {
+        match self {
+            Change::Write { offset, .. } => {
+                buffer.set_cursor_offset(*offset + 1);
+                buffer.delete();
+            }
+
+            Change::Delete { offset, content } => {
+                buffer.set_cursor_offset(*offset - content.chars().count());
+                for c in content.chars() {
+                    buffer.write(c);
+                }
+            }
+        }
+    }
+
+    fn apply(&self, buffer: &mut buffer::Buffer) {
+        match self {
+            Change::Delete { offset, .. } => {
+                buffer.set_cursor_offset(*offset + 1);
+                buffer.delete();
+            }
+
+            Change::Write { offset, content } => {
+                buffer.set_cursor_offset(*offset);
+                for c in content.chars() {
+                    buffer.write(c);
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -60,6 +95,19 @@ impl History {
         self.changes.push(self.new_record(change));
         self.current_position = self.changes.len();
     }
+
+    pub fn pop_record(&mut self) -> Option<&Record> {
+        (self.current_position > 0).then_some(())?;
+        self.current_position -= 1;
+        self.changes.get(self.current_position)
+    }
+
+    pub fn return_record(&mut self) -> Option<&Record> {
+        (self.current_position < self.changes.len()).then_some(())?;
+        let item = self.changes.get(self.current_position);
+        self.current_position += 1;
+        item
+    }
 }
 
 pub struct Handler {
@@ -96,10 +144,58 @@ impl Handler {
             content: String::from(c),
         });
     }
+
+    fn undo(&mut self, bundle: &mut BufferBundle, buf: &mut EventBuffer) {
+        let Some(history) = self.id_to_history.get_mut(&bundle.id()) else {
+            return;
+        };
+
+        let Some(record) = history.pop_record() else {
+            return;
+        };
+
+        let mut buffer = bundle.buffer_mut(buf);
+
+        record.change.undo(&mut buffer);
+        let age = record.age;
+
+        while let Some(record) = history.pop_record() {
+            if record.age != age {
+                history.return_record();
+                return;
+            }
+
+            record.change.undo(&mut buffer);
+        }
+    }
+
+    fn redo(&mut self, bundle: &mut BufferBundle, buf: &mut EventBuffer) {
+        let Some(history) = self.id_to_history.get_mut(&bundle.id()) else {
+            return;
+        };
+
+        let Some(record) = history.return_record() else {
+            return;
+        };
+
+        let mut buffer = bundle.buffer_mut(buf);
+
+        record.change.apply(&mut buffer);
+        let age = record.age;
+
+        while let Some(record) = history.return_record() {
+            if record.age != age {
+                history.pop_record();
+                return;
+            }
+
+            record.change.apply(&mut buffer);
+        }
+    }
 }
 
 impl manager::Handler<State> for Handler {
-    fn handle(&mut self, _state: &mut State, event: &Event, _buf: &mut EventBuffer) {
+    fn handle(&mut self, state: &mut State, event: &Event, buf: &mut EventBuffer) {
         let _span = edi_lib::span!("history");
 
         match event.payload() {
@@ -113,8 +209,27 @@ impl manager::Handler<State> for Handler {
                 offset,
                 c,
             } => self.char_deleted(buffer_id, offset, c),
-            &Payload::SwitchMode { .. } => {
-                // TODO: implement this
+            Payload::Undo(selector) => {
+                let Some(bundle) = state.buffers.get_mut(selector) else {
+                    return;
+                };
+                self.undo(bundle, buf);
+                buf.add_redraw();
+            }
+            Payload::Redo(selector) => {
+                let Some(bundle) = state.buffers.get_mut(selector) else {
+                    return;
+                };
+                self.redo(bundle, buf);
+                buf.add_redraw();
+            }
+            Payload::SwitchMode { selector, .. } => {
+                state
+                    .buffers
+                    .get(&selector)
+                    .and_then(|buffer| self.id_to_history.get_mut(&buffer.id()))
+                    .map(History::next_age);
+                return;
             }
             _ => return,
         }
@@ -131,6 +246,8 @@ impl manager::Handler<State> for Handler {
             event::Type::CharWritten,
             event::Type::CharDeleted,
             event::Type::SwtichMode,
+            event::Type::Undo,
+            event::Type::Redo,
         ];
         event.ty().is_oneof(types)
     }

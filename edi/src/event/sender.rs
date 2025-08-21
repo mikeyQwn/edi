@@ -82,6 +82,14 @@ impl EventBuffer {
         self.add_event(Payload::Redraw);
     }
 
+    pub fn add_undo(&mut self, selector: buffers::Selector) {
+        self.add_event(Payload::Undo(selector));
+    }
+
+    pub fn add_redo(&mut self, selector: buffers::Selector) {
+        self.add_event(Payload::Redo(selector));
+    }
+
     pub fn add_quit(&mut self) {
         self.add_event(Payload::Quit);
     }

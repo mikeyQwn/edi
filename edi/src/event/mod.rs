@@ -58,6 +58,8 @@ pub enum Payload {
         c: char,
     },
     Redraw,
+    Undo(buffers::Selector),
+    Redo(buffers::Selector),
     Quit,
 }
 
@@ -75,6 +77,8 @@ impl Payload {
             Self::CharWritten { .. } => Type::CharWritten,
             Self::CharDeleted { .. } => Type::CharDeleted,
             Self::Redraw => Type::Redraw,
+            Self::Undo(_) => Type::Undo,
+            Self::Redo(_) => Type::Redo,
             Self::Quit => Type::Quit,
         }
     }
@@ -89,6 +93,8 @@ pub enum Type {
     CharWritten,
     CharDeleted,
     Redraw,
+    Undo,
+    Redo,
     Quit,
 }
 

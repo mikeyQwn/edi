@@ -59,13 +59,13 @@ impl State {
         Ok(())
     }
 
-    pub fn within_first_buffer<F>(&mut self, mut f: F, event_buffer: &mut EventBuffer)
+    pub fn within_active_buffer<F>(&mut self, mut f: F, event_buffer: &mut EventBuffer)
     where
         F: FnMut(emitter::buffer::Buffer, &mut BufferMeta),
     {
         let _ = self
             .buffers
-            .first_mut()
+            .active_mut()
             .map(|bundle| bundle.as_split_mut(event_buffer))
             .map(|(buffer, meta)| f(buffer, meta));
     }

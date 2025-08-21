@@ -7,7 +7,6 @@ use crate::string::{
 };
 
 use edi_rope::{iter::LineInfo, Rope};
-use write::ChangeHistory;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -20,7 +19,6 @@ pub enum Direction {
 #[derive(Debug)]
 pub struct Buffer {
     pub inner: Rope,
-    pub history: ChangeHistory,
     pub cursor_offset: usize,
 }
 
@@ -29,7 +27,6 @@ impl Buffer {
     pub fn new(inner: &str) -> Self {
         Self {
             inner: Rope::from(inner),
-            history: ChangeHistory::default(),
             cursor_offset: 0,
         }
     }

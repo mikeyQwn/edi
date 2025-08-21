@@ -1,9 +1,8 @@
-use edi::buffer::Buffer;
-use edi_lib::{brand::Id, vec2::Vec2};
+use edi_lib::brand::Id;
 use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
-    app::{buffers::Selector, meta::BufferMeta, state::State, Mode},
+    app::{buffers::Selector, state::State, Mode},
     event::{self, manager, sender::EventBuffer, Event, Payload},
 };
 

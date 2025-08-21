@@ -45,14 +45,17 @@ impl<'a, 'b> Buffer<'a, 'b> {
     }
 
     pub fn delete(&mut self) {
-        // TODO: Store the deleted character
-        let write_event = Payload::CharDeleted {
-            buffer_id: self.id,
-            offset: self.inner.cursor_offset,
-            c: ' ',
+        let buffer_id = self.id;
+        let offset = self.inner.cursor_offset;
+        let Some(deleted_char) = self.inner.delete() else {
+            return;
         };
-        self.inner.delete();
-        self.event_buffer.add_event(write_event);
+        let delete_event = Payload::CharDeleted {
+            buffer_id,
+            offset: offset,
+            c: deleted_char,
+        };
+        self.event_buffer.add_event(delete_event);
     }
 
     pub fn set_cursor_offset(&mut self, cursor_offset: usize) {
@@ -62,6 +65,10 @@ impl<'a, 'b> Buffer<'a, 'b> {
     proxy_method!(fn move_cursor(&mut self, direction: Direction, steps: usize));
     proxy_method!(fn move_global(&mut self, position: GlobalPosition));
     proxy_method!(fn move_in_line(&mut self, position: LinePosition));
+
+    pub fn event_buffer(&mut self) -> &mut EventBuffer {
+        self.event_buffer
+    }
 }
 
 impl<'a, 'b> AsRef<buffer::Buffer> for Buffer<'a, 'b> {

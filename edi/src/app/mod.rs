@@ -24,7 +24,7 @@ use std::{
     path::PathBuf,
 };
 
-use edi::{buffer::Buffer, string::highlight::get_highlights};
+use edi::buffer::Buffer;
 
 use crate::{
     cli::EdiCli,
@@ -150,48 +150,19 @@ pub fn handle_action(
         }
 
         Action::Move { action, repeat } => {
-            match state.buffers.first_mut() {
-                Some(bundle) => {
-                    let (mut buffer, meta) = bundle.as_split_mut(buf);
-                    handle_move(&mut buffer, meta, action, repeat);
-                    buf.add_redraw();
-                }
-                None => {
-                    edi_lib::debug!("handle_event: no buffers to move cursor in");
-                }
-            }
-            buf.add_redraw();
+            state.within_active_buffer(
+                |mut buffer, meta| {
+                    handle_move(&mut buffer, meta, &action, repeat);
+                    buffer.event_buffer().add_redraw();
+                },
+                buf,
+            );
         }
         Action::Undo => {
-            match state.buffers.first_mut() {
-                Some(bundle) => {
-                    let (mut buffer, meta) = bundle.as_split_mut(buf);
-                    let buffer = buffer.as_mut();
-                    edi_lib::debug!("undoing last action");
-                    buffer.undo();
-                    meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
-                    buf.add_redraw();
-                }
-                None => {
-                    edi_lib::debug!("handle_event: no buffers to undo in");
-                }
-            }
-            buf.add_redraw();
+            buf.add_undo(Selector::Active);
         }
         Action::Redo => {
-            match state.buffers.first_mut() {
-                Some(bundle) => {
-                    let (mut buffer, meta) = bundle.as_split_mut(buf);
-                    let buffer = buffer.as_mut();
-                    buffer.redo();
-                    meta.flush_options.highlights = get_highlights(&buffer.inner, &meta.filetype);
-                    buf.add_redraw();
-                }
-                None => {
-                    edi_lib::debug!("handle_event: no buffers to undo in");
-                }
-            }
-            buf.add_redraw();
+            buf.add_redo(Selector::Active);
         }
     }
 
@@ -201,20 +172,20 @@ pub fn handle_action(
 fn handle_move(
     buffer: &mut emitter::buffer::Buffer,
     meta: &mut BufferMeta,
-    action: MoveAction,
+    action: &MoveAction,
     repeat: usize,
 ) {
     match action {
-        MoveAction::Regular(direction) => {
+        &MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
         }
-        MoveAction::InLine(line_position) => {
+        &MoveAction::InLine(line_position) => {
             buffer.move_in_line(line_position);
         }
-        MoveAction::HalfScreen(direction) => {
+        &MoveAction::HalfScreen(direction) => {
             buffer.move_cursor(direction.into(), meta.size.y / 2);
         }
-        MoveAction::Global(global_position) => buffer.move_global(global_position),
+        &MoveAction::Global(global_position) => buffer.move_global(global_position),
     }
 }
 

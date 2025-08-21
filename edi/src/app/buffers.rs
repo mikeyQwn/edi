@@ -47,7 +47,7 @@ impl Buffers {
 
     pub fn get_mut(&mut self, selector: &Selector) -> Option<&mut BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) => self.first_mut(),
+            Selector::First | Selector::Nth(0) => self.active_mut(),
             Selector::Active => self.active_mut(),
             Selector::WithId(id) => self.inner.get_mut(&id),
             &Selector::Nth(n) => self.nth_mut(n),
@@ -234,7 +234,7 @@ mod tests {
     fn new_is_empty() {
         let mut b = Buffers::new();
         assert_eq!(b.len(), 0);
-        assert!(b.first_mut().is_none());
+        assert!(b.active_mut().is_none());
         assert!(b.buffer_order.is_empty());
     }
 
@@ -250,7 +250,7 @@ mod tests {
     fn first_mut_returns_first_element() {
         let mut b = make_buffers(2);
         let first_id = b.buffer_order[0];
-        let first = b.first_mut().unwrap();
+        let first = b.active_mut().unwrap();
         assert_eq!(first.id(), first_id);
     }
 
@@ -276,7 +276,7 @@ mod tests {
         let mut b = make_buffers(2);
         b.attach_first(buffer::Buffer::new(""), BufferMeta::new(Mode::Normal));
 
-        let first = b.first_mut().unwrap();
+        let first = b.active_mut().unwrap();
         assert_eq!(first.id(), b.buffer_order[0]);
     }
 
