@@ -28,6 +28,7 @@ use edi::buffer::Buffer;
 
 use crate::{
     cli::EdiCli,
+    controller::Controller,
     event::{emitter, manager::EventManager, sender::EventBuffer, sources, Payload},
     handlers,
 };
@@ -191,8 +192,11 @@ fn handle_move(
 
 /// Runs the `edi` application, blocknig until receiving an error / close signal
 pub fn run(args: EdiCli) -> anyhow::Result<()> {
+    let mut controller = Controller::new();
+
     let mut event_manager = EventManager::new();
     event_manager.attach_source(sources::input_source);
+    controller.attach_source(sources::input_source);
 
     edi_term::within_alternative_screen_mode(|| {
         let mut window = Window::new();
@@ -213,7 +217,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         event_manager.pipe_event(Payload::Redraw);
 
-        let _ = event_manager.run(state);
+        let _ = controller.run(state);
 
         let _ = ANSIEscape::ChangeCursor(CursorStyle::Block).write_to_stdout();
 

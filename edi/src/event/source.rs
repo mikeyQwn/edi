@@ -7,13 +7,13 @@ pub struct SourcesHandle {
 }
 
 impl SourcesHandle {
-    pub(super) fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         Self {
             senders: Vec::with_capacity(capacity),
         }
     }
 
-    pub(super) fn add(&mut self, handle: JoinHandle<()>) {
+    pub fn add(&mut self, handle: JoinHandle<()>) {
         self.senders.push(handle);
     }
 

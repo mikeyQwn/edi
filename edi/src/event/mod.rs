@@ -1,8 +1,11 @@
 pub mod emitter;
+pub mod handler;
 pub mod manager;
 pub mod sender;
 pub mod source;
 pub mod sources;
+
+pub use source::Source;
 
 use edi_lib::brand::Id;
 use edi_term::input::Input;

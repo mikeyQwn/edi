@@ -11,9 +11,11 @@ use rand as _;
 
 mod app;
 mod cli;
+mod controller;
 mod error;
 mod event;
 mod handlers;
+mod query;
 
 const DEBUG_FILE: &str = "log";
 
