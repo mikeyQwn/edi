@@ -31,10 +31,11 @@ Edi is a lightweight text editor inspired by Vim, written in Rust. It's currentl
 
 Some of the supported keymaps are:
 
-- h,j,k,l - move the cursor
+- h,j,k,l/arrow keys - move the cursor
 - G - move cursor to the end of the file
 - 0,$,^ - move cursor to line start/end/first non-whitespace char
-- e - move cursor to the end of the word
+- e - move cursor to the end of the next word
+- b - move cursor to the start of the previous word
 - Ctrl+u,Ctrl+d - move the cursor half of the screen up/down
 - u,Ctrl+r - undo/redo
 - i - enter insert mode
@@ -66,7 +67,7 @@ edi [FILENAME]
 Features:
 
 - [x] Undo/redo
-- [ ] Merge sequences of write/delete in one undo/redo
+- [x] Merge sequences of write/delete in one undo/redo
 - [ ] Persistent undo/redo
 - [ ] Visual mode, text selection
 - [ ] Empty buffer mode
@@ -92,4 +93,3 @@ Tech debt:
 
 - Running edi without a file does nothing
 - Sometimes the end of the file goes out of bounds for files with wide lines
-- Terminal mode may kill the current buffer somehow
