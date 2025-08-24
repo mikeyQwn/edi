@@ -1,9 +1,13 @@
 use edi_lib::brand::Id;
 
-use crate::app::buffers;
+use crate::app::{
+    self,
+    buffers::{self, Selector},
+};
 
 #[derive(Debug)]
 pub struct Query {
+    #[allow(unused)]
     source: Option<Id>,
     payload: Payload,
 }
@@ -19,6 +23,10 @@ impl Query {
 
     pub fn payload(&self) -> &Payload {
         &self.payload
+    }
+
+    pub fn into_payload(self) -> Payload {
+        self.payload
     }
 
     pub fn is_quit(&self) -> bool {
@@ -42,6 +50,10 @@ pub enum HistoryQuery {
 pub enum Payload {
     Write(WriteQuery),
     History(HistoryQuery),
+    SwitchMode {
+        buffer_selector: Selector,
+        target_mode: app::Mode,
+    },
     Redraw,
     Quit,
 }
@@ -51,6 +63,7 @@ impl Payload {
         match self {
             Self::Write(_) => Type::Write,
             Self::History(_) => Type::History,
+            Self::SwitchMode { .. } => Type::SwitchMode,
             Self::Redraw => Type::Redraw,
             Self::Quit => Type::Quit,
         }
@@ -61,12 +74,19 @@ impl Payload {
 pub enum Type {
     Write,
     History,
+    SwitchMode,
     Redraw,
     Quit,
 }
 
 impl Type {
     pub fn all() -> impl IntoIterator<Item = Type> {
-        [Self::Write, Self::History, Self::Redraw, Self::Quit]
+        [
+            Self::Write,
+            Self::History,
+            Self::SwitchMode,
+            Self::Redraw,
+            Self::Quit,
+        ]
     }
 }

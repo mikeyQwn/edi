@@ -16,7 +16,7 @@ pub trait EventHandler<State> {
 pub trait QueryHandler<State> {
     fn handle(&mut self, state: &mut State, query: Query, ctrl: &mut Handle<State>);
 
-    fn check_event(&mut self, state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
+    fn check_event(&mut self, state: &State, event: &Event, ctrl: &mut Handle<State>) {
         let _ = (state, event, ctrl);
     }
 

@@ -1,10 +1,10 @@
-use edi_lib::brand::Id;
 use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
     app::{buffers::Selector, state::State, Mode},
     controller::{self, Handle},
-    event::{self, Event, Payload},
+    event::{self},
+    query::{Payload, Query},
 };
 
 pub struct Handler;
@@ -15,26 +15,29 @@ impl Handler {
     }
 }
 
-impl controller::EventHandler<State> for Handler {
-    fn handle(&mut self, app_state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
+impl controller::QueryHandler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, query: Query, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("mode");
         let Payload::SwitchMode {
-            selector,
+            buffer_selector,
             target_mode,
-        } = event.payload()
+        } = query.into_payload()
         else {
+            edi_lib::debug!(
+                "non-write query submitted to write query handler, this is likely a bug"
+            );
             return;
         };
 
-        let Some(bundle) = app_state.buffers.get_mut(selector) else {
-            edi_lib::debug!("no buffer found by selector: {selector:?}");
+        let Some(bundle) = app_state.buffers.get_mut(&buffer_selector) else {
+            edi_lib::debug!("no buffer found by selector: {buffer_selector:?}");
             return;
         };
 
         let id = bundle.id();
         edi_lib::debug!("ID: {id:?}");
         let prev_mode = bundle.meta().mode();
-        bundle.meta_mut().set_mode(*target_mode);
+        bundle.meta_mut().set_mode(target_mode);
 
         if !bundle.is_active() {
             return;
@@ -46,7 +49,7 @@ impl controller::EventHandler<State> for Handler {
                 "removed active buffer, buffers left: {buffers_left}, target: {target_mode:?}",
                 buffers_left = app_state.buffers.len()
             );
-            ctrl.add_switch_mode(Selector::Active, *target_mode);
+            ctrl.query_switch_mode(Selector::Active, target_mode);
             return;
         }
 
@@ -57,10 +60,12 @@ impl controller::EventHandler<State> for Handler {
         }
 
         edi_lib::debug!("mode switched to: {target_mode:?}");
-        ctrl.query_redraw();
-    }
 
-    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
-        event.ty() == event::Type::SwtichMode
+        ctrl.add_event(event::Payload::ModeSwitched {
+            buffer_id: id,
+            target_mode,
+        });
+
+        ctrl.query_redraw();
     }
 }

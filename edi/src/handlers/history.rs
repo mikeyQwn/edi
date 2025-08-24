@@ -221,7 +221,7 @@ impl controller::QueryHandler<State> for Handler {
         edi_lib::debug!("history changed, new history: {:?}", self.id_to_history);
     }
 
-    fn check_event(&mut self, state: &mut State, event: &Event, _ctrl: &mut Handle<State>) {
+    fn check_event(&mut self, _state: &State, event: &Event, _ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("history");
 
         match event.payload() {
@@ -235,12 +235,8 @@ impl controller::QueryHandler<State> for Handler {
                 offset,
                 c,
             } => self.char_deleted(buffer_id, offset, c),
-            Payload::SwitchMode { selector, .. } => {
-                state
-                    .buffers
-                    .get(&selector)
-                    .and_then(|buffer| self.id_to_history.get_mut(&buffer.id()))
-                    .map(History::next_age);
+            Payload::ModeSwitched { buffer_id, .. } => {
+                self.id_to_history.get_mut(buffer_id).map(History::next_age);
                 return;
             }
             _ => return,
@@ -257,7 +253,7 @@ impl controller::QueryHandler<State> for Handler {
         let types = &[
             event::Type::CharWritten,
             event::Type::CharDeleted,
-            event::Type::SwtichMode,
+            event::Type::ModeSwitched,
         ];
         event.ty().is_oneof(types)
     }

@@ -71,7 +71,7 @@ pub fn handle_action(
             ctrl.query_redraw();
         }
         Action::SwitchMode(mode) => {
-            ctrl.add_switch_mode(Selector::Active, mode);
+            ctrl.query_switch_mode(Selector::Active, mode);
         }
         Action::InsertChar(c) => {
             ctrl.query_write(WriteQuery::WriteChar(c));
@@ -148,7 +148,7 @@ pub fn handle_action(
                 "exit submit action with {buf_count} buffers",
                 buf_count = state.buffers.len()
             );
-            ctrl.add_switch_mode(Selector::Active, Mode::Normal);
+            ctrl.query_switch_mode(Selector::Active, Mode::Normal);
         }
 
         Action::Move { action, repeat } => {
@@ -234,9 +234,9 @@ pub fn init_handlers(controller: &mut Controller<State>) {
     let draw_handler = handlers::draw::Handler::new();
     controller.attach_query_handler(query::Type::Redraw, draw_handler);
 
+    let mode_handler = handlers::mode::Handler::new();
+    controller.attach_query_handler(query::Type::SwitchMode, mode_handler);
+
     let history_handler = handlers::history::Handler::new();
     controller.attach_query_handler(query::Type::History, history_handler);
-
-    let mode_handler = handlers::mode::Handler::new();
-    controller.attach_event_handler(mode_handler);
 }

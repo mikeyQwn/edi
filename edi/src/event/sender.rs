@@ -43,14 +43,6 @@ impl EventBuffer {
     }
 
     #[allow(unused)]
-    pub fn add_switch_mode(&mut self, selector: buffers::Selector, target_mode: app::Mode) {
-        self.add_event(Payload::SwitchMode {
-            selector,
-            target_mode,
-        });
-    }
-
-    #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
         self.add_event(Payload::CharWritten {
             buffer_id,

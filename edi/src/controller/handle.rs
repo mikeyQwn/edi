@@ -1,11 +1,10 @@
-use core::prelude;
 use std::collections::{HashMap, VecDeque};
 
 use edi_lib::brand::Id;
 use edi_term::input::Input;
 
 use crate::{
-    app::{self, buffers},
+    app::{self, buffers::Selector},
     event::{Event, Payload},
     query::{self, HistoryQuery, Query, Type, WriteQuery},
 };
@@ -101,14 +100,6 @@ impl<'a, State> Handle<State> {
     }
 
     #[allow(unused)]
-    pub fn add_switch_mode(&mut self, selector: buffers::Selector, target_mode: app::Mode) {
-        self.add_event(Payload::SwitchMode {
-            selector,
-            target_mode,
-        });
-    }
-
-    #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
         self.add_event(Payload::CharWritten {
             buffer_id,
@@ -132,6 +123,13 @@ impl<'a, State> Handle<State> {
 
     pub fn query_write(&mut self, query: WriteQuery) {
         self.query_async(query::Payload::Write(query));
+    }
+
+    pub fn query_switch_mode(&mut self, buffer_selector: Selector, target_mode: app::Mode) {
+        self.query_async(query::Payload::SwitchMode {
+            buffer_selector,
+            target_mode,
+        });
     }
 
     pub fn query_redraw(&mut self) {
