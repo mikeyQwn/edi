@@ -3,7 +3,8 @@ use edi_term::escaping::{ANSIEscape, CursorStyle};
 
 use crate::{
     app::{buffers::Selector, state::State, Mode},
-    event::{self, manager, sender::EventBuffer, Event, Payload},
+    controller::{self, Handle},
+    event::{self, Event, Payload},
 };
 
 pub struct Handler;
@@ -14,8 +15,8 @@ impl Handler {
     }
 }
 
-impl manager::Handler<State> for Handler {
-    fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
+impl controller::EventHandler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("mode");
         let Payload::SwitchMode {
             selector,
@@ -45,7 +46,7 @@ impl manager::Handler<State> for Handler {
                 "removed active buffer, buffers left: {buffers_left}, target: {target_mode:?}",
                 buffers_left = app_state.buffers.len()
             );
-            buf.add_switch_mode(Selector::Active, *target_mode);
+            ctrl.add_switch_mode(Selector::Active, *target_mode);
             return;
         }
 
@@ -56,7 +57,7 @@ impl manager::Handler<State> for Handler {
         }
 
         edi_lib::debug!("mode switched to: {target_mode:?}");
-        buf.add_redraw();
+        ctrl.add_redraw();
     }
 
     fn interested_in(&self, _own_id: Id, event: &Event) -> bool {

@@ -3,7 +3,8 @@ use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
-    event::{self, manager, sender::EventBuffer, Event, Payload},
+    controller::{self, Handle},
+    event::{self, Event, Payload},
 };
 
 pub struct Handler;
@@ -14,17 +15,17 @@ impl Handler {
     }
 }
 
-impl manager::Handler<State> for Handler {
-    fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
+impl controller::EventHandler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("write");
 
         match event.payload() {
-            &Payload::WriteChar(c) => Self::write_char(app_state, c, buf),
-            &Payload::DeleteChar => Self::delete_char(app_state, buf),
+            &Payload::WriteChar(c) => Self::write_char(app_state, c, ctrl),
+            &Payload::DeleteChar => Self::delete_char(app_state, ctrl),
             _ => return,
         }
 
-        buf.add_redraw();
+        ctrl.add_redraw();
     }
 
     fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
@@ -34,7 +35,7 @@ impl manager::Handler<State> for Handler {
 }
 
 impl Handler {
-    fn write_char(state: &mut State, c: char, buf: &mut EventBuffer) {
+    fn write_char(state: &mut State, c: char, ctrl: &mut Handle<State>) {
         state.within_active_buffer(
             |mut buffer, meta| {
                 let is_empty = buffer.as_ref().inner.is_empty();
@@ -47,18 +48,18 @@ impl Handler {
                 meta.flush_options.highlights =
                     get_highlights(&buffer.as_ref().inner, &meta.filetype);
             },
-            buf,
+            ctrl,
         );
     }
 
-    fn delete_char(state: &mut State, buf: &mut EventBuffer) {
+    fn delete_char(state: &mut State, ctrl: &mut Handle<State>) {
         state.within_active_buffer(
             |mut buffer, meta| {
                 buffer.delete();
                 meta.flush_options.highlights =
                     get_highlights(&buffer.as_ref().inner, &meta.filetype);
             },
-            buf,
+            ctrl,
         );
     }
 }

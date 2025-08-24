@@ -1,12 +1,12 @@
 use edi_lib::brand::Id;
 
-use crate::event::Event;
+use crate::{event::Event, query::Query};
 
 use super::Handle;
 
 pub trait EventHandler<State> {
     // TODO: make the state immutable
-    fn handle(&mut self, state: &mut State, event: &Event, ctrl: Handle<'_, State>);
+    fn handle(&mut self, state: &mut State, event: &Event, ctrl: &mut Handle<State>);
     fn interested_in(&self, own_id: Id, event: &Event) -> bool {
         let _ = (own_id, event);
         true
@@ -14,9 +14,5 @@ pub trait EventHandler<State> {
 }
 
 pub trait QueryHandler<State> {
-    fn handle(&mut self, state: &mut State, event: &Event, ctrl: Handle<'_, State>);
-    fn interested_in(&self, own_id: Id, event: &Event) -> bool {
-        let _ = (own_id, event);
-        true
-    }
+    fn handle(&mut self, state: &mut State, query: Query, ctrl: &mut Handle<State>);
 }

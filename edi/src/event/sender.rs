@@ -89,17 +89,17 @@ impl EventBuffer {
     pub fn add_redo(&mut self, selector: buffers::Selector) {
         self.add_event(Payload::Redo(selector));
     }
-
-    pub fn add_quit(&mut self) {
-        self.add_event(Payload::Quit);
-    }
 }
 
 pub struct Sender {
-    pub(super) tx: mpsc::Sender<Payload>,
+    tx: mpsc::Sender<Payload>,
 }
 
 impl Sender {
+    pub fn new(tx: mpsc::Sender<Payload>) -> Self {
+        Self { tx }
+    }
+
     pub fn send_event(&self, event: Payload) -> bool {
         self.tx.send(event).is_ok()
     }

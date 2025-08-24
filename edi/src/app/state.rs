@@ -4,6 +4,7 @@ use edi_term::window::Window;
 
 use crate::{
     app::{action::InputMapper, context::Context, meta::BufferMeta, Mode},
+    controller::Handle,
     event::{emitter, sender::EventBuffer},
 };
 
@@ -59,14 +60,14 @@ impl State {
         Ok(())
     }
 
-    pub fn within_active_buffer<F>(&mut self, mut f: F, event_buffer: &mut EventBuffer)
+    pub fn within_active_buffer<F>(&mut self, mut f: F, ctrl: &mut Handle<State>)
     where
         F: FnMut(emitter::buffer::Buffer, &mut BufferMeta),
     {
         let _ = self
             .buffers
             .active_mut()
-            .map(|bundle| bundle.as_split_mut(event_buffer))
+            .map(|bundle| bundle.as_split_mut(ctrl))
             .map(|(buffer, meta)| f(buffer, meta));
     }
 }

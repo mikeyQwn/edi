@@ -4,12 +4,8 @@ use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
-    event::{
-        self,
-        manager::{self},
-        sender::EventBuffer,
-        Event,
-    },
+    controller::{self, Handle},
+    event::{self, Event},
 };
 
 pub struct Handler;
@@ -20,8 +16,8 @@ impl Handler {
     }
 }
 
-impl manager::Handler<State> for Handler {
-    fn handle(&mut self, state: &mut State, _event: &Event, buf: &mut EventBuffer) {
+impl controller::EventHandler<State> for Handler {
+    fn handle(&mut self, state: &mut State, _event: &Event, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("draw");
         let ctx = &state.context;
 
@@ -32,7 +28,7 @@ impl manager::Handler<State> for Handler {
 
         state.window.clear();
         state.buffers.iter_mut().rev().for_each(|bundle| {
-            let (buffer, meta) = bundle.as_split_mut(buf);
+            let (buffer, meta) = bundle.as_split_mut(ctrl);
             meta.normalize(buffer.as_ref());
 
             let mut bound = Rect::new_in_origin(meta.size.x, meta.size.y).bind(&mut state.window);

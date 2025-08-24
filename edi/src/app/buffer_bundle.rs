@@ -1,9 +1,12 @@
 use edi::buffer;
 use edi_lib::brand::Id;
 
-use crate::event::{emitter, sender::EventBuffer};
+use crate::{
+    controller::Handle,
+    event::{emitter, sender::EventBuffer},
+};
 
-use super::meta;
+use super::{meta, state::State};
 
 #[derive(Debug)]
 pub struct BufferBundle {
@@ -42,10 +45,10 @@ impl BufferBundle {
 
     pub fn as_split_mut<'a, 'b>(
         &'a mut self,
-        event_buffer: &'b mut EventBuffer,
+        ctrl: &'b mut Handle<State>,
     ) -> (emitter::buffer::Buffer<'a, 'b>, &'a mut meta::BufferMeta) {
         (
-            emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer),
+            emitter::buffer::Buffer::new(self.id, &mut self.buffer, ctrl),
             &mut self.meta,
         )
     }
@@ -57,9 +60,9 @@ impl BufferBundle {
     #[allow(unused)]
     pub fn buffer_mut<'a, 'b>(
         &'a mut self,
-        event_buffer: &'b mut EventBuffer,
+        ctrl: &'b mut Handle<State>,
     ) -> emitter::buffer::Buffer<'a, 'b> {
-        emitter::buffer::Buffer::new(self.id, &mut self.buffer, event_buffer)
+        emitter::buffer::Buffer::new(self.id, &mut self.buffer, ctrl)
     }
 
     pub fn meta(&self) -> &meta::BufferMeta {

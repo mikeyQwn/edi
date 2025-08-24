@@ -1,15 +1,14 @@
 pub mod emitter;
 pub mod handler;
-pub mod manager;
 pub mod sender;
 pub mod source;
 pub mod sources;
 
+pub use sender::Sender;
 pub use source::Source;
 
 use edi_lib::brand::Id;
 use edi_term::input::Input;
-use sender::Sender;
 
 use crate::app::{self, buffers};
 
@@ -20,11 +19,11 @@ pub struct Event {
 }
 
 impl Event {
-    pub(super) fn new(source: Option<Id>, payload: Payload) -> Self {
+    pub fn new(source: Option<Id>, payload: Payload) -> Self {
         Self { source, payload }
     }
 
-    pub(super) fn without_source(payload: Payload) -> Self {
+    pub fn without_source(payload: Payload) -> Self {
         Self::new(None, payload)
     }
 
@@ -63,14 +62,9 @@ pub enum Payload {
     Redraw,
     Undo(buffers::Selector),
     Redo(buffers::Selector),
-    Quit,
 }
 
 impl Payload {
-    pub fn is_quit(&self) -> bool {
-        matches!(self, Self::Quit)
-    }
-
     pub fn ty(&self) -> Type {
         match self {
             Self::Input(_) => Type::Input,
@@ -82,7 +76,6 @@ impl Payload {
             Self::Redraw => Type::Redraw,
             Self::Undo(_) => Type::Undo,
             Self::Redo(_) => Type::Redo,
-            Self::Quit => Type::Quit,
         }
     }
 }
@@ -98,7 +91,6 @@ pub enum Type {
     Redraw,
     Undo,
     Redo,
-    Quit,
 }
 
 impl Type {

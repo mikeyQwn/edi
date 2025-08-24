@@ -4,7 +4,7 @@ use edi::{
 };
 use edi_lib::brand::Id;
 
-use crate::event::{sender::EventBuffer, Payload};
+use crate::{app::state::State, controller::Handle, event::Payload};
 
 macro_rules! proxy_method {
     (
@@ -18,19 +18,18 @@ macro_rules! proxy_method {
     };
 }
 
-#[derive(Debug)]
 pub struct Buffer<'a, 'b> {
     id: Id,
     inner: &'a mut buffer::Buffer,
-    event_buffer: &'b mut EventBuffer,
+    ctrl: &'b mut Handle<State>,
 }
 
 impl<'a, 'b> Buffer<'a, 'b> {
-    pub fn new(id: Id, buf: &'a mut buffer::Buffer, event_buffer: &'b mut EventBuffer) -> Self {
+    pub fn new(id: Id, buf: &'a mut buffer::Buffer, ctrl: &'b mut Handle<State>) -> Self {
         Self {
             id,
             inner: buf,
-            event_buffer,
+            ctrl,
         }
     }
 
@@ -41,7 +40,7 @@ impl<'a, 'b> Buffer<'a, 'b> {
             c,
         };
         self.inner.write(c);
-        self.event_buffer.add_event(write_event);
+        self.ctrl.add_event(write_event);
     }
 
     pub fn delete(&mut self) {
@@ -52,10 +51,10 @@ impl<'a, 'b> Buffer<'a, 'b> {
         };
         let delete_event = Payload::CharDeleted {
             buffer_id,
-            offset: offset,
+            offset,
             c: deleted_char,
         };
-        self.event_buffer.add_event(delete_event);
+        self.ctrl.add_event(delete_event);
     }
 
     pub fn set_cursor_offset(&mut self, cursor_offset: usize) {
@@ -66,8 +65,8 @@ impl<'a, 'b> Buffer<'a, 'b> {
     proxy_method!(fn move_global(&mut self, position: GlobalPosition));
     proxy_method!(fn move_in_line(&mut self, position: LinePosition));
 
-    pub fn event_buffer(&mut self) -> &mut EventBuffer {
-        self.event_buffer
+    pub fn ctrl(&mut self) -> &mut Handle<State> {
+        self.ctrl
     }
 }
 

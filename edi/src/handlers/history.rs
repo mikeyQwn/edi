@@ -4,13 +4,8 @@ use edi_lib::brand::Id;
 
 use crate::{
     app::{buffer_bundle::BufferBundle, state::State},
-    event::{
-        self,
-        emitter::buffer,
-        manager::{self},
-        sender::EventBuffer,
-        Event, Payload,
-    },
+    controller::{self, Handle},
+    event::{self, emitter::buffer, Event, Payload},
 };
 
 #[derive(Debug)]
@@ -145,7 +140,7 @@ impl Handler {
         });
     }
 
-    fn undo(&mut self, bundle: &mut BufferBundle, buf: &mut EventBuffer) {
+    fn undo(&mut self, bundle: &mut BufferBundle, ctrl: &mut Handle<State>) {
         let Some(history) = self.id_to_history.get_mut(&bundle.id()) else {
             return;
         };
@@ -154,7 +149,7 @@ impl Handler {
             return;
         };
 
-        let mut buffer = bundle.buffer_mut(buf);
+        let mut buffer = bundle.buffer_mut(ctrl);
 
         record.change.undo(&mut buffer);
         let age = record.age;
@@ -169,7 +164,7 @@ impl Handler {
         }
     }
 
-    fn redo(&mut self, bundle: &mut BufferBundle, buf: &mut EventBuffer) {
+    fn redo(&mut self, bundle: &mut BufferBundle, ctrl: &mut Handle<State>) {
         let Some(history) = self.id_to_history.get_mut(&bundle.id()) else {
             return;
         };
@@ -178,7 +173,7 @@ impl Handler {
             return;
         };
 
-        let mut buffer = bundle.buffer_mut(buf);
+        let mut buffer = bundle.buffer_mut(ctrl);
 
         record.change.apply(&mut buffer);
         let age = record.age;
@@ -194,8 +189,8 @@ impl Handler {
     }
 }
 
-impl manager::Handler<State> for Handler {
-    fn handle(&mut self, state: &mut State, event: &Event, buf: &mut EventBuffer) {
+impl controller::EventHandler<State> for Handler {
+    fn handle(&mut self, state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("history");
 
         match event.payload() {
@@ -213,15 +208,15 @@ impl manager::Handler<State> for Handler {
                 let Some(bundle) = state.buffers.get_mut(selector) else {
                     return;
                 };
-                self.undo(bundle, buf);
-                buf.add_redraw();
+                self.undo(bundle, ctrl);
+                ctrl.add_redraw();
             }
             Payload::Redo(selector) => {
                 let Some(bundle) = state.buffers.get_mut(selector) else {
                     return;
                 };
-                self.redo(bundle, buf);
-                buf.add_redraw();
+                self.redo(bundle, ctrl);
+                ctrl.add_redraw();
             }
             Payload::SwitchMode { selector, .. } => {
                 state

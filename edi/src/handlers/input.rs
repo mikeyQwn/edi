@@ -2,7 +2,8 @@ use edi_lib::brand::Id;
 
 use crate::{
     app::{handle_action, state::State, Mode},
-    event::{self, manager, sender::EventBuffer, Event, Payload},
+    controller::{self, Handle},
+    event::{self, Event, Payload},
 };
 
 pub struct Handler;
@@ -13,8 +14,8 @@ impl Handler {
     }
 }
 
-impl manager::Handler<State> for Handler {
-    fn handle(&mut self, app_state: &mut State, event: &Event, buf: &mut EventBuffer) {
+impl controller::EventHandler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
         let Payload::Input(input) = event.payload() else {
             return;
         };
@@ -28,7 +29,7 @@ impl manager::Handler<State> for Handler {
 
         let actions = app_state.mapper.map_input(input, active_mode);
         for action in actions {
-            if let Err(err) = handle_action(action, app_state, buf) {
+            if let Err(err) = handle_action(action, app_state, ctrl) {
                 edi_lib::debug!("{err}");
             }
         }

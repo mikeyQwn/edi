@@ -28,8 +28,8 @@ use edi::buffer::Buffer;
 
 use crate::{
     cli::EdiCli,
-    controller::Controller,
-    event::{emitter, manager::EventManager, sender::EventBuffer, sources, Payload},
+    controller::{Controller, Handle},
+    event::{emitter, sender::EventBuffer, sources, Payload},
     handlers,
 };
 
@@ -49,7 +49,7 @@ pub enum Mode {
 pub fn handle_action(
     event: Action,
     state: &mut State,
-    buf: &mut EventBuffer,
+    buf: &mut Handle<State>,
 ) -> anyhow::Result<()> {
     let _span = edi_lib::span!("handle_action");
 
@@ -90,7 +90,7 @@ pub fn handle_action(
             buf.add_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
-                buf.add_quit();
+                buf.query_quit();
                 return Ok(());
             }
             if cmd == ":wq" {
@@ -117,7 +117,7 @@ pub fn handle_action(
                     Ok(f) => f,
                     Err(e) => {
                         edi_lib::debug!("unable to create output file {e} {swap_name:?}");
-                        buf.add_quit();
+                        buf.query_quit();
                         return Ok(());
                     }
                 };
@@ -140,7 +140,7 @@ pub fn handle_action(
                     edi_lib::debug!("app::handle_event failed to rename file {e}");
                 }
 
-                buf.add_quit();
+                buf.query_quit();
             }
 
             edi_lib::debug!(
@@ -154,7 +154,7 @@ pub fn handle_action(
             state.within_active_buffer(
                 |mut buffer, meta| {
                     handle_move(&mut buffer, meta, &action, repeat);
-                    buffer.event_buffer().add_redraw();
+                    buffer.ctrl().add_redraw();
                 },
                 buf,
             );
@@ -194,8 +194,6 @@ fn handle_move(
 pub fn run(args: EdiCli) -> anyhow::Result<()> {
     let mut controller = Controller::new();
 
-    let mut event_manager = EventManager::new();
-    event_manager.attach_source(sources::input_source);
     controller.attach_source(sources::input_source);
 
     edi_term::within_alternative_screen_mode(|| {
@@ -213,9 +211,9 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
             state.open_file(filepath, Vec2::from_dims(size))?;
         }
 
-        init_handlers(&mut event_manager);
+        init_handlers(&mut controller);
 
-        event_manager.pipe_event(Payload::Redraw);
+        controller.pipe_event(Payload::Redraw);
 
         let _ = controller.run(state);
 
@@ -225,19 +223,19 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
     })?
 }
 
-pub fn init_handlers(event_manager: &mut EventManager<State>) {
+pub fn init_handlers(controller: &mut Controller<State>) {
     let input_handler = handlers::input::Handler::new();
-    event_manager.attach_handler(input_handler);
+    controller.attach_event_handler(input_handler);
 
     let draw_handler = handlers::draw::Handler::new();
-    event_manager.attach_handler(draw_handler);
+    controller.attach_event_handler(draw_handler);
 
     let write_handler = handlers::write::Handler::new();
-    event_manager.attach_handler(write_handler);
+    controller.attach_event_handler(write_handler);
 
     let history_handler = handlers::history::Handler::new();
-    event_manager.attach_handler(history_handler);
+    controller.attach_event_handler(history_handler);
 
     let mode_handler = handlers::mode::Handler::new();
-    event_manager.attach_handler(mode_handler);
+    controller.attach_event_handler(mode_handler);
 }
