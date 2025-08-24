@@ -59,7 +59,6 @@ pub enum Payload {
         offset: usize,
         c: char,
     },
-    Redraw,
     Undo(buffers::Selector),
     Redo(buffers::Selector),
 }
@@ -73,7 +72,6 @@ impl Payload {
             Self::DeleteChar => Type::DeleteChar,
             Self::CharWritten { .. } => Type::CharWritten,
             Self::CharDeleted { .. } => Type::CharDeleted,
-            Self::Redraw => Type::Redraw,
             Self::Undo(_) => Type::Undo,
             Self::Redo(_) => Type::Redo,
         }
@@ -88,7 +86,6 @@ pub enum Type {
     DeleteChar,
     CharWritten,
     CharDeleted,
-    Redraw,
     Undo,
     Redo,
 }

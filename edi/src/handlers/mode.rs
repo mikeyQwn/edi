@@ -57,7 +57,7 @@ impl controller::EventHandler<State> for Handler {
         }
 
         edi_lib::debug!("mode switched to: {target_mode:?}");
-        ctrl.add_redraw();
+        ctrl.query_redraw();
     }
 
     fn interested_in(&self, _own_id: Id, event: &Event) -> bool {

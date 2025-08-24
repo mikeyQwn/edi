@@ -1,11 +1,10 @@
 use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
-use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
     controller::{self, Handle},
-    event::{self, Event},
+    query::Query,
 };
 
 pub struct Handler;
@@ -16,8 +15,8 @@ impl Handler {
     }
 }
 
-impl controller::EventHandler<State> for Handler {
-    fn handle(&mut self, state: &mut State, _event: &Event, ctrl: &mut Handle<State>) {
+impl controller::QueryHandler<State> for Handler {
+    fn handle(&mut self, state: &mut State, _query: Query, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("draw");
         let ctx = &state.context;
 
@@ -45,9 +44,5 @@ impl controller::EventHandler<State> for Handler {
         if let Err(err) = state.window.render() {
             edi_lib::debug!("{err}");
         }
-    }
-
-    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
-        event.ty() == event::Type::Redraw
     }
 }

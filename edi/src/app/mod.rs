@@ -29,8 +29,8 @@ use edi::buffer::Buffer;
 use crate::{
     cli::EdiCli,
     controller::{Controller, Handle},
-    event::{emitter, sender::EventBuffer, sources, Payload},
-    handlers,
+    event::{emitter, sources},
+    handlers, query,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -67,7 +67,7 @@ pub fn handle_action(
             state
                 .buffers
                 .attach_first(buffer, BufferMeta::new(Mode::Terminal).with_size(size));
-            buf.add_redraw();
+            buf.query_redraw();
         }
         Action::SwitchMode(mode) => {
             buf.add_switch_mode(Selector::Active, mode);
@@ -87,7 +87,7 @@ pub fn handle_action(
             // TODO: Add proper error handling
             let bundle = state.buffers.first().unwrap();
             let cmd_buf = bundle.buffer();
-            buf.add_redraw();
+            buf.query_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
                 buf.query_quit();
@@ -154,7 +154,7 @@ pub fn handle_action(
             state.within_active_buffer(
                 |mut buffer, meta| {
                     handle_move(&mut buffer, meta, &action, repeat);
-                    buffer.ctrl().add_redraw();
+                    buffer.ctrl().query_redraw();
                 },
                 buf,
             );
@@ -213,7 +213,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         init_handlers(&mut controller);
 
-        controller.pipe_event(Payload::Redraw);
+        controller.pipe_query(query::Payload::Redraw);
 
         let _ = controller.run(state);
 
@@ -228,7 +228,7 @@ pub fn init_handlers(controller: &mut Controller<State>) {
     controller.attach_event_handler(input_handler);
 
     let draw_handler = handlers::draw::Handler::new();
-    controller.attach_event_handler(draw_handler);
+    controller.attach_query_handler(query::Type::Redraw, draw_handler);
 
     let write_handler = handlers::write::Handler::new();
     controller.attach_event_handler(write_handler);

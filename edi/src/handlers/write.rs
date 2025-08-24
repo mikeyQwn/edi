@@ -25,7 +25,7 @@ impl controller::EventHandler<State> for Handler {
             _ => return,
         }
 
-        ctrl.add_redraw();
+        ctrl.query_redraw();
     }
 
     fn interested_in(&self, _own_id: Id, event: &Event) -> bool {

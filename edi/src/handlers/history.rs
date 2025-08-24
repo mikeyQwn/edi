@@ -209,14 +209,14 @@ impl controller::EventHandler<State> for Handler {
                     return;
                 };
                 self.undo(bundle, ctrl);
-                ctrl.add_redraw();
+                ctrl.query_redraw();
             }
             Payload::Redo(selector) => {
                 let Some(bundle) = state.buffers.get_mut(selector) else {
                     return;
                 };
                 self.redo(bundle, ctrl);
-                ctrl.add_redraw();
+                ctrl.query_redraw();
             }
             Payload::SwitchMode { selector, .. } => {
                 state

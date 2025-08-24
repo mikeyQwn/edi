@@ -9,16 +9,14 @@ use std::{collections::HashMap, sync::mpsc};
 
 use edi_lib::brand::{Id, Tag};
 
+use crate::query;
 use crate::{
     event::{self, source::SourcesHandle, Event},
-    query::{Query, Type},
+    query::Type,
 };
 
 pub struct Controller<State> {
     tag: Tag,
-
-    query_tx: mpsc::Sender<Query>,
-    query_rx: mpsc::Receiver<Query>,
 
     event_tx: mpsc::Sender<event::Payload>,
     event_rx: mpsc::Receiver<event::Payload>,
@@ -28,21 +26,16 @@ pub struct Controller<State> {
 
     query_handlers: HashMap<Type, Box<dyn handler::QueryHandler<State>>>,
 
-    // TODO: Make this piped queries
-    piped_events: Vec<event::Payload>,
+    piped_queries: Vec<query::Payload>,
 }
 
 impl<State> Controller<State> {
     pub fn new() -> Self {
         let tag = Tag::new();
-        let (query_tx, query_rx) = mpsc::channel();
         let (event_tx, event_rx) = mpsc::channel();
 
         Self {
             tag,
-
-            query_tx,
-            query_rx,
 
             event_tx,
             event_rx,
@@ -52,12 +45,12 @@ impl<State> Controller<State> {
 
             query_handlers: HashMap::new(),
 
-            piped_events: Vec::new(),
+            piped_queries: Vec::new(),
         }
     }
 
-    pub fn pipe_event(&mut self, event: event::Payload) {
-        self.piped_events.push(event);
+    pub fn pipe_query(&mut self, query: query::Payload) {
+        self.piped_queries.push(query);
     }
 
     pub fn attach_source<Src>(&mut self, source: Src)
@@ -75,10 +68,17 @@ impl<State> Controller<State> {
         self.event_handlers.insert(id, Box::new(handler));
     }
 
+    pub fn attach_query_handler<H>(&mut self, ty: query::Type, handler: H)
+    where
+        H: handler::QueryHandler<State> + Send + 'static,
+    {
+        self.query_handlers.insert(ty, Box::new(handler));
+    }
+
     pub fn run(mut self, mut state: State) -> SourcesHandle {
         let mut sources_handle = SourcesHandle::new(self.event_sources.len());
         let sources = std::mem::take(&mut self.event_sources);
-        let mut piped_events = std::mem::take(&mut self.piped_events);
+        let mut piped_queries = std::mem::take(&mut self.piped_queries);
 
         for mut source in sources {
             let sender = self.new_sender();
@@ -89,13 +89,8 @@ impl<State> Controller<State> {
 
         let mut handle = Handle::new(std::mem::take(&mut self.query_handlers));
 
-        while let Some(payload) = piped_events.pop() {
-            Self::handle_event(
-                self.event_handlers.iter_mut(),
-                &Event::without_source(payload),
-                &mut state,
-                &mut handle,
-            );
+        while let Some(payload) = piped_queries.pop() {
+            handle.query(&mut state, payload);
         }
 
         'outer: loop {

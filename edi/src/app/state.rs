@@ -5,7 +5,7 @@ use edi_term::window::Window;
 use crate::{
     app::{action::InputMapper, context::Context, meta::BufferMeta, Mode},
     controller::Handle,
-    event::{emitter, sender::EventBuffer},
+    event::emitter,
 };
 
 use super::buffers::Buffers;

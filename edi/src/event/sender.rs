@@ -78,10 +78,6 @@ impl EventBuffer {
         });
     }
 
-    pub fn add_redraw(&mut self) {
-        self.add_event(Payload::Redraw);
-    }
-
     pub fn add_undo(&mut self, selector: buffers::Selector) {
         self.add_event(Payload::Undo(selector));
     }

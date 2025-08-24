@@ -1,7 +1,5 @@
 use edi_lib::brand::Id;
 
-use crate::app::{self, buffers::Selector};
-
 #[derive(Debug)]
 pub struct Query {
     source: Option<Id>,
@@ -24,18 +22,21 @@ impl Query {
 
 #[derive(Debug)]
 pub enum Payload {
+    Redraw,
     Quit,
 }
 
 impl Payload {
     pub fn ty(&self) -> Type {
         match self {
-            Self::Quit { .. } => Type::Quit,
+            Self::Redraw => Type::Redraw,
+            Self::Quit => Type::Quit,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
+    Redraw,
     Quit,
 }

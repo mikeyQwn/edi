@@ -119,16 +119,16 @@ impl<'a, State> Handle<State> {
         });
     }
 
-    pub fn add_redraw(&mut self) {
-        self.add_event(Payload::Redraw);
-    }
-
     pub fn add_undo(&mut self, selector: buffers::Selector) {
         self.add_event(Payload::Undo(selector));
     }
 
     pub fn add_redo(&mut self, selector: buffers::Selector) {
         self.add_event(Payload::Redo(selector));
+    }
+
+    pub fn query_redraw(&mut self) {
+        self.query_async(query::Payload::Redraw);
     }
 
     pub fn query_quit(&mut self) {
