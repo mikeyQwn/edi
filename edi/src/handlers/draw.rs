@@ -1,10 +1,11 @@
+use edi::string::highlight::get_highlights;
 use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
 
 use crate::{
-    app::state::State,
+    app::{buffers::Selector, state::State},
     controller::{self, Handle},
-    query::Query,
+    query::{DrawQuery, Payload, Query},
 };
 
 pub struct Handler;
@@ -13,11 +14,8 @@ impl Handler {
     pub const fn new() -> Self {
         Self
     }
-}
 
-impl controller::QueryHandler<State> for Handler {
-    fn handle(&mut self, state: &mut State, _query: Query, ctrl: &mut Handle<State>) {
-        let _span = edi_lib::span!("draw");
+    fn redraw(state: &mut State, ctrl: &mut Handle<State>) {
         let ctx = &state.context;
 
         edi_lib::debug!(
@@ -43,6 +41,35 @@ impl controller::QueryHandler<State> for Handler {
 
         if let Err(err) = state.window.render() {
             edi_lib::debug!("{err}");
+        }
+    }
+
+    fn rehighlight(state: &mut State, ctrl: &mut Handle<State>, selector: &Selector) {
+        let _span = edi_lib::span!("rehighlight");
+
+        let Some(bundle) = state.buffers.get_mut(selector) else {
+            edi_lib::debug!("invalid selector passed {selector:?}");
+            return;
+        };
+
+        let (buffer, meta) = bundle.as_split_mut(ctrl);
+        meta.flush_options.highlights = get_highlights(&buffer.as_ref().inner, &meta.filetype);
+        edi_lib::debug!("buffer with id: {id:?} rehighlighted", id = bundle.id());
+    }
+}
+
+impl controller::QueryHandler<State> for Handler {
+    fn handle(&mut self, state: &mut State, query: Query, ctrl: &mut Handle<State>) {
+        let _span = edi_lib::span!("draw");
+
+        let Payload::Draw(draw_query) = query.payload() else {
+            edi_lib::debug!("non-draw query submitted to draw query handler, this is likely a bug");
+            return;
+        };
+
+        match draw_query {
+            DrawQuery::Redraw => Self::redraw(state, ctrl),
+            DrawQuery::Rehighlight(selector) => Self::rehighlight(state, ctrl, selector),
         }
     }
 }

@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use std::{any::Any, collections::HashMap};
 
 use edi_lib::brand::Id;
 
 use crate::{
-    app::{buffer_bundle::BufferBundle, state::State},
+    app::{buffer_bundle::BufferBundle, buffers::Selector, state::State},
     controller::{self, Handle},
     event::{self, emitter::buffer, Event, Payload},
-    query::{self, HistoryQuery, Query},
+    query::{self, DrawQuery, HistoryQuery, Query},
 };
 
 #[derive(Debug)]
@@ -28,7 +28,6 @@ impl Change {
             Change::Delete { offset, content } => {
                 buffer.set_cursor_offset(*offset - content.chars().count());
                 for c in content.chars() {
-                    // TODO: query rehighlighting
                     buffer.write(c);
                 }
             }
@@ -151,6 +150,7 @@ impl Handler {
             return;
         };
 
+        let buffer_id = bundle.id();
         let mut buffer = bundle.buffer_mut(ctrl);
 
         record.change.undo(&mut buffer);
@@ -159,11 +159,14 @@ impl Handler {
         while let Some(record) = history.pop_record() {
             if record.age != age {
                 history.return_record();
+                ctrl.query_draw(DrawQuery::Rehighlight(Selector::WithId(buffer_id)));
                 return;
             }
 
             record.change.undo(&mut buffer);
         }
+
+        ctrl.query_draw(DrawQuery::Rehighlight(Selector::WithId(buffer_id)));
     }
 
     fn redo(&mut self, bundle: &mut BufferBundle, ctrl: &mut Handle<State>) {
@@ -175,6 +178,7 @@ impl Handler {
             return;
         };
 
+        let buffer_id = bundle.id();
         let mut buffer = bundle.buffer_mut(ctrl);
 
         record.change.apply(&mut buffer);
@@ -183,11 +187,14 @@ impl Handler {
         while let Some(record) = history.return_record() {
             if record.age != age {
                 history.pop_record();
+                ctrl.query_draw(DrawQuery::Rehighlight(Selector::WithId(buffer_id)));
                 return;
             }
 
             record.change.apply(&mut buffer);
         }
+
+        ctrl.query_draw(DrawQuery::Rehighlight(Selector::WithId(buffer_id)));
     }
 }
 

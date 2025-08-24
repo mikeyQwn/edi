@@ -89,7 +89,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
 
         init_handlers(&mut controller);
 
-        controller.pipe_query(query::Payload::Redraw);
+        controller.pipe_query(query::Payload::Draw(query::DrawQuery::Redraw));
 
         let _ = controller.run(state);
 
@@ -122,5 +122,5 @@ pub fn init_handlers(controller: &mut Controller<State>) {
     controller.attach_query_handler(query::Type::Command, command_handler);
 
     let draw_handler = handlers::draw::Handler::new();
-    controller.attach_query_handler(query::Type::Redraw, draw_handler);
+    controller.attach_query_handler(query::Type::Draw, draw_handler);
 }

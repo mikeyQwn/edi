@@ -12,6 +12,7 @@ pub fn input_source(sender: &Sender) {
 
     'outer: loop {
         let n = match stdin.read(&mut buf) {
+            Ok(0) => continue,
             Ok(n) => {
                 edi_lib::debug!("input: {:?}", &buf[..n]);
                 n

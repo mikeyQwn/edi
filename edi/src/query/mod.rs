@@ -66,6 +66,12 @@ pub struct CommandQuery {
 }
 
 #[derive(Debug)]
+pub enum DrawQuery {
+    Redraw,
+    Rehighlight(Selector),
+}
+
+#[derive(Debug)]
 pub enum Payload {
     Write(WriteQuery),
     History(HistoryQuery),
@@ -76,7 +82,7 @@ pub enum Payload {
         buffer_selector: Selector,
         target_mode: app::Mode,
     },
-    Redraw,
+    Draw(DrawQuery),
     Quit,
 }
 
@@ -89,7 +95,7 @@ impl Payload {
             Self::Move(_) => Type::Move,
             Self::Command(_) => Type::Command,
             Self::SwitchMode { .. } => Type::SwitchMode,
-            Self::Redraw => Type::Redraw,
+            Self::Draw(_) => Type::Draw,
             Self::Quit => Type::Quit,
         }
     }
@@ -103,7 +109,7 @@ pub enum Type {
     Move,
     Command,
     SwitchMode,
-    Redraw,
+    Draw,
     Quit,
 }
 
@@ -116,7 +122,7 @@ impl Type {
             Self::Move,
             Self::Command,
             Self::SwitchMode,
-            Self::Redraw,
+            Self::Draw,
             Self::Quit,
         ]
     }
