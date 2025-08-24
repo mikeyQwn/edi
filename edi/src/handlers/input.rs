@@ -1,7 +1,7 @@
 use edi_lib::brand::Id;
 
 use crate::{
-    app::{action::Action, buffers::Selector, handle_action, state::State, Mode},
+    app::{action::Action, buffers::Selector, state::State, Mode},
     controller::{self, Handle},
     event::{self, Event, Payload},
     query::{CommandQuery, HistoryQuery, MoveQuery, SpawnQuery, WriteQuery},
@@ -81,7 +81,7 @@ impl controller::EventHandler<State> for Handler {
 
         let actions = app_state.mapper.map_input(input, active_mode);
         for action in actions {
-            Self::handle_action(ctrl, app_state, action)
+            Self::handle_action(ctrl, app_state, action);
         }
     }
 

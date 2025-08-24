@@ -1,72 +1,13 @@
-use std::{collections::VecDeque, sync::mpsc};
-
-use edi_lib::brand::Id;
+use super::Payload;
 use edi_term::input::Input;
-
-use crate::app::{self, buffers};
-
-use super::{Event, Payload};
-
-#[derive(Debug)]
-pub struct EventBuffer {
-    handler_id: Option<Id>,
-    events: VecDeque<Event>,
-}
-
-impl EventBuffer {
-    #[must_use]
-    pub(super) fn new() -> Self {
-        Self {
-            handler_id: None,
-            events: VecDeque::default(),
-        }
-    }
-
-    pub(super) fn with_id(&mut self, id: Id) -> &mut Self {
-        self.handler_id = Some(id);
-        self
-    }
-
-    #[must_use]
-    pub(super) fn pop_first(&mut self) -> Option<Event> {
-        self.events.pop_front()
-    }
-
-    pub fn add_event(&mut self, payload: Payload) {
-        let event = Event::new(self.handler_id, payload);
-        self.events.push_back(event);
-    }
-
-    #[allow(unused)]
-    pub fn add_input(&mut self, input: Input) {
-        self.add_event(Payload::Input(input));
-    }
-
-    #[allow(unused)]
-    pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
-        self.add_event(Payload::CharWritten {
-            buffer_id,
-            offset,
-            c,
-        });
-    }
-
-    #[allow(unused)]
-    pub fn add_char_deleted(&mut self, buffer_id: Id, offset: usize, c: char) {
-        self.add_event(Payload::CharDeleted {
-            buffer_id,
-            offset,
-            c,
-        });
-    }
-}
+use std::sync::mpsc;
 
 pub struct Sender {
     tx: mpsc::Sender<Payload>,
 }
 
 impl Sender {
-    pub fn new(tx: mpsc::Sender<Payload>) -> Self {
+    pub const fn new(tx: mpsc::Sender<Payload>) -> Self {
         Self { tx }
     }
 

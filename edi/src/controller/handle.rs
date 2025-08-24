@@ -23,7 +23,7 @@ pub struct Handle<State> {
     collected_queries: VecDeque<Query>,
 }
 
-impl<'a, State> Handle<State> {
+impl<State> Handle<State> {
     pub(super) fn new(
         query_handlers: HashMap<Type, (Id, Box<dyn handler::QueryHandler<State>>)>,
     ) -> Self {
@@ -64,7 +64,7 @@ impl<'a, State> Handle<State> {
         self.collected_queries.push_back(query);
     }
 
-    pub(super) fn with_handler_id(&mut self, id: Id) -> &mut Self {
+    pub(super) const fn with_handler_id(&mut self, id: Id) -> &mut Self {
         self.handler_id = Some(id);
         self
     }

@@ -18,27 +18,29 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new(source: Option<Id>, payload: Payload) -> Self {
+    pub const fn new(source: Option<Id>, payload: Payload) -> Self {
         Self { source, payload }
     }
 
-    pub fn without_source(payload: Payload) -> Self {
+    pub const fn without_source(payload: Payload) -> Self {
         Self::new(None, payload)
     }
 
-    pub fn ty(&self) -> Type {
+    pub const fn ty(&self) -> Type {
         self.payload().ty()
     }
 
-    pub fn source_id(&self) -> Option<Id> {
+    pub const fn source_id(&self) -> Option<Id> {
         self.source
     }
 
-    pub fn payload(&self) -> &Payload {
+    pub const fn payload(&self) -> &Payload {
         &self.payload
     }
 }
 
+#[allow(unused)]
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum Payload {
     Input(Input),
@@ -59,7 +61,7 @@ pub enum Payload {
 }
 
 impl Payload {
-    pub fn ty(&self) -> Type {
+    pub const fn ty(&self) -> Type {
         match self {
             Self::Input(_) => Type::Input,
             Self::ModeSwitched { .. } => Type::ModeSwitched,
@@ -79,6 +81,6 @@ pub enum Type {
 
 impl Type {
     pub fn is_oneof(self, s: &[Type]) -> bool {
-        s.iter().any(|&ty| ty == self)
+        s.contains(&self)
     }
 }

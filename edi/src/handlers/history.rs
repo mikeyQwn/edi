@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::collections::HashMap;
 
 use edi_lib::brand::Id;
 
@@ -58,7 +58,7 @@ struct Record {
 }
 
 impl Record {
-    pub fn new(age: usize, change: Change) -> Self {
+    pub const fn new(age: usize, change: Change) -> Self {
         Self { age, change }
     }
 }
@@ -71,15 +71,16 @@ struct History {
 }
 
 impl History {
+    #[allow(unused)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn next_age(&mut self) {
-        self.current_age = self.current_age.overflowing_add(1).0
+    pub const fn next_age(&mut self) {
+        self.current_age = self.current_age.overflowing_add(1).0;
     }
 
-    fn new_record(&self, change: Change) -> Record {
+    const fn new_record(&self, change: Change) -> Record {
         Record::new(self.current_age, change)
     }
 
@@ -118,10 +119,7 @@ impl Handler {
     }
 
     fn char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
-        let history = self
-            .id_to_history
-            .entry(buffer_id)
-            .or_insert(History::default());
+        let history = self.id_to_history.entry(buffer_id).or_default();
 
         history.write_furute(Change::Write {
             offset,
@@ -130,10 +128,7 @@ impl Handler {
     }
 
     fn char_deleted(&mut self, buffer_id: Id, offset: usize, c: char) {
-        let history = self
-            .id_to_history
-            .entry(buffer_id)
-            .or_insert_with(History::new);
+        let history = self.id_to_history.entry(buffer_id).or_default();
 
         history.write_furute(Change::Delete {
             offset,

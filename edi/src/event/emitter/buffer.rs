@@ -25,7 +25,7 @@ pub struct Buffer<'a, 'b> {
 }
 
 impl<'a, 'b> Buffer<'a, 'b> {
-    pub fn new(id: Id, buf: &'a mut buffer::Buffer, ctrl: &'b mut Handle<State>) -> Self {
+    pub const fn new(id: Id, buf: &'a mut buffer::Buffer, ctrl: &'b mut Handle<State>) -> Self {
         Self {
             id,
             inner: buf,
@@ -57,28 +57,21 @@ impl<'a, 'b> Buffer<'a, 'b> {
         self.ctrl.add_event(delete_event);
     }
 
-    pub fn set_cursor_offset(&mut self, cursor_offset: usize) {
-        self.inner.cursor_offset = cursor_offset
+    pub const fn set_cursor_offset(&mut self, cursor_offset: usize) {
+        self.inner.cursor_offset = cursor_offset;
     }
 
     proxy_method!(fn move_cursor(&mut self, direction: Direction, steps: usize));
     proxy_method!(fn move_global(&mut self, position: GlobalPosition));
     proxy_method!(fn move_in_line(&mut self, position: LinePosition));
 
-    pub fn ctrl(&mut self) -> &mut Handle<State> {
+    pub const fn ctrl(&mut self) -> &mut Handle<State> {
         self.ctrl
     }
 }
 
-impl<'a, 'b> AsRef<buffer::Buffer> for Buffer<'a, 'b> {
+impl AsRef<buffer::Buffer> for Buffer<'_, '_> {
     fn as_ref(&self) -> &buffer::Buffer {
-        self.inner
-    }
-}
-
-// TODO: Remove this when everyting is moved over to methods
-impl<'a, 'b> AsMut<buffer::Buffer> for Buffer<'a, 'b> {
-    fn as_mut(&mut self) -> &mut buffer::Buffer {
         self.inner
     }
 }

@@ -6,4 +6,3 @@ pub mod mode;
 pub mod movement;
 pub mod spawn;
 pub mod write;
-

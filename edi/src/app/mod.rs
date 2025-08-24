@@ -5,8 +5,7 @@ pub mod context;
 pub mod meta;
 pub mod state;
 
-use action::{Action, MoveAction};
-use buffers::Selector;
+use action::MoveAction;
 use edi_lib::vec2::Vec2;
 use edi_term::{
     coord::Coord,
@@ -17,18 +16,11 @@ use meta::BufferMeta;
 
 use state::State;
 
-use std::{
-    fs::OpenOptions,
-    io::{BufWriter, Write},
-    path::PathBuf,
-};
-
 use crate::{
     cli::EdiCli,
-    controller::{Controller, Handle},
+    controller::Controller,
     event::{emitter, sources},
-    handlers,
-    query::{self, CommandQuery, HistoryQuery, MoveQuery, SpawnQuery, WriteQuery},
+    handlers, query,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -38,31 +30,23 @@ pub enum Mode {
     Terminal,
 }
 
-/// Handles a signle event, returning Ok(true), if the program should terminate
-#[allow(
-    clippy::too_many_lines,
-    clippy::unnecessary_wraps,
-    clippy::cognitive_complexity
-)]
-pub fn handle_action(action: Action, state: &State, ctrl: &mut Handle<State>) {}
-
 pub fn handle_move(
     buffer: &mut emitter::buffer::Buffer,
     meta: &mut BufferMeta,
     action: &MoveAction,
     repeat: usize,
 ) {
-    match action {
-        &MoveAction::Regular(direction) => {
+    match *action {
+        MoveAction::Regular(direction) => {
             buffer.move_cursor(direction.into(), repeat);
         }
-        &MoveAction::InLine(line_position) => {
+        MoveAction::InLine(line_position) => {
             buffer.move_in_line(line_position);
         }
-        &MoveAction::HalfScreen(direction) => {
+        MoveAction::HalfScreen(direction) => {
             buffer.move_cursor(direction.into(), meta.size.y / 2);
         }
-        &MoveAction::Global(global_position) => buffer.move_global(global_position),
+        MoveAction::Global(global_position) => buffer.move_global(global_position),
     }
 }
 

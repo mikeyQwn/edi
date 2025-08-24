@@ -5,6 +5,7 @@ use edi_lib::brand::{Id, Tag};
 
 use super::{buffer_bundle::BufferBundle, meta::BufferMeta, Mode};
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Selector {
     First,
@@ -36,20 +37,21 @@ impl Buffers {
         self.active().map(BufferBundle::meta).map(BufferMeta::mode)
     }
 
+    #[allow(unused)]
     pub fn get(&self, selector: &Selector) -> Option<&BufferBundle> {
         match selector {
             Selector::First | Selector::Nth(0) => self.first(),
             Selector::Active => self.active(),
-            Selector::WithId(id) => self.inner.get(&id),
+            Selector::WithId(id) => self.inner.get(id),
             &Selector::Nth(n) => self.nth(n),
         }
     }
 
     pub fn get_mut(&mut self, selector: &Selector) -> Option<&mut BufferBundle> {
         match selector {
-            Selector::First | Selector::Nth(0) => self.active_mut(),
+            Selector::First | Selector::Nth(0) => self.first_mut(),
             Selector::Active => self.active_mut(),
-            Selector::WithId(id) => self.inner.get_mut(&id),
+            Selector::WithId(id) => self.inner.get_mut(id),
             &Selector::Nth(n) => self.nth_mut(n),
         }
     }
@@ -60,10 +62,11 @@ impl Buffers {
     }
 
     pub fn second(&self) -> Option<&BufferBundle> {
-        let first_id = self.buffer_order.iter().nth(1)?;
+        let first_id = self.buffer_order.get(1)?;
         self.inner.get(first_id)
     }
 
+    #[allow(unused)]
     pub fn nth(&self, n: usize) -> Option<&BufferBundle> {
         let id = self.buffer_order.get(n)?;
         self.inner.get(id)
@@ -99,8 +102,9 @@ impl Buffers {
         Some(bundle)
     }
 
+    #[allow(unused)]
     pub fn remove_first(&mut self) -> Option<BufferBundle> {
-        (self.buffer_order.len() > 0).then_some(())?;
+        (!self.buffer_order.is_empty()).then_some(())?;
         let first_id = self.buffer_order.remove(0);
         self.inner.remove(&first_id)
     }
@@ -126,16 +130,17 @@ impl Buffers {
     }
 
     fn set_buffer_order(&mut self, order: usize) {
-        self.inner
-            .get_mut(&self.buffer_order[order])
-            .map(|entry| entry.position = order);
+        if let Some(entry) = self.inner.get_mut(&self.buffer_order[order]) {
+            entry.position = order;
+        }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &BufferBundle> + DoubleEndedIterator {
+    #[allow(unused)]
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &BufferBundle> {
         BuffersIter::new(&self.inner, &self.buffer_order)
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut BufferBundle> + DoubleEndedIterator {
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut BufferBundle> {
         // SAFETY: this struct upholds the invariant that all ids in buffer_order are unique
         //
         // TODO: try to use some crate for this, get rid of unsafe
@@ -161,13 +166,14 @@ impl<'a> Iterator for BuffersIter<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for BuffersIter<'a> {
+impl DoubleEndedIterator for BuffersIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let id = self.order.next_back()?;
         self.inner.get(id)
     }
 }
 
+#[allow(unused)]
 impl<'a> BuffersIter<'a> {
     #[must_use]
     pub fn new(inner: &'a BTreeMap<Id, BufferBundle>, buffer_order: &'a [Id]) -> Self {
@@ -205,7 +211,7 @@ impl<'a> Iterator for BuffersIterMut<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for BuffersIterMut<'a> {
+impl DoubleEndedIterator for BuffersIterMut<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let id = self.order.next_back()?;
         // SAFETY: we guarantee that the order does not repeat the

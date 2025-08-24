@@ -26,12 +26,12 @@ impl BufferMeta {
         }
     }
 
-    pub fn mode(&self) -> Mode {
+    pub const fn mode(&self) -> Mode {
         self.mode
     }
 
-    pub fn set_mode(&mut self, mode: Mode) {
-        self.mode = mode
+    pub const fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
     }
 
     pub fn with_filepath(mut self, filepath: Option<PathBuf>) -> Self {

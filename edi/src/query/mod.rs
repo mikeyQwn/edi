@@ -13,15 +13,15 @@ pub struct Query {
 }
 
 impl Query {
-    pub fn new(source: Option<Id>, payload: Payload) -> Self {
+    pub const fn new(source: Option<Id>, payload: Payload) -> Self {
         Self { source, payload }
     }
 
-    pub fn ty(&self) -> Type {
-        self.payload.ty()
+    pub const fn ty(&self) -> Type {
+        self.payload().ty()
     }
 
-    pub fn payload(&self) -> &Payload {
+    pub const fn payload(&self) -> &Payload {
         &self.payload
     }
 
@@ -29,8 +29,8 @@ impl Query {
         self.payload
     }
 
-    pub fn is_quit(&self) -> bool {
-        self.ty() == Type::Quit
+    pub const fn is_quit(&self) -> bool {
+        matches!(self.ty(), Type::Quit)
     }
 }
 
@@ -87,7 +87,7 @@ pub enum Payload {
 }
 
 impl Payload {
-    pub fn ty(&self) -> Type {
+    pub const fn ty(&self) -> Type {
         match self {
             Self::Write(_) => Type::Write,
             Self::History(_) => Type::History,
@@ -101,7 +101,7 @@ impl Payload {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Type {
     Write,
     History,
@@ -114,7 +114,7 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn all() -> impl IntoIterator<Item = Type> {
+    pub const fn all() -> [Self; 8] {
         [
             Self::Write,
             Self::History,
@@ -127,3 +127,13 @@ impl Type {
         ]
     }
 }
+
+const _CHECK_ORDERING: () = {
+    let items = Type::all();
+    let mut i = 1;
+    while i < items.len() {
+        let (a, b) = (items[i - 1] as u8, items[i] as u8);
+        assert!(a < b);
+        i += 1;
+    }
+};

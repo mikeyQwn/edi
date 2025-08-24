@@ -23,7 +23,7 @@ impl controller::QueryHandler<State> for Handler {
 
         match move_query {
             MoveQuery::Action { action, repeat } => {
-                Self::handle_action(state, ctrl, action, repeat)
+                Self::handle_action(state, ctrl, &action, repeat);
             }
         }
 
@@ -35,12 +35,12 @@ impl Handler {
     fn handle_action(
         state: &mut State,
         ctrl: &mut Handle<State>,
-        action: MoveAction,
+        action: &MoveAction,
         repeat: usize,
     ) {
         state.within_active_buffer(
             |mut buffer, meta| {
-                app::handle_move(&mut buffer, meta, &action, repeat);
+                app::handle_move(&mut buffer, meta, action, repeat);
                 buffer.ctrl().query_redraw();
             },
             ctrl,

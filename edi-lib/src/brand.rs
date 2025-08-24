@@ -5,12 +5,16 @@ static BRAND: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug)]
 pub struct Tag(usize, usize);
 
+#[expect(
+    clippy::new_without_default,
+    reason = "every brand should be unique, so there is no sane Default implementation"
+)]
 impl Tag {
     pub fn new() -> Self {
         Self(BRAND.fetch_add(1, Ordering::Relaxed), 0)
     }
 
-    pub fn child_id(&mut self) -> Id {
+    pub const fn child_id(&mut self) -> Id {
         let id = self.1;
         self.1 += 1;
         Id(self.0, id)

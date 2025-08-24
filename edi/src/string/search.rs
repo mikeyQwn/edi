@@ -10,7 +10,8 @@ pub struct Searcher<'a> {
 }
 
 impl<'a> Searcher<'a> {
-    pub fn new(line: &'a str, offset: usize) -> Self {
+    #[must_use]
+    pub const fn new(line: &'a str, offset: usize) -> Self {
         Self {
             line,
             offset,
@@ -20,7 +21,8 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn new_rev(line: &'a str, offset: usize) -> Self {
+    #[must_use]
+    pub const fn new_rev(line: &'a str, offset: usize) -> Self {
         Self {
             line,
             offset,
@@ -30,11 +32,13 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn with_skip(mut self, allow_skip: bool) -> Self {
+    #[must_use]
+    pub const fn with_skip(mut self, allow_skip: bool) -> Self {
         self.allow_skip = allow_skip;
         self
     }
 
+    #[must_use]
     pub fn find(self) -> usize {
         match (self.rev, self.offset) {
             (true, 0) => 0,
@@ -69,11 +73,11 @@ impl<'a> Searcher<'a> {
         // Part 3: get the current character's group and
         // iterate until some other group is found
         let current_group = CharGroup::new(current_char);
-        diff + Self::skip_to_different_group(chars, current_group)
+        diff + Self::skip_to_different_group(chars, &current_group)
     }
 
     fn hop_to_next_word(
-        mut chars: &mut Peekable<impl Iterator<Item = char>>,
+        chars: &mut Peekable<impl Iterator<Item = char>>,
         next_char: char,
         mut current_char: char,
         whitespace_consumed: usize,
@@ -91,7 +95,7 @@ impl<'a> Searcher<'a> {
         }
 
         if next_char == ' ' {
-            diff += consume_whitespace(&mut chars);
+            diff += consume_whitespace(chars);
             let Some(new_current_char) = chars.next() else {
                 return (diff, current_char);
             };
@@ -104,11 +108,11 @@ impl<'a> Searcher<'a> {
 
     fn skip_to_different_group(
         chars: Peekable<impl Iterator<Item = char>>,
-        current_group: CharGroup,
+        current_group: &CharGroup,
     ) -> usize {
         let mut diff = 0;
         for char in chars {
-            if CharGroup::new(char).ne(&current_group) {
+            if CharGroup::new(char).ne(current_group) {
                 break;
             }
             diff += 1;

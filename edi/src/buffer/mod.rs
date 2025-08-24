@@ -197,7 +197,7 @@ impl Buffer {
         });
         edi_lib::debug!("target_line: {:?}", target_line);
         let new_line_start_offset = target_line.length.min(line_start_offset);
-        self.cursor_offset = target_line.character_offset + new_line_start_offset
+        self.cursor_offset = target_line.character_offset + new_line_start_offset;
     }
 
     #[must_use]

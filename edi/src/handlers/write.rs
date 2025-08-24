@@ -25,9 +25,9 @@ impl controller::QueryHandler<State> for Handler {
             return;
         };
 
-        match write_query {
-            &WriteQuery::WriteChar(c) => Self::write_char(app_state, c, ctrl),
-            &WriteQuery::DeleteChar => Self::delete_char(app_state, ctrl),
+        match *write_query {
+            WriteQuery::WriteChar(c) => Self::write_char(app_state, c, ctrl),
+            WriteQuery::DeleteChar => Self::delete_char(app_state, ctrl),
         }
 
         ctrl.query_redraw();

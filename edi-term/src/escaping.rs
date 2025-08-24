@@ -62,7 +62,7 @@ pub enum CursorStyle {
 }
 
 impl CursorStyle {
-    fn escape(self) -> &'static str {
+    const fn escape(self) -> &'static str {
         match self {
             Self::Line => "\x1b[6 q",
             Self::Block => "\x1b[2 q",
@@ -128,6 +128,10 @@ impl<'a> ANSIEscape<'a> {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an errorr if write to sdtout fails
+    ///
     pub fn write_to_stdout(self) -> Result<usize, std::io::Error> {
         use std::io::Write;
 

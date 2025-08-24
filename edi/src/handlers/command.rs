@@ -29,9 +29,8 @@ impl controller::QueryHandler<State> for Handler {
             return;
         };
 
-        match command_query {
-            CommandQuery { command } => Self::handle_command(state, ctrl, command),
-        }
+        let CommandQuery { command } = command_query;
+        Self::handle_command(state, ctrl, command);
 
         ctrl.query_redraw();
     }
