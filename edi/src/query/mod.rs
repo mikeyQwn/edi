@@ -47,9 +47,31 @@ pub enum HistoryQuery {
 }
 
 #[derive(Debug)]
+pub enum SpawnQuery {
+    TerminalBuffer,
+}
+
+#[derive(Debug)]
+pub enum MoveQuery {
+    // TODO: Use query's own action
+    Action {
+        action: app::action::MoveAction,
+        repeat: usize,
+    },
+}
+
+#[derive(Debug)]
+pub struct CommandQuery {
+    pub command: String,
+}
+
+#[derive(Debug)]
 pub enum Payload {
     Write(WriteQuery),
     History(HistoryQuery),
+    Spawn(SpawnQuery),
+    Move(MoveQuery),
+    Command(CommandQuery),
     SwitchMode {
         buffer_selector: Selector,
         target_mode: app::Mode,
@@ -63,6 +85,9 @@ impl Payload {
         match self {
             Self::Write(_) => Type::Write,
             Self::History(_) => Type::History,
+            Self::Spawn(_) => Type::Spawn,
+            Self::Move(_) => Type::Move,
+            Self::Command(_) => Type::Command,
             Self::SwitchMode { .. } => Type::SwitchMode,
             Self::Redraw => Type::Redraw,
             Self::Quit => Type::Quit,
@@ -74,6 +99,9 @@ impl Payload {
 pub enum Type {
     Write,
     History,
+    Spawn,
+    Move,
+    Command,
     SwitchMode,
     Redraw,
     Quit,
@@ -84,6 +112,9 @@ impl Type {
         [
             Self::Write,
             Self::History,
+            Self::Spawn,
+            Self::Move,
+            Self::Command,
             Self::SwitchMode,
             Self::Redraw,
             Self::Quit,

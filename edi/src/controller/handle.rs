@@ -6,7 +6,7 @@ use edi_term::input::Input;
 use crate::{
     app::{self, buffers::Selector},
     event::{Event, Payload},
-    query::{self, HistoryQuery, Query, Type, WriteQuery},
+    query::{self, CommandQuery, HistoryQuery, MoveQuery, Query, SpawnQuery, Type, WriteQuery},
 };
 
 use super::handler;
@@ -130,6 +130,18 @@ impl<'a, State> Handle<State> {
             buffer_selector,
             target_mode,
         });
+    }
+
+    pub fn query_spawn(&mut self, query: SpawnQuery) {
+        self.query_async(query::Payload::Spawn(query));
+    }
+
+    pub fn query_move(&mut self, query: MoveQuery) {
+        self.query_async(query::Payload::Move(query));
+    }
+
+    pub fn query_command(&mut self, query: CommandQuery) {
+        self.query_async(query::Payload::Command(query));
     }
 
     pub fn query_redraw(&mut self) {

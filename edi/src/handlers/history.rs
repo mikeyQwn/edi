@@ -28,6 +28,7 @@ impl Change {
             Change::Delete { offset, content } => {
                 buffer.set_cursor_offset(*offset - content.chars().count());
                 for c in content.chars() {
+                    // TODO: query rehighlighting
                     buffer.write(c);
                 }
             }

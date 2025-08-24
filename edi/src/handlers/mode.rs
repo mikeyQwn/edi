@@ -23,9 +23,7 @@ impl controller::QueryHandler<State> for Handler {
             target_mode,
         } = query.into_payload()
         else {
-            edi_lib::debug!(
-                "non-write query submitted to write query handler, this is likely a bug"
-            );
+            edi_lib::debug!("non-mode query submitted to mode query handler, this is likely a bug");
             return;
         };
 
