@@ -23,12 +23,27 @@ impl Handler {
             buffer_count = state.buffers.len()
         );
 
+        let Ok(dimensions) = edi_term::get_size() else {
+            edi_lib::debug!("unable to get trminal dimensions");
+            return;
+        };
+        let dimensions = dimensions.map(|v| v as usize);
+
         state.window.clear();
         state.buffers.iter_mut().rev().for_each(|bundle| {
             let (buffer, meta) = bundle.as_split_mut(ctrl);
-            meta.normalize(buffer.as_ref());
+            meta.normalize(buffer.as_ref(), dimensions);
 
-            let mut bound = Rect::new_in_origin(meta.size.x, meta.size.y).bind(&mut state.window);
+            let (offset_x, offset_y) = (
+                meta.offset.x.resolve(dimensions),
+                meta.offset.y.resolve(dimensions),
+            );
+            let (size_x, size_y) = (
+                meta.size.x.resolve(dimensions),
+                meta.size.y.resolve(dimensions),
+            );
+
+            let mut bound = Rect::new(offset_x, offset_y, size_x, size_y).bind(&mut state.window);
             bound.clear();
 
             let opts = meta

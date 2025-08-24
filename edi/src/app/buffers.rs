@@ -222,6 +222,7 @@ impl DoubleEndedIterator for BuffersIterMut<'_> {
 
 #[cfg(test)]
 mod tests {
+    use edi_frame::unit::Unit;
     use edi_lib::vec2::Vec2;
 
     use crate::app::{meta, Mode};
@@ -310,10 +311,13 @@ mod tests {
         let mut b = make_buffers(2);
         for bundle in b.iter_mut() {
             let meta = bundle.meta_mut();
-            meta.size = Vec2::new(1, 1);
+            meta.size = Vec2::new(Unit::Cells(1), Unit::Cells(1));
         }
         for bundle in b.iter_mut() {
-            assert_eq!(bundle.meta_mut().size, Vec2::new(1, 1));
+            assert_eq!(
+                bundle.meta_mut().size,
+                Vec2::new(Unit::Cells(1), Unit::Cells(1))
+            );
         }
     }
 

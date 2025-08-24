@@ -87,7 +87,7 @@ Tech debt:
     - [x] Cache leaf lenghts
     - [ ] Balance the tree (AVL/Red-black) (?)
     - [ ] Optimize inserts
-- [ ] Handle terminal resizing properly
+- [x] Handle terminal resizing properly
 
 ## Known issues
 

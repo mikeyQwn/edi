@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use edi::buffer::{draw::FlushOptions, Buffer};
+use edi_frame::unit::Unit;
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
+use edi_term::coord::Dimensions;
 
 use crate::app::Mode;
 
@@ -10,7 +12,8 @@ pub struct BufferMeta {
     pub flush_options: FlushOptions,
     pub filepath: Option<PathBuf>,
     pub filetype: Filetype,
-    pub size: Vec2<usize>,
+    pub size: Vec2<Unit>,
+    pub offset: Vec2<Unit>,
     pub mode: Mode,
 }
 
@@ -21,7 +24,8 @@ impl BufferMeta {
             flush_options: FlushOptions::default(),
             filepath: None,
             filetype: Filetype::default(),
-            size: Vec2::default(),
+            size: Vec2::new(Unit::full_width(), Unit::full_height()),
+            offset: Vec2::new(Unit::zero(), Unit::zero()),
             mode,
         }
     }
@@ -44,15 +48,21 @@ impl BufferMeta {
         self
     }
 
-    pub const fn with_size(mut self, size: Vec2<usize>) -> Self {
+    pub const fn with_size(mut self, size: Vec2<Unit>) -> Self {
         self.size = size;
         self
     }
 
-    pub fn normalize(&mut self, buf: &Buffer) {
+    pub const fn with_offset(mut self, offset: Vec2<Unit>) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    pub fn normalize(&mut self, buf: &Buffer, dimensions: Dimensions<usize>) {
+        let y = self.size.y.resolve(dimensions);
         let current_line = buf.current_line();
         self.flush_options.line_offset = self.flush_options.line_offset.clamp(
-            current_line.saturating_sub(self.size.y.saturating_sub(1)),
+            current_line.saturating_sub(y.saturating_sub(1)),
             current_line,
         );
     }

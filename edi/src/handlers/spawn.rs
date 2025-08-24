@@ -1,4 +1,5 @@
 use edi::buffer::Buffer;
+use edi_frame::unit::Unit;
 use edi_lib::vec2::Vec2;
 
 use crate::{
@@ -36,17 +37,17 @@ impl controller::QueryHandler<State> for Handler {
 
 impl Handler {
     fn spawn_terminal_buffer(state: &mut State) {
-        let mut size = edi_term::get_size()
-            .map(Vec2::from_dims)
-            .unwrap_or(Vec2::new(10, 1))
-            .map(|v| v as usize);
-        size.y = 1;
+        let buffer_size = Vec2::new(Unit::full_width(), Unit::Cells(1));
+        let buffer_offset = Vec2::new(Unit::zero(), Unit::half_height());
 
         let mut buffer = Buffer::new(":");
         buffer.cursor_offset = 1;
 
-        state
-            .buffers
-            .attach_first(buffer, BufferMeta::new(Mode::Terminal).with_size(size));
+        state.buffers.attach_first(
+            buffer,
+            BufferMeta::new(Mode::Terminal)
+                .with_size(buffer_size)
+                .with_offset(buffer_offset),
+        );
     }
 }

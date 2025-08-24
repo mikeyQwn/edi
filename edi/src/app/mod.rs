@@ -6,6 +6,7 @@ pub mod meta;
 pub mod state;
 
 use action::MoveAction;
+use edi_frame::unit::Unit;
 use edi_lib::vec2::Vec2;
 use edi_term::{
     coord::Coord,
@@ -44,7 +45,12 @@ pub fn handle_move(
             buffer.move_in_line(line_position);
         }
         MoveAction::HalfScreen(direction) => {
-            buffer.move_cursor(direction.into(), meta.size.y / 2);
+            let Ok(dimensions) = edi_term::get_size() else {
+                edi_lib::debug!("unable to get trminal dimensions");
+                return;
+            };
+            let dimensions = dimensions.map(|v| v as usize);
+            buffer.move_cursor(direction.into(), meta.size.y.resolve(dimensions) / 2);
         }
         MoveAction::Global(global_position) => buffer.move_global(global_position),
     }
@@ -68,7 +74,7 @@ pub fn run(args: EdiCli) -> anyhow::Result<()> {
         let mut state = State::new(window);
 
         if let Some(filepath) = args.edit_file {
-            state.open_file(filepath, Vec2::from_dims(size))?;
+            state.open_file(filepath, Vec2::new(Unit::full_width(), Unit::full_height()))?;
         }
 
         init_handlers(&mut controller);

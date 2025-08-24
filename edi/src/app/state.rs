@@ -1,4 +1,5 @@
 use edi::{buffer::Buffer, string::highlight::get_highlights};
+use edi_frame::unit::Unit;
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::window::Window;
 
@@ -37,7 +38,7 @@ impl State {
     pub fn open_file(
         &mut self,
         filepath: impl AsRef<std::path::Path>,
-        buff_dimensions: Vec2<usize>,
+        buff_dimensions: Vec2<Unit>,
     ) -> anyhow::Result<()> {
         let filepath = filepath.as_ref();
         let contents = std::fs::read_to_string(filepath)?;
