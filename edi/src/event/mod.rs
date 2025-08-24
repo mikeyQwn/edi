@@ -1,5 +1,4 @@
 pub mod emitter;
-pub mod handler;
 pub mod sender;
 pub mod source;
 pub mod sources;
@@ -47,8 +46,6 @@ pub enum Payload {
         selector: buffers::Selector,
         target_mode: app::Mode,
     },
-    WriteChar(char),
-    DeleteChar,
     CharWritten {
         buffer_id: Id,
         offset: usize,
@@ -59,8 +56,6 @@ pub enum Payload {
         offset: usize,
         c: char,
     },
-    Undo(buffers::Selector),
-    Redo(buffers::Selector),
 }
 
 impl Payload {
@@ -68,12 +63,8 @@ impl Payload {
         match self {
             Self::Input(_) => Type::Input,
             Self::SwitchMode { .. } => Type::SwtichMode,
-            Self::WriteChar(_) => Type::WriteChar,
-            Self::DeleteChar => Type::DeleteChar,
             Self::CharWritten { .. } => Type::CharWritten,
             Self::CharDeleted { .. } => Type::CharDeleted,
-            Self::Undo(_) => Type::Undo,
-            Self::Redo(_) => Type::Redo,
         }
     }
 }
@@ -82,12 +73,8 @@ impl Payload {
 pub enum Type {
     Input,
     SwtichMode,
-    WriteChar,
-    DeleteChar,
     CharWritten,
     CharDeleted,
-    Undo,
-    Redo,
 }
 
 impl Type {

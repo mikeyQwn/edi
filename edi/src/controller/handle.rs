@@ -1,3 +1,4 @@
+use core::prelude;
 use std::collections::{HashMap, VecDeque};
 
 use edi_lib::brand::Id;
@@ -6,7 +7,7 @@ use edi_term::input::Input;
 use crate::{
     app::{self, buffers},
     event::{Event, Payload},
-    query::{self, Query, Type},
+    query::{self, HistoryQuery, Query, Type, WriteQuery},
 };
 
 use super::handler;
@@ -15,7 +16,7 @@ use super::handler;
 pub struct Handle<State> {
     handler_id: Option<Id>,
 
-    query_handlers: HashMap<Type, Box<dyn handler::QueryHandler<State>>>,
+    query_handlers: HashMap<Type, (Id, Box<dyn handler::QueryHandler<State>>)>,
 
     collected_events: VecDeque<Event>,
     collected_queries: VecDeque<Query>,
@@ -23,7 +24,7 @@ pub struct Handle<State> {
 
 impl<'a, State> Handle<State> {
     pub(super) fn new(
-        query_handlers: HashMap<Type, Box<dyn handler::QueryHandler<State>>>,
+        query_handlers: HashMap<Type, (Id, Box<dyn handler::QueryHandler<State>>)>,
     ) -> Self {
         Self {
             handler_id: None,
@@ -42,17 +43,19 @@ impl<'a, State> Handle<State> {
     }
 
     pub(super) fn run_query(&mut self, state: &mut State, query: query::Query) {
+        let prev_id = self.handler_id;
         let ty = query.ty();
 
         // TODO: the performance here sucks and we don't need a hash map anyway
-        let Some(mut handler) = self.query_handlers.remove(&ty) else {
+        let Some((id, mut handler)) = self.query_handlers.remove(&ty) else {
             edi_lib::debug!("no query handler found for query: {query:?}");
             return;
         };
 
-        handler.handle(state, query, self);
+        handler.handle(state, query, self.with_handler_id(id));
 
-        self.query_handlers.insert(ty, handler);
+        self.query_handlers.insert(ty, (id, handler));
+        self.handler_id = prev_id;
     }
 
     pub(super) fn query_async(&mut self, payload: query::Payload) {
@@ -71,6 +74,20 @@ impl<'a, State> Handle<State> {
 
     pub(super) fn pop_query(&mut self) -> Option<Query> {
         self.collected_queries.pop_front()
+    }
+
+    pub(super) fn check_event(&mut self, state: &mut State, event: &Event) {
+        for ty in query::Type::all() {
+            let Some((id, mut handler)) = self.query_handlers.remove(&ty) else {
+                continue;
+            };
+
+            if handler.interested_in(id, event) {
+                handler.check_event(state, event, self);
+            }
+
+            self.query_handlers.insert(ty, (id, handler));
+        }
     }
 
     pub fn add_event(&mut self, payload: Payload) {
@@ -92,16 +109,6 @@ impl<'a, State> Handle<State> {
     }
 
     #[allow(unused)]
-    pub fn add_write_char(&mut self, c: char) {
-        self.add_event(Payload::WriteChar(c));
-    }
-
-    #[allow(unused)]
-    pub fn add_delete_char(&mut self) {
-        self.add_event(Payload::DeleteChar);
-    }
-
-    #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
         self.add_event(Payload::CharWritten {
             buffer_id,
@@ -119,12 +126,12 @@ impl<'a, State> Handle<State> {
         });
     }
 
-    pub fn add_undo(&mut self, selector: buffers::Selector) {
-        self.add_event(Payload::Undo(selector));
+    pub fn query_history(&mut self, query: HistoryQuery) {
+        self.query_async(query::Payload::History(query));
     }
 
-    pub fn add_redo(&mut self, selector: buffers::Selector) {
-        self.add_event(Payload::Redo(selector));
+    pub fn query_write(&mut self, query: WriteQuery) {
+        self.query_async(query::Payload::Write(query));
     }
 
     pub fn query_redraw(&mut self) {

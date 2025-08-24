@@ -30,7 +30,8 @@ use crate::{
     cli::EdiCli,
     controller::{Controller, Handle},
     event::{emitter, sources},
-    handlers, query,
+    handlers,
+    query::{self, HistoryQuery, WriteQuery},
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -49,7 +50,7 @@ pub enum Mode {
 pub fn handle_action(
     event: Action,
     state: &mut State,
-    buf: &mut Handle<State>,
+    ctrl: &mut Handle<State>,
 ) -> anyhow::Result<()> {
     let _span = edi_lib::span!("handle_action");
 
@@ -67,16 +68,16 @@ pub fn handle_action(
             state
                 .buffers
                 .attach_first(buffer, BufferMeta::new(Mode::Terminal).with_size(size));
-            buf.query_redraw();
+            ctrl.query_redraw();
         }
         Action::SwitchMode(mode) => {
-            buf.add_switch_mode(Selector::Active, mode);
+            ctrl.add_switch_mode(Selector::Active, mode);
         }
         Action::InsertChar(c) => {
-            buf.add_write_char(c);
+            ctrl.query_write(WriteQuery::WriteChar(c));
         }
         Action::DeleteChar => {
-            buf.add_delete_char();
+            ctrl.query_write(WriteQuery::DeleteChar);
         }
         Action::Submit => {
             let _span = edi_lib::span!("submit");
@@ -87,10 +88,10 @@ pub fn handle_action(
             // TODO: Add proper error handling
             let bundle = state.buffers.first().unwrap();
             let cmd_buf = bundle.buffer();
-            buf.query_redraw();
+            ctrl.query_redraw();
             let cmd: String = cmd_buf.inner.chars().collect();
             if cmd == ":q" {
-                buf.query_quit();
+                ctrl.query_quit();
                 return Ok(());
             }
             if cmd == ":wq" {
@@ -117,7 +118,7 @@ pub fn handle_action(
                     Ok(f) => f,
                     Err(e) => {
                         edi_lib::debug!("unable to create output file {e} {swap_name:?}");
-                        buf.query_quit();
+                        ctrl.query_quit();
                         return Ok(());
                     }
                 };
@@ -140,14 +141,14 @@ pub fn handle_action(
                     edi_lib::debug!("app::handle_event failed to rename file {e}");
                 }
 
-                buf.query_quit();
+                ctrl.query_quit();
             }
 
             edi_lib::debug!(
                 "exit submit action with {buf_count} buffers",
                 buf_count = state.buffers.len()
             );
-            buf.add_switch_mode(Selector::Active, Mode::Normal);
+            ctrl.add_switch_mode(Selector::Active, Mode::Normal);
         }
 
         Action::Move { action, repeat } => {
@@ -156,14 +157,14 @@ pub fn handle_action(
                     handle_move(&mut buffer, meta, &action, repeat);
                     buffer.ctrl().query_redraw();
                 },
-                buf,
+                ctrl,
             );
         }
         Action::Undo => {
-            buf.add_undo(Selector::Active);
+            ctrl.query_history(HistoryQuery::Undo(Selector::Active));
         }
         Action::Redo => {
-            buf.add_redo(Selector::Active);
+            ctrl.query_history(HistoryQuery::Redo(Selector::Active));
         }
     }
 
@@ -227,14 +228,14 @@ pub fn init_handlers(controller: &mut Controller<State>) {
     let input_handler = handlers::input::Handler::new();
     controller.attach_event_handler(input_handler);
 
+    let write_handler = handlers::write::Handler::new();
+    controller.attach_query_handler(query::Type::Write, write_handler);
+
     let draw_handler = handlers::draw::Handler::new();
     controller.attach_query_handler(query::Type::Redraw, draw_handler);
 
-    let write_handler = handlers::write::Handler::new();
-    controller.attach_event_handler(write_handler);
-
     let history_handler = handlers::history::Handler::new();
-    controller.attach_event_handler(history_handler);
+    controller.attach_query_handler(query::Type::History, history_handler);
 
     let mode_handler = handlers::mode::Handler::new();
     controller.attach_event_handler(mode_handler);

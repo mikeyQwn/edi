@@ -6,6 +6,7 @@ use crate::{
     app::{buffer_bundle::BufferBundle, state::State},
     controller::{self, Handle},
     event::{self, emitter::buffer, Event, Payload},
+    query::{self, HistoryQuery, Query},
 };
 
 #[derive(Debug)]
@@ -189,8 +190,38 @@ impl Handler {
     }
 }
 
-impl controller::EventHandler<State> for Handler {
-    fn handle(&mut self, state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
+impl controller::QueryHandler<State> for Handler {
+    fn handle(&mut self, state: &mut State, query: Query, ctrl: &mut Handle<State>) {
+        let _span = edi_lib::span!("history");
+
+        let query::Payload::History(history_query) = query.payload() else {
+            edi_lib::debug!(
+                "non-history query submitted to history query handler, this is likely a bug"
+            );
+            return;
+        };
+
+        match history_query {
+            HistoryQuery::Undo(selector) => {
+                let Some(bundle) = state.buffers.get_mut(selector) else {
+                    return;
+                };
+                self.undo(bundle, ctrl);
+                ctrl.query_redraw();
+            }
+            HistoryQuery::Redo(selector) => {
+                let Some(bundle) = state.buffers.get_mut(selector) else {
+                    return;
+                };
+                self.redo(bundle, ctrl);
+                ctrl.query_redraw();
+            }
+        }
+
+        edi_lib::debug!("history changed, new history: {:?}", self.id_to_history);
+    }
+
+    fn check_event(&mut self, state: &mut State, event: &Event, _ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("history");
 
         match event.payload() {
@@ -204,20 +235,6 @@ impl controller::EventHandler<State> for Handler {
                 offset,
                 c,
             } => self.char_deleted(buffer_id, offset, c),
-            Payload::Undo(selector) => {
-                let Some(bundle) = state.buffers.get_mut(selector) else {
-                    return;
-                };
-                self.undo(bundle, ctrl);
-                ctrl.query_redraw();
-            }
-            Payload::Redo(selector) => {
-                let Some(bundle) = state.buffers.get_mut(selector) else {
-                    return;
-                };
-                self.redo(bundle, ctrl);
-                ctrl.query_redraw();
-            }
             Payload::SwitchMode { selector, .. } => {
                 state
                     .buffers
@@ -241,8 +258,6 @@ impl controller::EventHandler<State> for Handler {
             event::Type::CharWritten,
             event::Type::CharDeleted,
             event::Type::SwtichMode,
-            event::Type::Undo,
-            event::Type::Redo,
         ];
         event.ty().is_oneof(types)
     }

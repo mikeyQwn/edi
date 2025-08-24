@@ -1,10 +1,7 @@
 use edi::buffer;
 use edi_lib::brand::Id;
 
-use crate::{
-    controller::Handle,
-    event::{emitter, sender::EventBuffer},
-};
+use crate::{controller::Handle, event::emitter};
 
 use super::{meta, state::State};
 

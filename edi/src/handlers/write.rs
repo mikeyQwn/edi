@@ -1,10 +1,9 @@
 use edi::string::highlight::get_highlights;
-use edi_lib::brand::Id;
 
 use crate::{
     app::state::State,
     controller::{self, Handle},
-    event::{self, Event, Payload},
+    query::{Payload, Query, WriteQuery},
 };
 
 pub struct Handler;
@@ -15,22 +14,23 @@ impl Handler {
     }
 }
 
-impl controller::EventHandler<State> for Handler {
-    fn handle(&mut self, app_state: &mut State, event: &Event, ctrl: &mut Handle<State>) {
+impl controller::QueryHandler<State> for Handler {
+    fn handle(&mut self, app_state: &mut State, query: Query, ctrl: &mut Handle<State>) {
         let _span = edi_lib::span!("write");
 
-        match event.payload() {
-            &Payload::WriteChar(c) => Self::write_char(app_state, c, ctrl),
-            &Payload::DeleteChar => Self::delete_char(app_state, ctrl),
-            _ => return,
+        let Payload::Write(write_query) = query.payload() else {
+            edi_lib::debug!(
+                "non-write query submitted to write query handler, this is likely a bug"
+            );
+            return;
+        };
+
+        match write_query {
+            &WriteQuery::WriteChar(c) => Self::write_char(app_state, c, ctrl),
+            &WriteQuery::DeleteChar => Self::delete_char(app_state, ctrl),
         }
 
         ctrl.query_redraw();
-    }
-
-    fn interested_in(&self, _own_id: Id, event: &Event) -> bool {
-        let types = &[event::Type::WriteChar, event::Type::DeleteChar];
-        event.ty().is_oneof(types)
     }
 }
 

@@ -51,16 +51,6 @@ impl EventBuffer {
     }
 
     #[allow(unused)]
-    pub fn add_write_char(&mut self, c: char) {
-        self.add_event(Payload::WriteChar(c));
-    }
-
-    #[allow(unused)]
-    pub fn add_delete_char(&mut self) {
-        self.add_event(Payload::DeleteChar);
-    }
-
-    #[allow(unused)]
     pub fn add_char_written(&mut self, buffer_id: Id, offset: usize, c: char) {
         self.add_event(Payload::CharWritten {
             buffer_id,
@@ -76,14 +66,6 @@ impl EventBuffer {
             offset,
             c,
         });
-    }
-
-    pub fn add_undo(&mut self, selector: buffers::Selector) {
-        self.add_event(Payload::Undo(selector));
-    }
-
-    pub fn add_redo(&mut self, selector: buffers::Selector) {
-        self.add_event(Payload::Redo(selector));
     }
 }
 

@@ -24,7 +24,7 @@ pub struct Controller<State> {
     event_sources: Vec<Box<dyn event::Source>>,
     event_handlers: HashMap<Id, Box<dyn handler::EventHandler<State>>>,
 
-    query_handlers: HashMap<Type, Box<dyn handler::QueryHandler<State>>>,
+    query_handlers: HashMap<Type, (Id, Box<dyn handler::QueryHandler<State>>)>,
 
     piped_queries: Vec<query::Payload>,
 }
@@ -72,7 +72,8 @@ impl<State> Controller<State> {
     where
         H: handler::QueryHandler<State> + Send + 'static,
     {
-        self.query_handlers.insert(ty, Box::new(handler));
+        let id = self.tag.child_id();
+        self.query_handlers.insert(ty, (id, Box::new(handler)));
     }
 
     pub fn run(mut self, mut state: State) -> SourcesHandle {
@@ -137,6 +138,8 @@ impl<State> Controller<State> {
         state: &'a mut State,
         ctrl: &mut Handle<State>,
     ) {
+        ctrl.check_event(state, event);
+
         for (&id, handler) in handlers {
             if !handler.interested_in(id, event) {
                 continue;
