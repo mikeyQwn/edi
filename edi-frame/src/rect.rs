@@ -84,6 +84,32 @@ impl Rect {
 
         (left, right)
     }
+
+    /// Splits the rectangle vertically into two rectangles at the given `offset` from the left
+    /// If `offset > height`, the bottom rectangle will have zero height and start at the bottom edge.
+    #[must_use]
+    pub const fn split_vertical(&self, offset: usize) -> (Rect, Rect) {
+        if offset > self.height {
+            let zero_height = Rect::new(
+                self.position.x,
+                self.position.y + self.height,
+                self.width,
+                0,
+            );
+            return (*self, zero_height);
+        }
+
+        let left = Rect::new(self.position.x, self.position.y, self.width, offset);
+
+        let right = Rect::new(
+            self.position.x,
+            self.position.y + offset,
+            self.width,
+            self.height.saturating_sub(offset),
+        );
+
+        (left, right)
+    }
 }
 
 #[cfg(test)]

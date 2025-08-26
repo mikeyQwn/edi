@@ -31,6 +31,16 @@ pub enum Mode {
     Terminal,
 }
 
+impl Mode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Insert => "insert",
+            Self::Terminal => "terminal",
+        }
+    }
+}
+
 pub fn handle_move(
     buffer: &mut emitter::buffer::Buffer,
     meta: &mut BufferMeta,

@@ -16,12 +16,15 @@ pub struct FlushOptions {
     pub wrap: bool,
     pub line_numbers: bool,
 
+    pub statusline: bool,
+    pub mode: &'static str,
     pub highlights: Vec<Highlight>,
     pub line_offset: usize,
 }
 
 #[derive(Debug)]
 struct DrawBounds {
+    statusline: Rect,
     line_numbers: Rect,
     main: Rect,
 }
@@ -36,6 +39,18 @@ impl FlushOptions {
     #[must_use]
     pub const fn set_wrap(&mut self, wrap: bool) -> &mut Self {
         self.wrap = wrap;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_statusline(&mut self, statusline: bool) -> &mut Self {
+        self.statusline = statusline;
+        self
+    }
+
+    #[must_use]
+    pub const fn set_mode(&mut self, mode: &'static str) -> &mut Self {
+        self.mode = mode;
         self
     }
 
@@ -68,6 +83,8 @@ impl Default for FlushOptions {
     fn default() -> Self {
         Self {
             wrap: true,
+            mode: "",
+            statusline: false,
             line_numbers: false,
             highlights: Vec::new(),
             line_offset: 0,
@@ -103,10 +120,16 @@ impl Buffer {
         } else {
             0
         };
+
         let Dimensions { width, height } = surface.dimensions();
-        let (line_numbers, main) =
-            Rect::new_in_origin(width, height).split_horizontal(line_number_offset);
-        let bounds = DrawBounds { line_numbers, main };
+        let buffer_rect = Rect::new_in_origin(width, height);
+        let (rest, statusline) = buffer_rect.split_vertical(height.saturating_sub(1));
+        let (line_numbers, main) = rest.split_horizontal(line_number_offset);
+        let bounds = DrawBounds {
+            statusline,
+            line_numbers,
+            main,
+        };
 
         let mut flush_state = FlushState::new(&opts.highlights, bounds);
         // debug!("cursor_offset: {} opts: {:?}", self.cursor_offset, opts);
@@ -125,6 +148,8 @@ impl Buffer {
         let _span = span!("flush_lines");
 
         let available_height = surface.dimensions().height;
+
+        self.flush_statusline(surface, opts, state);
 
         self.inner
             .lines()
@@ -151,6 +176,33 @@ impl Buffer {
                 },
                 state,
             );
+        }
+    }
+
+    fn flush_statusline<S: Surface>(
+        &self,
+        surface: &mut S,
+        opts: &FlushOptions,
+        state: &FlushState,
+    ) {
+        let width = state.bounds.statusline.width();
+        let mut offs = 0;
+        for c in " [".chars().chain(opts.mode.chars()).chain("]".chars()) {
+            state.bounds.statusline.set(
+                Coord::new(offs, 0),
+                Cell::new(c, Color::Black, Color::Cyan),
+                surface,
+            );
+            offs += 1;
+        }
+
+        while offs != width {
+            state.bounds.statusline.set(
+                Coord::new(offs, 0),
+                Cell::new(' ', Color::Black, Color::Cyan),
+                surface,
+            );
+            offs += 1
         }
     }
 

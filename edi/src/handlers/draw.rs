@@ -49,6 +49,7 @@ impl Handler {
             let opts = meta
                 .flush_options
                 .set_wrap(ctx.settings.word_wrap)
+                .set_mode(meta.mode.as_str())
                 .set_line_numbers(ctx.settings.line_numbers);
 
             buffer.as_ref().flush(&mut bound, opts);
