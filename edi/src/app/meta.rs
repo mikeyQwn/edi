@@ -10,6 +10,8 @@ use crate::app::Mode;
 #[derive(Debug)]
 pub struct BufferMeta {
     pub flush_options: FlushOptions,
+
+    pub statusline: bool,
     pub filepath: Option<PathBuf>,
     pub filetype: Filetype,
     pub size: Vec2<Unit>,
@@ -22,6 +24,8 @@ impl BufferMeta {
     pub fn new(mode: Mode) -> Self {
         Self {
             flush_options: FlushOptions::default(),
+
+            statusline: false,
             filepath: None,
             filetype: Filetype::default(),
             size: Vec2::new(Unit::full_width(), Unit::full_height()),
@@ -36,6 +40,11 @@ impl BufferMeta {
 
     pub const fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
+    }
+
+    pub fn with_statusline(mut self, statusline: bool) -> Self {
+        self.statusline = statusline;
+        self
     }
 
     pub fn with_filepath(mut self, filepath: Option<PathBuf>) -> Self {

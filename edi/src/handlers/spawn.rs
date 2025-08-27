@@ -47,7 +47,8 @@ impl Handler {
             buffer,
             BufferMeta::new(Mode::Terminal)
                 .with_size(buffer_size)
-                .with_offset(buffer_offset),
+                .with_offset(buffer_offset)
+                .with_statusline(false),
         );
     }
 }

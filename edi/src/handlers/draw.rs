@@ -50,7 +50,8 @@ impl Handler {
                 .flush_options
                 .set_wrap(ctx.settings.word_wrap)
                 .set_mode(meta.mode.as_str())
-                .set_line_numbers(ctx.settings.line_numbers);
+                .set_line_numbers(ctx.settings.line_numbers)
+                .set_statusline(meta.statusline);
 
             buffer.as_ref().flush(&mut bound, opts);
         });

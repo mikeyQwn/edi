@@ -43,7 +43,7 @@ impl FlushOptions {
     }
 
     #[must_use]
-    pub const fn with_statusline(&mut self, statusline: bool) -> &mut Self {
+    pub const fn set_statusline(&mut self, statusline: bool) -> &mut Self {
         self.statusline = statusline;
         self
     }
