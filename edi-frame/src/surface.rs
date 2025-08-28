@@ -1,13 +1,17 @@
 use edi_term::{
     coord::{Coord, Dimensions, UDims},
+    escaping::ANSIColor,
     window,
 };
 
-use crate::{cell::Cell, rect::Rect};
+use crate::{
+    cell::{Cell, Color},
+    rect::Rect,
+};
 
 /// A generic terminal-like surface that can be drawn to
 pub trait Surface {
-    fn clear(&mut self);
+    fn clear(&mut self, color: Color);
 
     fn move_cursor(&mut self, point: Coord);
     fn set(&mut self, position: Coord, cell: Cell);
@@ -33,7 +37,7 @@ pub trait BoundExt<S>
 where
     S: Surface,
 {
-    fn clear(&self, surface: &mut S);
+    fn clear(&self, surface: &mut S, color: Color);
     fn move_cursor(&self, point: Coord, surface: &mut S);
     fn set(&self, position: Coord, cell: Cell, surface: &mut S);
     fn dimensions(&self, surface: &S) -> Dimensions<usize>;
@@ -57,7 +61,7 @@ where
         surface.set(position, cell);
     }
 
-    fn clear(&self, surface: &mut S) {
+    fn clear(&self, surface: &mut S, color: Color) {
         let w = self.width();
         let h = self.height();
         for y in 0..h {
@@ -66,7 +70,8 @@ where
                     continue;
                 };
 
-                surface.set(position, Cell::default());
+                let cell = Cell::new(' ', Color::None, color);
+                surface.set(position, cell);
             }
         }
     }
@@ -97,8 +102,8 @@ impl Surface for window::Window {
         window::Window::put_cell(self, position, window::Cell::from(cell));
     }
 
-    fn clear(&mut self) {
-        window::Window::clear(self);
+    fn clear(&mut self, color: Color) {
+        window::Window::clear(self, ANSIColor::from(color));
     }
 
     fn dimensions(&self) -> Dimensions<usize> {
@@ -121,8 +126,8 @@ impl Surface for BoundedWindow<'_> {
         self.bound.set(position, cell, self.window);
     }
 
-    fn clear(&mut self) {
-        self.bound.clear(self.window);
+    fn clear(&mut self, color: Color) {
+        self.bound.clear(self.window, color);
     }
 
     fn move_cursor(&mut self, point: Coord) {

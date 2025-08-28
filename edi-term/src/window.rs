@@ -119,9 +119,10 @@ where
         self.write_flush(diffs.build().as_bytes())
     }
 
-    /// Resets all drawn cells to `Cell::default()`. Does not draw
-    pub fn clear(&mut self) {
-        self.back_buffer = vec![Cell::default(); self.width * self.height];
+    /// Resets all drawn cells to default cell with set background color. Does not draw
+    pub fn clear(&mut self, color: ANSIColor) {
+        let cell = Cell::new(' ', ANSIColor::Default, color);
+        self.back_buffer = vec![cell; self.width * self.height];
     }
 
     /// Sets the cursor position to the `new_pos`

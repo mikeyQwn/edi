@@ -1,6 +1,7 @@
 use edi::string::highlight::get_highlights;
-use edi_frame::prelude::*;
 use edi_frame::rect::Rect;
+use edi_frame::{cell::Color, prelude::*};
+use edi_term::escaping::ANSIColor;
 
 use crate::{
     app::{buffers::Selector, state::State},
@@ -29,7 +30,7 @@ impl Handler {
         };
         let dimensions = dimensions.map(|v| v as usize);
 
-        state.window.clear();
+        state.window.clear(ANSIColor::Reset);
         state.buffers.iter_mut().rev().for_each(|bundle| {
             let (buffer, meta) = bundle.as_split_mut(ctrl);
             meta.normalize(buffer.as_ref(), dimensions);
@@ -44,7 +45,7 @@ impl Handler {
             );
 
             let mut bound = Rect::new(offset_x, offset_y, size_x, size_y).bind(&mut state.window);
-            bound.clear();
+            bound.clear(Color::None);
 
             let opts = meta
                 .flush_options

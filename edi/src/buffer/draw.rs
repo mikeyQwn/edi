@@ -185,7 +185,7 @@ impl Buffer {
         opts: &FlushOptions,
         state: &FlushState,
     ) {
-        let width = state.bounds.statusline.width();
+        state.bounds.statusline.clear(surface, Color::Cyan);
         let mut offs = 0;
         for c in " [".chars().chain(opts.mode.chars()).chain("]".chars()) {
             state.bounds.statusline.set(
@@ -194,15 +194,6 @@ impl Buffer {
                 surface,
             );
             offs += 1;
-        }
-
-        while offs != width {
-            state.bounds.statusline.set(
-                Coord::new(offs, 0),
-                Cell::new(' ', Color::Black, Color::Cyan),
-                surface,
-            );
-            offs += 1
         }
     }
 
@@ -368,7 +359,10 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
-    use edi_frame::{cell, surface::Surface};
+    use edi_frame::{
+        cell::{self, Color},
+        surface::Surface,
+    };
     use edi_lib::vec2::Vec2;
     use edi_term::coord::{Coord, Dimensions};
 
@@ -403,7 +397,7 @@ mod tests {
                 self.chars[y][x] = cell.char;
             }
         }
-        fn clear(&mut self) {
+        fn clear(&mut self, _color: Color) {
             let Dimensions { width, height } = self.dimensions();
             self.chars = vec![vec![' '; width]; height];
             self.cursor_pos = None;
