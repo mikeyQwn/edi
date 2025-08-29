@@ -1,6 +1,7 @@
-use edi::{buffer::Buffer, string::highlight::get_highlights};
 use edi_frame::unit::Unit;
-use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
+use edi_lib::{
+    buffer::Buffer, fs::filetype::Filetype, string::highlight::get_highlights, vec2::Vec2,
+};
 use edi_term::window::Window;
 
 use crate::{

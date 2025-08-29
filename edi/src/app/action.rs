@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use edi::buffer;
-use edi::string::position::{GlobalPosition, LinePosition};
+use edi_lib::buffer;
+use edi_lib::string::position::{GlobalPosition, LinePosition};
 use edi_term::input::Input;
 use smallvec::{smallvec, SmallVec};
 

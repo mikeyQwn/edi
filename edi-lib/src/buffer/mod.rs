@@ -6,7 +6,7 @@ use crate::string::{
     search,
 };
 
-use edi_rope::{iter::LineInfo, Rope};
+use edi_rope::{Rope, iter::LineInfo};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -107,7 +107,7 @@ impl Buffer {
     fn set_cursor_line(&mut self, line: usize, offs: usize) {
         let total_lines = self.inner.total_lines();
         let actual_line = line.min(total_lines);
-        edi_lib::debug!(
+        crate::debug!(
             "setting cursor to line: {line} (actual {}),  offs: {offs}, total_lines: {}",
             actual_line,
             self.inner.total_lines()
@@ -161,7 +161,7 @@ impl Buffer {
             }
             LinePosition::CurrentWordStart => {
                 let is_at_start = self.cursor_offset - character_offset == 0;
-                edi_lib::debug!("is_at_start: {}", is_at_start);
+                crate::debug!("is_at_start: {}", is_at_start);
                 let mut offset = self.cursor_offset - character_offset;
                 if is_at_start {
                     if current_line == 0 {
@@ -195,7 +195,7 @@ impl Buffer {
             length: 0,
             contents: String::new(),
         });
-        edi_lib::debug!("target_line: {:?}", target_line);
+        crate::debug!("target_line: {:?}", target_line);
         let new_line_start_offset = target_line.length.min(line_start_offset);
         self.cursor_offset = target_line.character_offset + new_line_start_offset;
     }
@@ -208,8 +208,8 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
-    use edi_lib::vec2::Vec2;
-    use rand::{rngs::SmallRng, Rng, SeedableRng};
+    use crate::vec2::Vec2;
+    use rand::{Rng, SeedableRng, rngs::SmallRng};
 
     use super::*;
 
@@ -281,7 +281,8 @@ mod tests {
             cursor_offs += expected_pos.x;
 
             assert_eq!(
-                r.cursor_offset, cursor_offs,
+                r.cursor_offset,
+                cursor_offs,
                 "after: {dir:?}, string: {string:?}, moved: {moved}, expected_pos: {expected_pos:?}, lines: {lines:?}, original pos: {original_pos:?}, original buffer pos: {original_rope_pos}, tree:{tree}",
                 string = r.inner.chars().collect::<String>(),
                 tree = r.inner.to_ascii_tree(),

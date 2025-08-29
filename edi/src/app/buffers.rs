@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use edi::buffer::{self};
+use edi_lib::buffer::{self};
 use edi_lib::brand::{Id, Tag};
 
 use super::{buffer_bundle::BufferBundle, meta::BufferMeta, Mode};

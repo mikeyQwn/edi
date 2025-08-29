@@ -1,4 +1,4 @@
-use edi::string::highlight::get_highlights;
+use edi_lib::string::highlight::get_highlights;
 
 use crate::{
     app::state::State,

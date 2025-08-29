@@ -1,4 +1,4 @@
-use edi::buffer;
+use edi_lib::buffer;
 use edi_lib::brand::Id;
 
 use crate::{controller::Handle, event::emitter};

@@ -5,6 +5,11 @@ edition = "2024"
 
 [dependencies]
 edi-term = { path = "../edi-term/" }
+edi-rope = { path = "../edi-rope/" }
+edi-frame = { path = "../edi-frame/" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = ["small_rng"] }

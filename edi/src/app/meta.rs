@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use edi::buffer::{draw::FlushOptions, Buffer};
 use edi_frame::unit::Unit;
+use edi_lib::buffer::{draw::FlushOptions, Buffer};
 use edi_lib::{fs::filetype::Filetype, vec2::Vec2};
 use edi_term::coord::Dimensions;
 

@@ -1,5 +1,5 @@
-use edi::buffer::Buffer;
 use edi_frame::unit::Unit;
+use edi_lib::buffer::Buffer;
 use edi_lib::vec2::Vec2;
 
 use crate::{

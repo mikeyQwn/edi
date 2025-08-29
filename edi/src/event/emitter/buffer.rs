@@ -1,8 +1,7 @@
-use edi::{
-    buffer::{self, Direction},
-    string::position::{GlobalPosition, LinePosition},
+use edi_lib::{
+    brand::Id, buffer, buffer::Direction, string::position::GlobalPosition,
+    string::position::LinePosition,
 };
-use edi_lib::brand::Id;
 
 use crate::{app::state::State, controller::Handle, event::Payload};
 

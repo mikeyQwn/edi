@@ -2,7 +2,7 @@
 
 use edi_rope::Rope;
 
-use edi_lib::fs::filetype::{self, Filetype};
+use crate::fs::filetype::{self, Filetype};
 
 /// A type of the highlight
 ///

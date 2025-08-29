@@ -1,9 +1,9 @@
 //! Draw-related buffer functionality
 
+use crate::{debug, span};
 use edi_frame::cell::Color;
 use edi_frame::rect::Rect;
 use edi_frame::{cell::Cell, prelude::*};
-use edi_lib::{debug, span};
 use edi_rope::iter::LineInfo;
 use edi_term::coord::{Coord, Dimensions};
 
@@ -359,14 +359,14 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
+    use crate::vec2::Vec2;
     use edi_frame::{
         cell::{self, Color},
         surface::Surface,
     };
-    use edi_lib::vec2::Vec2;
     use edi_term::coord::{Coord, Dimensions};
 
-    use crate::buffer::{draw::FlushOptions, Buffer};
+    use crate::buffer::{Buffer, draw::FlushOptions};
 
     struct TestSurface {
         chars: Vec<Vec<char>>,
