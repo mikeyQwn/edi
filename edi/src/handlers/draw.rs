@@ -1,6 +1,6 @@
-use edi_lib::string::highlight::get_highlights;
 use edi_frame::rect::Rect;
 use edi_frame::{cell::Color, prelude::*};
+use edi_lib::string::highlight::get_highlights;
 use edi_term::escaping::ANSIColor;
 
 use crate::{

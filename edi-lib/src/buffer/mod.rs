@@ -6,7 +6,7 @@ use crate::string::{
     search,
 };
 
-use edi_rope::{Rope, iter::LineInfo};
+use edi_rope::{iter::LineInfo, Rope};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
@@ -209,7 +209,7 @@ impl Buffer {
 #[cfg(test)]
 mod tests {
     use crate::vec2::Vec2;
-    use rand::{Rng, SeedableRng, rngs::SmallRng};
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
 
     use super::*;
 

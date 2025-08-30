@@ -34,14 +34,13 @@ impl controller::QueryHandler<State> for Handler {
 
         let id = bundle.id();
         edi_lib::debug!("ID: {id:?}");
-        let prev_mode = bundle.meta().mode();
         bundle.meta_mut().set_mode(target_mode);
 
         if !bundle.is_active() {
             return;
         }
 
-        if prev_mode == Mode::Terminal {
+        if bundle.meta().flags.is_terminal() {
             let _ = app_state.buffers.remove(id);
             edi_lib::debug!(
                 "removed active buffer, buffers left: {buffers_left}, target: {target_mode:?}",

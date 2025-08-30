@@ -17,6 +17,7 @@ pub struct FlushOptions {
     pub line_numbers: bool,
 
     pub statusline: bool,
+
     pub mode: &'static str,
     pub highlights: Vec<Highlight>,
     pub line_offset: usize,

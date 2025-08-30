@@ -17,6 +17,8 @@ pub struct BufferMeta {
     pub size: Vec2<Unit>,
     pub offset: Vec2<Unit>,
     pub mode: Mode,
+
+    pub flags: Flags,
 }
 
 impl BufferMeta {
@@ -31,6 +33,8 @@ impl BufferMeta {
             size: Vec2::new(Unit::full_width(), Unit::full_height()),
             offset: Vec2::new(Unit::zero(), Unit::zero()),
             mode,
+
+            flags: Flags::empty(),
         }
     }
 
@@ -67,6 +71,11 @@ impl BufferMeta {
         self
     }
 
+    pub const fn with_flags(mut self, flags: Flags) -> Self {
+        self.flags = flags;
+        self
+    }
+
     pub fn normalize(&mut self, buf: &Buffer, dimensions: Dimensions<usize>) {
         let y = self.size.y.resolve(dimensions);
         let current_line = buf.current_line();
@@ -74,5 +83,32 @@ impl BufferMeta {
             current_line.saturating_sub(y.saturating_sub(1)),
             current_line,
         );
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Flags(u16);
+
+impl Flags {
+    const IS_TERMINAL: u8 = 0;
+
+    pub fn empty() -> Self {
+        Self(0)
+    }
+
+    pub fn set_is_terminal(self) -> Self {
+        self.set(Self::IS_TERMINAL)
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        self.get(Self::IS_TERMINAL)
+    }
+
+    fn set(&self, offs: u8) -> Self {
+        Self(self.0 | (1 << offs))
+    }
+
+    fn get(&self, offs: u8) -> bool {
+        (self.0 & (1 << offs)) != 0
     }
 }

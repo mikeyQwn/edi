@@ -9,6 +9,7 @@ use smallvec::{smallvec, SmallVec};
 
 const BUFFER_SIZE: usize = 4;
 
+use super::meta::Flags;
 use super::Mode;
 
 #[derive(Debug, Clone, Copy)]
@@ -277,7 +278,12 @@ impl InputMapper {
         self.mappings.insert((mode, input), actions);
     }
 
-    pub fn map_input(&self, input: &Input, mode: Mode) -> SmallVec<[Action; BUFFER_SIZE]> {
+    pub fn map_input(
+        &self,
+        input: &Input,
+        mode: Mode,
+        active_flags: Flags,
+    ) -> SmallVec<[Action; BUFFER_SIZE]> {
         if let Some(event) = self
             .mappings
             .get(&(&mode, input) as &dyn KeyPair<Mode, Input>)
@@ -286,6 +292,9 @@ impl InputMapper {
         }
 
         match (mode, input) {
+            (_, Input::Enter) if active_flags.is_terminal() => {
+                smallvec![Action::Submit]
+            }
             (Mode::Insert | Mode::Terminal, Input::Keypress(c)) => {
                 smallvec![Action::InsertChar(*c)]
             }

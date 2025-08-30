@@ -3,7 +3,11 @@ use edi_lib::buffer::Buffer;
 use edi_lib::vec2::Vec2;
 
 use crate::{
-    app::{meta::BufferMeta, state::State, Mode},
+    app::{
+        meta::{BufferMeta, Flags},
+        state::State,
+        Mode,
+    },
     controller::{self, Handle},
     query::{Payload, Query, SpawnQuery},
 };
@@ -42,13 +46,13 @@ impl Handler {
 
         let mut buffer = Buffer::new(":");
         buffer.cursor_offset = 1;
+        let flags = Flags::empty().set_is_terminal();
+        let meta = BufferMeta::new(Mode::Terminal)
+            .with_size(buffer_size)
+            .with_offset(buffer_offset)
+            .with_statusline(false)
+            .with_flags(flags);
 
-        state.buffers.attach_first(
-            buffer,
-            BufferMeta::new(Mode::Terminal)
-                .with_size(buffer_size)
-                .with_offset(buffer_offset)
-                .with_statusline(false),
-        );
+        state.buffers.attach_first(buffer, meta);
     }
 }
