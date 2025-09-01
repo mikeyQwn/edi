@@ -76,6 +76,7 @@ Features:
 - [ ] Config file
 - [ ] Yank and paste, registers
 - [ ] Multiple buffers, open multiple files
+- [ ] Theming support
 - [ ] Treesitter integration
 - [ ] LSP integration
 - [ ] Scripting language support
@@ -87,7 +88,10 @@ Tech debt:
     - [x] Cache leaf lenghts
     - [ ] Balance the tree (AVL/Red-black) (?)
     - [ ] Optimize inserts
+        - [ ] Merge inserts to the right node in one
+    - [ ] Return deleted parts of the rope
 - [x] Handle terminal resizing properly
+    - [ ] Only request terminal size when resize signal arrives (?)
 
 ## Known issues
 
