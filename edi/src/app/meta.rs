@@ -7,6 +7,8 @@ use edi_term::coord::Dimensions;
 
 use crate::app::Mode;
 
+use super::context::Context;
+
 #[derive(Debug)]
 pub struct BufferMeta {
     pub flush_options: FlushOptions,
@@ -76,9 +78,25 @@ impl BufferMeta {
         self
     }
 
-    pub fn normalize(&mut self, buf: &Buffer, dimensions: Dimensions<usize>) {
-        let y = self.size.y.resolve(dimensions);
+    pub fn updated_flush_options(&mut self, ctx: &Context) -> &mut FlushOptions {
+        self.flush_options
+            .set_wrap(ctx.settings.word_wrap)
+            .set_mode(self.mode.as_str())
+            .set_line_numbers(ctx.settings.line_numbers)
+            .set_statusline(self.statusline)
+    }
+
+    pub fn normalize(&mut self, ctx: &Context, buf: &Buffer, window_dimensions: Dimensions<usize>) {
+        let (x, y) = (
+            self.size.x.resolve(window_dimensions),
+            self.size.y.resolve(window_dimensions),
+        );
         let current_line = buf.current_line();
+        let opts = self.updated_flush_options(ctx);
+        let y = buf
+            .main_dimensions(Dimensions::new(x, y), buf.inner.total_lines(), opts)
+            .height;
+
         self.flush_options.line_offset = self.flush_options.line_offset.clamp(
             current_line.saturating_sub(y.saturating_sub(1)),
             current_line,

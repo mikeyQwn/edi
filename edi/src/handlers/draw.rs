@@ -33,7 +33,7 @@ impl Handler {
         state.window.clear(ANSIColor::Reset);
         state.buffers.iter_mut().rev().for_each(|bundle| {
             let (buffer, meta) = bundle.as_split_mut(ctrl);
-            meta.normalize(buffer.as_ref(), dimensions);
+            meta.normalize(ctx, buffer.as_ref(), dimensions);
 
             let (offset_x, offset_y) = (
                 meta.offset.x.resolve(dimensions),
@@ -47,14 +47,9 @@ impl Handler {
             let mut bound = Rect::new(offset_x, offset_y, size_x, size_y).bind(&mut state.window);
             bound.clear(Color::None);
 
-            let opts = meta
-                .flush_options
-                .set_wrap(ctx.settings.word_wrap)
-                .set_mode(meta.mode.as_str())
-                .set_line_numbers(ctx.settings.line_numbers)
-                .set_statusline(meta.statusline);
-
-            buffer.as_ref().flush(&mut bound, opts);
+            buffer
+                .as_ref()
+                .flush(&mut bound, &meta.updated_flush_options(ctx));
         });
 
         if let Err(err) = state.window.render() {

@@ -30,6 +30,31 @@ struct DrawBounds {
     main: Rect,
 }
 
+impl DrawBounds {
+    pub fn calculate(
+        Dimensions { width, height }: Dimensions<usize>,
+        total_lines: usize,
+        opts: &FlushOptions,
+    ) -> Self {
+        let buffer_rect = Rect::new_in_origin(width, height);
+        let statusline_height = if opts.statusline { 1 } else { 0 };
+        let line_number_offset = if opts.line_numbers {
+            let total_lines = total_lines.max(1);
+            (total_lines.to_string().len() + 1).max(5)
+        } else {
+            0
+        };
+        let (rest, statusline) =
+            buffer_rect.split_vertical(height.saturating_sub(statusline_height));
+        let (line_numbers, main) = rest.split_horizontal(line_number_offset);
+        Self {
+            statusline,
+            line_numbers,
+            main,
+        }
+    }
+}
+
 impl FlushOptions {
     #[must_use]
     pub const fn with_wrap(mut self, wrap: bool) -> Self {
@@ -115,29 +140,30 @@ impl Buffer {
         let _span = span!("buffer::flush");
         let start = std::time::Instant::now();
 
-        let line_number_offset = if opts.line_numbers {
-            let total_lines = self.inner.total_lines().max(1);
-            (total_lines.to_string().len() + 1).max(5)
-        } else {
-            0
-        };
-
-        let Dimensions { width, height } = surface.dimensions();
-        let buffer_rect = Rect::new_in_origin(width, height);
-        let (rest, statusline) = buffer_rect.split_vertical(height.saturating_sub(1));
-        let (line_numbers, main) = rest.split_horizontal(line_number_offset);
-        let bounds = DrawBounds {
-            statusline,
-            line_numbers,
-            main,
-        };
-
-        let mut flush_state = FlushState::new(&opts.highlights, bounds);
-        // debug!("cursor_offset: {} opts: {:?}", self.cursor_offset, opts);
+        let mut flush_state = FlushState::new(
+            &opts.highlights,
+            DrawBounds::calculate(surface.dimensions(), self.inner.total_lines(), opts),
+        );
+        debug!(
+            "cursor_offset: {}, opts: {:?}, len: {}",
+            self.cursor_offset,
+            opts,
+            self.inner.len()
+        );
 
         self.flush_lines(surface, opts, &mut flush_state);
 
         debug!("finished in {}ms", start.elapsed().as_millis());
+    }
+
+    pub fn main_dimensions(
+        &self,
+        dimensions: Dimensions<usize>,
+        total_lines: usize,
+        opts: &FlushOptions,
+    ) -> Dimensions<usize> {
+        let main = DrawBounds::calculate(dimensions, total_lines, opts).main;
+        Dimensions::new(main.width(), main.height())
     }
 
     fn flush_lines<S: Surface>(
@@ -148,9 +174,11 @@ impl Buffer {
     ) {
         let _span = span!("flush_lines");
 
-        let available_height = surface.dimensions().height;
+        let available_height = state.bounds.main.height();
 
-        self.flush_statusline(surface, opts, state);
+        if opts.statusline {
+            self.flush_statusline(surface, opts, state);
+        }
 
         self.inner
             .lines()

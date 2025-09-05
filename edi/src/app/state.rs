@@ -50,7 +50,8 @@ impl State {
         let mut meta = BufferMeta::new(Mode::Normal)
             .with_filepath(Some(filepath.into()))
             .with_filetype(filetype)
-            .with_size(buff_dimensions);
+            .with_size(buff_dimensions)
+            .with_statusline(true);
 
         meta.flush_options = meta
             .flush_options
