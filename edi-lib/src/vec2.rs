@@ -32,6 +32,11 @@ impl<T> Vec2<T> {
     pub fn from_dims(Dimensions { width, height }: Dimensions<T>) -> Self {
         Self::new(width, height)
     }
+
+    #[must_use]
+    pub fn into_dims(self) -> Dimensions<T> {
+        Dimensions::new(self.x, self.y)
+    }
 }
 
 impl Vec2<usize> {

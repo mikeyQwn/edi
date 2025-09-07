@@ -66,7 +66,7 @@ impl Handler {
         };
 
         let (buffer, meta) = bundle.as_split_mut(ctrl);
-        meta.flush_options.highlights = get_highlights(&buffer.as_ref().inner, &meta.filetype);
+        meta.set_highlights(get_highlights(&buffer.as_ref().inner, &meta.filetype));
         edi_lib::debug!("buffer with id: {id:?} rehighlighted", id = bundle.id());
     }
 }

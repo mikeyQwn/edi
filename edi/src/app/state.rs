@@ -1,6 +1,7 @@
 use edi_frame::unit::Unit;
 use edi_lib::{
-    buffer::Buffer, fs::filetype::Filetype, string::highlight::get_highlights, vec2::Vec2,
+    brand::Id, buffer::Buffer, fs::filetype::Filetype, string::highlight::get_highlights,
+    vec2::Vec2,
 };
 use edi_term::window::Window;
 
@@ -47,15 +48,13 @@ impl State {
         let buffer = Buffer::new(&contents);
         let filetype = Filetype::from(filepath);
 
-        let mut meta = BufferMeta::new(Mode::Normal)
+        let hl = get_highlights(&buffer.inner, &filetype);
+        let meta = BufferMeta::new(Mode::Normal)
             .with_filepath(Some(filepath.into()))
             .with_filetype(filetype)
             .with_size(buff_dimensions)
-            .with_statusline(true);
-
-        meta.flush_options = meta
-            .flush_options
-            .with_highlights(get_highlights(&buffer.inner, &meta.filetype))
+            .with_statusline(true)
+            .with_highlights(hl)
             .with_line_numbers(true);
 
         self.buffers.attach(buffer, meta);
@@ -65,12 +64,12 @@ impl State {
 
     pub fn within_active_buffer<F>(&mut self, mut f: F, ctrl: &mut Handle<State>)
     where
-        F: FnMut(emitter::buffer::Buffer, &mut BufferMeta),
+        F: FnMut(Id, emitter::buffer::Buffer, &mut BufferMeta),
     {
         let _ = self
             .buffers
             .active_mut()
-            .map(|bundle| bundle.as_split_mut(ctrl))
-            .map(|(buffer, meta)| f(buffer, meta));
+            .map(|bundle| (bundle.id(), bundle.as_split_mut(ctrl)))
+            .map(|(id, (buffer, meta))| f(id, buffer, meta));
     }
 }

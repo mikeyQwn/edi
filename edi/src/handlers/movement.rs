@@ -39,7 +39,7 @@ impl Handler {
         repeat: usize,
     ) {
         state.within_active_buffer(
-            |mut buffer, meta| {
+            |_, mut buffer, meta| {
                 app::handle_move(&mut buffer, meta, action, repeat);
                 buffer.ctrl().query_redraw();
             },

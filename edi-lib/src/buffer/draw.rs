@@ -12,14 +12,14 @@ use crate::string::highlight::{Highlight, Type};
 use super::Buffer;
 
 #[derive(Debug)]
-pub struct FlushOptions {
+pub struct FlushOptions<'sl, 'hl> {
     pub wrap: bool,
     pub line_numbers: bool,
 
     pub statusline: bool,
 
-    pub mode: &'static str,
-    pub highlights: Vec<Highlight>,
+    pub mode: &'sl str,
+    pub highlights: &'hl [Highlight],
     pub line_offset: usize,
 }
 
@@ -55,7 +55,7 @@ impl DrawBounds {
     }
 }
 
-impl FlushOptions {
+impl<'sl, 'hl> FlushOptions<'sl, 'hl> {
     #[must_use]
     pub const fn with_wrap(mut self, wrap: bool) -> Self {
         self.wrap = wrap;
@@ -63,19 +63,13 @@ impl FlushOptions {
     }
 
     #[must_use]
-    pub const fn set_wrap(&mut self, wrap: bool) -> &mut Self {
-        self.wrap = wrap;
-        self
-    }
-
-    #[must_use]
-    pub const fn set_statusline(&mut self, statusline: bool) -> &mut Self {
+    pub const fn with_statusline(mut self, statusline: bool) -> Self {
         self.statusline = statusline;
         self
     }
 
     #[must_use]
-    pub const fn set_mode(&mut self, mode: &'static str) -> &mut Self {
+    pub const fn with_mode(mut self, mode: &'static str) -> Self {
         self.mode = mode;
         self
     }
@@ -87,13 +81,7 @@ impl FlushOptions {
     }
 
     #[must_use]
-    pub const fn set_line_numbers(&mut self, line_numbers: bool) -> &mut Self {
-        self.line_numbers = line_numbers;
-        self
-    }
-
-    #[must_use]
-    pub fn with_highlights(mut self, highlights: Vec<Highlight>) -> Self {
+    pub fn with_highlights(mut self, highlights: &'hl [Highlight]) -> Self {
         self.highlights = highlights;
         self
     }
@@ -105,14 +93,14 @@ impl FlushOptions {
     }
 }
 
-impl Default for FlushOptions {
+impl Default for FlushOptions<'_, '_> {
     fn default() -> Self {
         Self {
             wrap: true,
             mode: "",
             statusline: false,
             line_numbers: false,
-            highlights: Vec::new(),
+            highlights: &[],
             line_offset: 0,
         }
     }

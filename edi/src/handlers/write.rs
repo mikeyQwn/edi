@@ -1,9 +1,9 @@
 use edi_lib::string::highlight::get_highlights;
 
 use crate::{
-    app::state::State,
+    app::{buffers::Selector, state::State},
     controller::{self, Handle},
-    query::{Payload, Query, WriteQuery},
+    query::{DrawQuery, Payload, Query, WriteQuery},
 };
 
 pub struct Handler;
@@ -37,7 +37,7 @@ impl controller::QueryHandler<State> for Handler {
 impl Handler {
     fn write_char(state: &mut State, c: char, ctrl: &mut Handle<State>) {
         state.within_active_buffer(
-            |mut buffer, meta| {
+            |id, mut buffer, _| {
                 let is_empty = buffer.as_ref().inner.is_empty();
                 buffer.write(c);
                 // Hack to always add a newline at the end of the file
@@ -45,8 +45,9 @@ impl Handler {
                     buffer.write('\n');
                     buffer.set_cursor_offset(buffer.as_ref().cursor_offset - 1);
                 }
-                meta.flush_options.highlights =
-                    get_highlights(&buffer.as_ref().inner, &meta.filetype);
+                buffer
+                    .ctrl()
+                    .query_draw(DrawQuery::Rehighlight(Selector::WithId(id)));
             },
             ctrl,
         );
@@ -54,10 +55,11 @@ impl Handler {
 
     fn delete_char(state: &mut State, ctrl: &mut Handle<State>) {
         state.within_active_buffer(
-            |mut buffer, meta| {
+            |id, mut buffer, _| {
                 buffer.delete();
-                meta.flush_options.highlights =
-                    get_highlights(&buffer.as_ref().inner, &meta.filetype);
+                buffer
+                    .ctrl()
+                    .query_draw(DrawQuery::Rehighlight(Selector::WithId(id)));
             },
             ctrl,
         );

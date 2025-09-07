@@ -31,6 +31,10 @@ impl Buffer {
         }
     }
 
+    pub fn total_lines(&self) -> usize {
+        self.inner.total_lines()
+    }
+
     /// # Panics
     ///
     /// Never panics

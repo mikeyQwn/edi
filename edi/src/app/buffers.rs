@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use edi_lib::buffer::{self};
 use edi_lib::brand::{Id, Tag};
+use edi_lib::buffer::{self};
 
 use super::{buffer_bundle::BufferBundle, meta::BufferMeta, Mode};
 
@@ -33,6 +33,7 @@ impl Buffers {
         }
     }
 
+    #[allow(unused)]
     pub fn active_buffer_mode(&self) -> Option<Mode> {
         self.active().map(BufferBundle::meta).map(BufferMeta::mode)
     }
