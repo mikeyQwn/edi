@@ -1,5 +1,6 @@
 //! Draw-related buffer functionality
 
+use crate::itoa::itoa_into;
 use crate::{debug, span};
 use edi_frame::cell::Color;
 use edi_frame::rect::Rect;
@@ -31,27 +32,40 @@ struct DrawBounds {
 }
 
 impl DrawBounds {
+    const LINE_NUMBER_MAX_WIDTH: usize = 5;
     pub fn calculate(
         Dimensions { width, height }: Dimensions<usize>,
         total_lines: usize,
         opts: &FlushOptions,
     ) -> Self {
         let buffer_rect = Rect::new_in_origin(width, height);
-        let statusline_height = if opts.statusline { 1 } else { 0 };
-        let line_number_offset = if opts.line_numbers {
-            let total_lines = total_lines.max(1);
-            (total_lines.to_string().len() + 1).max(5)
-        } else {
-            0
-        };
+        let statusline_height = Self::statusline_height(opts);
+        let line_number_width = Self::line_number_width(total_lines, opts);
         let (rest, statusline) =
             buffer_rect.split_vertical(height.saturating_sub(statusline_height));
-        let (line_numbers, main) = rest.split_horizontal(line_number_offset);
+        let (line_numbers, main) = rest.split_horizontal(line_number_width);
         Self {
             statusline,
             line_numbers,
             main,
         }
+    }
+
+    pub const fn statusline_height(opts: &FlushOptions) -> usize {
+        if opts.statusline { 1 } else { 0 }
+    }
+
+    const fn const_max(a: usize, b: usize) -> usize {
+        if a > b { a } else { b }
+    }
+
+    pub const fn line_number_width(total_lines: usize, opts: &FlushOptions) -> usize {
+        if !opts.line_numbers {
+            return 0;
+        }
+
+        let total_digits = Self::const_max(total_lines, 1).ilog10() as usize + 1;
+        Self::const_max(total_digits + 1, Self::LINE_NUMBER_MAX_WIDTH)
     }
 }
 
@@ -241,22 +255,23 @@ impl Buffer {
         flush_state: &FlushState,
         surface: &mut S,
     ) {
-        let line_number_str = line_number.to_string();
+        let mut line_nr_buf = [0u8; 20];
+        let line_number_bytes = itoa_into(line_number as u64, &mut line_nr_buf);
         let offs = flush_state
             .bounds
             .line_numbers
             .width()
-            .saturating_sub(line_number_str.len())
+            .saturating_sub(line_number_bytes.len())
             .saturating_sub(1);
 
-        line_number_str
-            .chars()
+        line_number_bytes
+            .iter()
             .take(flush_state.bounds.line_numbers.width().saturating_sub(1))
             .enumerate()
             .for_each(|(i, c)| {
                 flush_state.bounds.line_numbers.set(
                     Coord::new(offs + i, flush_state.current_y),
-                    Cell::new(c, Color::Cyan, Color::None),
+                    Cell::new(*c as char, Color::Cyan, Color::None),
                     surface,
                 );
             });
@@ -286,7 +301,7 @@ impl Buffer {
 
             let character_offset = line_character_offset + idx;
 
-            let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) else {
+            let Some(char_pos) = Self::get_char_pos(x_offset, opts, flush_state) else {
                 continue;
             };
 
@@ -323,7 +338,7 @@ impl Buffer {
         }
 
         if self.cursor_offset == line_character_offset + length {
-            if let Some(char_pos) = Self::get_char_pos(surface, x_offset, opts, flush_state) {
+            if let Some(char_pos) = Self::get_char_pos(x_offset, opts, flush_state) {
                 flush_state.bounds.main.move_cursor(char_pos, surface);
             }
         }
@@ -336,13 +351,8 @@ impl Buffer {
         }
     }
 
-    fn get_char_pos<S: Surface>(
-        surface: &S,
-        x_offset: usize,
-        opts: &FlushOptions,
-        state: &FlushState,
-    ) -> Option<Coord> {
-        let Dimensions { width, height } = surface.dimensions();
+    fn get_char_pos(x_offset: usize, opts: &FlushOptions, state: &FlushState) -> Option<Coord> {
+        let (width, height) = (state.bounds.main.width(), state.bounds.main.height());
         let y_offset = state.current_y;
         let pos = if opts.wrap {
             Coord::new(x_offset % width, y_offset + x_offset / width)
