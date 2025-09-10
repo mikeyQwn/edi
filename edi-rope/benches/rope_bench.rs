@@ -1,6 +1,8 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use edi_rope::Rope;
 
+const CHUNK_SIZE: usize = 16;
+
 const LOREM_SMALL: &str = include_str!("small_ipsum.txt");
 const LOREM_MEDIUM: &str = include_str!("medium_ipsum.txt");
 const LOREM_BIG: &str = include_str!("big_ipsum.txt");
@@ -23,9 +25,9 @@ impl RopeSize {
     fn create_fn(&self) -> fn() -> Rope {
         match self {
             RopeSize::Empty => || Rope::new(),
-            RopeSize::Small => || Rope::from(LOREM_SMALL),
-            RopeSize::Medium => || Rope::from(LOREM_MEDIUM),
-            RopeSize::Big => || Rope::from(LOREM_BIG),
+            RopeSize::Small => || Rope::from_str_chunked(LOREM_SMALL, CHUNK_SIZE),
+            RopeSize::Medium => || Rope::from_str_chunked(LOREM_MEDIUM, CHUNK_SIZE),
+            RopeSize::Big => || Rope::from_str_chunked(LOREM_BIG, CHUNK_SIZE),
         }
     }
 

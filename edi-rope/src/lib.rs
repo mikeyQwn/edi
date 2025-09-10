@@ -393,6 +393,32 @@ impl Rope {
         self.root.index_of_line(line)
     }
 
+    /// Converts a string into the rope. The number of bytes in a rope leaf may never exceed
+    /// `chunk_size` + 3
+    #[must_use]
+    pub fn from_str_chunked(s: &str, chunk_size: usize) -> Rope {
+        let mut rope = Rope::default();
+        let mut offset = 0;
+        while offset < s.len() {
+            let mut end = (offset + chunk_size).min(s.len());
+            while !s.is_char_boundary(end) {
+                end += 1;
+                // TODO: handle this case
+                assert!(offset < s.len(), "invalid utf-8 encoded string");
+            }
+
+            rope.concat(Rope {
+                root: Box::new(Node::new_leaf(&s[offset..end])),
+            });
+            offset = end;
+        }
+
+        #[cfg(debug_assertions)]
+        rope.validate_newlines();
+
+        rope
+    }
+
     fn normalize_range(&self, range: impl std::ops::RangeBounds<usize>) -> Range<usize> {
         let start = match range.start_bound() {
             std::ops::Bound::Included(&s) => s,
@@ -439,27 +465,8 @@ impl Rope {
 
 impl From<&str> for Rope {
     fn from(s: &str) -> Self {
-        const CHUNK_SIZE: usize = 1024 * 1024;
-        let mut rope = Rope::default();
-        let mut offset = 0;
-        while offset < s.len() {
-            let mut end = (offset + CHUNK_SIZE).min(s.len());
-            while !s.is_char_boundary(end) {
-                end += 1;
-                // TODO: handle this case
-                assert!(offset < s.len(), "invalid utf-8 encoded file");
-            }
-
-            rope.concat(Rope {
-                root: Box::new(Node::new_leaf(&s[offset..end])),
-            });
-            offset = end;
-        }
-
-        #[cfg(debug_assertions)]
-        rope.validate_newlines();
-
-        rope
+        const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
+        Self::from_str_chunked(s, DEFAULT_CHUNK_SIZE)
     }
 }
 
